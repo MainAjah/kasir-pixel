@@ -16,6 +16,7 @@ type Receipt = {
     number: string;
     time: string;
     cashier: string | null;
+    member: { number: string; name: string } | null;
     total: number;
     tendered: number | null;
     change: number | null;
@@ -57,6 +58,12 @@ export default function Struk({
                         <div>{sale.number}</div>
                         <div>{sale.time}</div>
                         <div>Kasir: {sale.cashier ?? '-'}</div>
+                        {sale.member && (
+                            <div>
+                                Anggota: {sale.member.name} (
+                                {sale.member.number})
+                            </div>
+                        )}
                     </div>
 
                     {sale.is_voided && (

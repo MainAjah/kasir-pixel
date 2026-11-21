@@ -23,6 +23,7 @@ class CompleteSaleRequest extends FormRequest
             'items.*.product_unit_id' => ['required', 'integer'],
             'items.*.qty' => ['required', 'integer', 'min:1', 'max:100000'],
             'tendered' => ['required', 'integer', 'min:0', 'max:10000000000'],
+            'member_id' => ['nullable', 'integer'],
         ];
     }
 

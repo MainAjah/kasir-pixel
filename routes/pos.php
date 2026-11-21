@@ -1,6 +1,7 @@
 <?php
 
 use App\Http\Controllers\Pos\LookupController;
+use App\Http\Controllers\Pos\MemberLookupController;
 use App\Http\Controllers\Pos\PosController;
 use App\Http\Controllers\Pos\SaleController;
 use App\Http\Controllers\Pos\ShiftController;
@@ -18,6 +19,7 @@ Route::middleware(['auth', 'role:kasir|admin'])->prefix('kasir')->group(function
 
     Route::get('barcode/{barcode}', [LookupController::class, 'barcode'])->name('pos.lookup.barcode');
     Route::get('cari', [LookupController::class, 'search'])->name('pos.lookup.search');
+    Route::get('anggota/cari', [MemberLookupController::class, 'search'])->name('pos.lookup.members');
 
     Route::get('penjualan', [SaleController::class, 'index'])->name('pos.sales.index');
     Route::post('penjualan', [SaleController::class, 'store'])->name('pos.sales.store');

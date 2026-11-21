@@ -8,6 +8,7 @@ use App\Enums\StockMovementType;
 use App\Events\SaleCompleted;
 use App\Exceptions\PosException;
 use App\Models\CashShift;
+use App\Models\Member;
 use App\Models\ProductUnit;
 use App\Models\Sale;
 use App\Models\User;
@@ -26,16 +27,25 @@ class CompleteSale
     /**
      * @param  array<int, array{product_unit_id: int|string, qty: int|string}>  $items
      */
-    public function handle(User $cashier, array $items, int $tendered): Sale
+    public function handle(User $cashier, array $items, int $tendered, ?int $memberId = null): Sale
     {
         $lines = $this->mergeLines($items);
 
-        return DB::transaction(function () use ($cashier, $lines, $tendered) {
+        return DB::transaction(function () use ($cashier, $lines, $tendered, $memberId) {
             // Kunci baris shift: tidak bisa bersamaan dengan penutupan shift.
             $shift = CashShift::where('user_id', $cashier->id)->whereNull('closed_at')->lockForUpdate()->first();
 
             if ($shift === null) {
                 throw PosException::invalid('Buka shift dulu sebelum menjual.');
+            }
+
+            // Anggota hanya penanda dan opsional; harus ada dan masih aktif.
+            if ($memberId !== null) {
+                $member = Member::whereKey($memberId)->sharedLock()->first();
+
+                if ($member === null || ! $member->isActive()) {
+                    throw PosException::invalid('Anggota tidak ditemukan atau sudah keluar.');
+                }
             }
 
             $units = ProductUnit::with('product')->whereIn('id', array_keys($lines))->get()->keyBy('id');
@@ -69,6 +79,7 @@ class CompleteSale
             $sale = Sale::create([
                 'number' => $this->nextNumber(),
                 'cash_shift_id' => $shift->id,
+                'member_id' => $memberId,
                 'total' => $total,
                 'created_by' => $cashier->id,
             ]);

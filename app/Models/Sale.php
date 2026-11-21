@@ -17,11 +17,12 @@ use Illuminate\Support\Carbon;
  * @property int $id
  * @property string $number
  * @property int $cash_shift_id
+ * @property int|null $member_id
  * @property int $total
  * @property int $created_by
  * @property Carbon $created_at
  */
-#[Fillable(['number', 'cash_shift_id', 'total', 'created_by'])]
+#[Fillable(['number', 'cash_shift_id', 'member_id', 'total', 'created_by'])]
 class Sale extends Model
 {
     use AppendOnly, HasFactory;
@@ -35,6 +36,12 @@ class Sale extends Model
     public function cashShift(): BelongsTo
     {
         return $this->belongsTo(CashShift::class);
+    }
+
+    /** Anggota pembeli (opsional, hanya penanda). @return BelongsTo<Member, $this> */
+    public function member(): BelongsTo
+    {
+        return $this->belongsTo(Member::class)->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */

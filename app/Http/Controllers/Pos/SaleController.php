@@ -25,7 +25,7 @@ class SaleController extends Controller
         $data = $request->validated();
 
         try {
-            $sale = $action->handle($request->user(), $data['items'], $data['tendered']);
+            $sale = $action->handle($request->user(), $data['items'], $data['tendered'], $data['member_id'] ?? null);
         } catch (PosException|StockException $e) {
             // Keranjang tetap ada di browser; kasir bisa memperbaikinya.
             return back()->withErrors(['cart' => $e->getMessage()]);
@@ -87,7 +87,7 @@ class SaleController extends Controller
             403,
         );
 
-        $sale->load(['items', 'payments', 'cashier:id,name', 'void']);
+        $sale->load(['items', 'payments', 'cashier:id,name', 'void', 'member:id,member_number,name']);
         $payment = $sale->payments->first();
 
         return Inertia::render('kasir/struk', [
@@ -96,6 +96,7 @@ class SaleController extends Controller
                 'number' => $sale->number,
                 'time' => $sale->created_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i'),
                 'cashier' => $sale->cashier?->name,
+                'member' => $sale->member ? ['number' => $sale->member->member_number, 'name' => $sale->member->name] : null,
                 'total' => $sale->total,
                 'tendered' => $payment?->tendered,
                 'change' => $payment?->change,

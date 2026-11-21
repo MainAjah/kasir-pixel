@@ -11,6 +11,8 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { formatNumber, formatRupiah } from '@/lib/format';
 import { emitStoreEvent } from '@/lib/store-events';
+import type { MemberHit } from '@/types';
+import MemberPicker from './member-picker';
 
 export type PosShift = {
     id: number;
@@ -66,6 +68,7 @@ export default function PosScreen({
     const [tendered, setTendered] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [paying, setPaying] = useState(false);
+    const [member, setMember] = useState<MemberHit | null>(null);
 
     const scanRef = useRef<HTMLInputElement>(null);
     const cartEmptyRef = useRef(true);
@@ -228,6 +231,7 @@ export default function PosScreen({
                     qty: l.qty,
                 })),
                 tendered: tenderedNumber,
+                member_id: member?.id ?? null,
             },
             {
                 preserveScroll: true,
@@ -481,6 +485,8 @@ export default function PosScreen({
                         {formatRupiah(total)}
                     </div>
                 </div>
+
+                <MemberPicker member={member} onChange={setMember} />
 
                 <div className="grid gap-2">
                     <Label htmlFor="tendered">Uang diterima (Rp)</Label>

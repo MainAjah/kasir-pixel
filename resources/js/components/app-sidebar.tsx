@@ -9,11 +9,13 @@ import {
     PackagePlus,
     ShoppingCart,
     Tags,
+    Users,
 } from 'lucide-react';
 import CategoryController from '@/actions/App/Http/Controllers/Inventory/CategoryController';
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
 import StockAdjustmentController from '@/actions/App/Http/Controllers/Inventory/StockAdjustmentController';
 import StockReceiptController from '@/actions/App/Http/Controllers/Inventory/StockReceiptController';
+import MemberController from '@/actions/App/Http/Controllers/Members/MemberController';
 import PosController from '@/actions/App/Http/Controllers/Pos/PosController';
 import SaleController from '@/actions/App/Http/Controllers/Pos/SaleController';
 import AppLogo from '@/components/app-logo';
@@ -49,6 +51,13 @@ const posNavItems: NavItem[] = [
         icon: History,
     },
 ];
+
+// Anggota dan simpanan: admin dan bendahara.
+const memberNavItem: NavItem = {
+    title: 'Anggota',
+    href: MemberController.index(),
+    icon: Users,
+};
 
 const readOnlyProductNav: NavItem = {
     title: 'Produk',
@@ -89,11 +98,14 @@ export function AppSidebar() {
     const { auth } = usePage().props;
     const isAdmin = auth.roles.includes('admin');
     const isKasir = auth.roles.includes('kasir');
+    const isBendahara = auth.roles.includes('bendahara');
     const navItems = isAdmin
-        ? [...mainNavItems, ...posNavItems, ...inventoryNavItems]
+        ? [...mainNavItems, ...posNavItems, ...inventoryNavItems, memberNavItem]
         : isKasir
           ? [...mainNavItems, ...posNavItems, readOnlyProductNav]
-          : mainNavItems;
+          : isBendahara
+            ? [...mainNavItems, memberNavItem]
+            : mainNavItems;
 
     return (
         <Sidebar collapsible="icon" variant="inset">

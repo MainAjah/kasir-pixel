@@ -181,7 +181,7 @@ Waktu: database menyimpan UTC; tampilan dan input tanggal memakai `config('app.d
 
 Aturan: satu shift aktif per kasir (dicek di Action `OpenShift`, dengan kunci baris pengguna). Transisi hanya `aktif → tutup`, sekali. Setelah tutup, baris tidak diubah (dijaga di model `CashShift`; tanpa trigger). `CloseShift` dan `VoidSale` sama-sama mengunci baris shift, jadi pembatalan tidak bisa menyelinap saat shift ditutup. Tabel dibuat di Tahap 3.
 
-**`sales`**: dibuat sekali dalam keadaan selesai, tidak pernah diubah (trait `AppendOnly`, tanpa soft delete). **Tahap 3 menunda diskon dan `member_id`**: kolom `member_id` (dengan FK) ditambah di Tahap 4, kolom diskon lewat migration baru bila nanti dibutuhkan; untuk sekarang `total = Σ line_total`.
+**`sales`**: dibuat sekali dalam keadaan selesai, tidak pernah diubah (trait `AppendOnly`, tanpa soft delete). **Tahap 3 menunda diskon**; kolom diskon lewat migration baru bila nanti dibutuhkan, untuk sekarang `total = Σ line_total`. **`member_id`** (nullable, FK ke `members`) ditambah di Tahap 4 sebagai penanda anggota pembeli; tanpa diskon, poin, atau pembayaran dengan simpanan.
 
 | Kolom | Tipe | Keterangan |
 | --- | --- | --- |
@@ -228,20 +228,21 @@ Status penjualan dibaca dari ada tidaknya baris `sale_voids`. Foreign key `stock
 
 ### 3.4 Anggota dan simpanan
 
-**`members`**
+**`members`** (dibuat di Tahap 4)
 
 | Kolom | Tipe | Keterangan |
 | --- | --- | --- |
-| member_number | string unik | `A-000123`, tidak dipakai ulang (hanya soft delete) |
+| member_number | string unik | `A-000123`, tidak dipakai ulang: dibuat dari nomor terbesar termasuk anggota yang di-soft-delete (`CreateMember`) |
 | name | string | |
 | phone, address | string null | |
 | joined_at | date | |
 | status | enum | `active`, `exited` |
 | exited_at | date null | |
-| qr_token | string unik | isi QR kartu anggota (token acak) |
 | timestamps, deleted_at | | |
 
-**Tarif simpanan** (keputusan Q3): tidak ada tabel `savings_rates`. Besaran simpanan pokok dan wajib ada di berkas `config/koperasi.php` (dibuat di Tahap 4).
+`qr_token` (kartu anggota QR) tidak dibuat di Tahap 4; ditambah lewat migration baru bila nanti dibutuhkan. Anggota tidak punya kolom saldo. Nomor, tanggal bergabung, dan status tidak bisa diubah dari form; status berubah hanya lewat `ExitMember`.
+
+**Tarif simpanan** (keputusan Q3): tidak ada tabel `savings_rates`. Besaran ada di `config/koperasi.php` (`savings.pokok`, `savings.wajib`, `savings.sukarela_min`; bisa diganti lewat `.env`). Angka bawaan (Rp 100.000, Rp 25.000 per bulan, minimal Rp 1.000) hanyalah contoh, bukan aturan koperasi sungguhan.
 
 **`savings_ledger`** (ledger simpanan)
 
@@ -252,14 +253,14 @@ Status penjualan dibaca dari ada tidaknya baris `sale_voids`. Foreign key `stock
 | savings_type | enum | `pokok`, `wajib`, `sukarela` |
 | entry_type | enum | `deposit`, `withdrawal`, `reversal` |
 | amount | rupiah ≠ 0, bertanda | `+` setor, `−` tarik |
-| balance_after | rupiah ≥ 0 | saldo anggota untuk jenis ini |
+| balance_after | rupiah tak bertanda | saldo anggota untuk jenis ini (tidak pernah minus) |
 | period | date null | bulan wajib yang dibayar (tanggal 1) |
 | reverses_entry_id | FK null, unik | |
 | note | string null | wajib untuk `reversal` |
 | occurred_at | datetime | |
 | created_by, created_at | | |
 
-Constraint: `CHECK (amount <> 0)`, `CHECK (balance_after >= 0)`. Indeks `(member_id, savings_type, id)`.
+Constraint: `CHECK (amount <> 0)`, `balance_after` unsigned, `reverses_entry_id` unik. Indeks `(member_id, savings_type, id)` dan `(member_id, period)`. Tanpa `updated_at`, tanpa soft delete. Hanya `PostSaving` yang menulis ke tabel ini. Perlindungan hanya di model (`AppendOnly`) dan satu pintu; tanpa trigger database.
 
 ### 3.5 Umum
 
@@ -297,13 +298,14 @@ Nomor dokumen (`INV-`, `BM-`, `SP-`, `A-`) dibuat dari nomor urut terakhir hari 
 | # | Aturan |
 | --- | --- |
 | T1 | Saldo per anggota per jenis = `balance_after` baris terakhir = Σ `amount`. |
-| T2 | `PostSaving` menolak mutasi yang membuat saldo < 0. |
-| T3 | **Pokok**: disetor sekali sebesar tarif. Tidak bisa ditarik selama anggota aktif. |
-| T4 | **Wajib**: setoran mengisi `period`, satu bulan sekali (baris yang sudah dibalik tidak dihitung). Ditarik hanya saat keluar. |
-| T5 | **Sukarela**: setor dan tarik kapan saja selama saldo tidak minus. |
-| T6 | **Keluar anggota** (`ExitMember`): satu transaksi, tarik semua saldo lalu status `exited`. Setelah itu tidak ada mutasi baru kecuali pembalikan. |
-| T7 | Pembalikan: `amount` = −`amount` asal, `reverses_entry_id` unik, alasan wajib. |
-| T8 | Hanya `bendahara` (dan `admin`) yang mencatat simpanan. |
+| T2 | `PostSaving` menolak mutasi yang membuat saldo < 0, dan memakai kunci baris anggota (`lockForUpdate`) dalam satu transaksi. |
+| T3 | **Pokok**: disetor sekali sebesar tarif penuh (tidak dicicil). Setoran kedua ditolak selama yang pertama belum dibalik. Tidak bisa ditarik manual selama anggota aktif. |
+| T4 | **Wajib**: satu setoran = satu bulan (`period`, disimpan tanggal 1), sebesar tarif saat itu. Boleh bulan lampau mulai bulan bergabung sampai bulan berjalan; bulan depan ditolak. Satu bulan sekali (baris yang sudah dibalik tidak dihitung). Tiap baris menyimpan nominalnya sendiri; tarif baru tidak mengubah baris lama. Tidak bisa ditarik manual. |
+| T5 | **Sukarela**: setor (minimal sesuai config) dan tarik kapan saja selama saldo tidak minus. |
+| T6 | **Keluar anggota** (`ExitMember`): satu transaksi, tarik semua saldo (satu baris tarik per jenis yang saldonya > 0, jalur `withdrawForExit` yang boleh menarik pokok dan wajib), lalu status `exited` dan `exited_at`. Gagal di tengah tidak menyisakan penarikan sebagian. Setelah itu tidak ada setoran atau penarikan baru, hanya pembalikan. Tidak bisa bergabung kembali. |
+| T7 | Pembalikan: `amount` = −`amount` asal, `reverses_entry_id` unik, alasan wajib, baris pembalik tidak bisa dibalik lagi, hasilnya tidak boleh membuat saldo minus. Membalik setoran pokok atau wajib membebaskan lagi pokok atau bulan itu. Dicatat di `activity_logs` (`savings.reversed`). |
+| T8 | Hanya `bendahara` dan `admin` yang mencatat dan membalik simpanan. Kasir hanya mencari anggota di layar kasir (hanya id, nomor, nama; tanpa saldo atau kontak). |
+| T9 | Pendaftaran anggota tidak otomatis menyetor pokok; daftar anggota menandai "pokok belum dibayar". Uang simpanan terpisah dari laci kasir dan tidak memengaruhi `expected_cash`. |
 
 ## 6. Aturan kasir dan uang
 
@@ -346,15 +348,17 @@ Nomor dokumen (`INV-`, `BM-`, `SP-`, `A-`) dibuat dari nomor urut terakhir hari 
 - Tambahan yang sudah ada: stok kurang menolak seluruh penjualan tanpa sisa data; gagal di baris kedua membatalkan baris pertama; satuan dus dan konversi; salinan nama dan harga bertahan; nomor INV berurutan; kembalian tidak masuk `expected_cash`; hak akses kasir, admin, bendahara, dan tamu; kasir tidak bisa melihat struk kasir lain; pencarian barcode dan nama; relai peristiwa; `ProductUnit::isInUse()` memeriksa `sale_items`.
 - Seperti ledger stok, perlindungan `sales`, `sale_items`, `payments`, `sale_voids`, dan shift tertutup hanya di model; hanya itu yang diuji, bukan query langsung.
 
-**Tahap 4 (simpanan)**
+**Tahap 4 (simpanan)**: sudah ditulis, di `tests/Feature/Savings/` (73 tes pada hasil Pest, 4 berkas).
 
-- Saldo per jenis = Σ `amount`.
-- Penarikan sukarela melebihi saldo ditolak.
-- Penarikan pokok atau wajib saat aktif ditolak.
-- Setoran wajib bulan yang sama dua kali ditolak; setelah dibalik boleh lagi.
-- Keluar anggota mengosongkan saldo dan menutup mutasi berikutnya.
-- Nomor anggota tidak dipakai ulang.
-- Kasir tidak bisa mencatat simpanan.
+- Saldo per jenis = Σ `amount` = `balance_after` terakhir; rantai `balance_after` konsisten; jenis saling bebas; saldo banyak anggota sekaligus.
+- Pokok: sekali, sebesar tarif, nominal lain ditolak, boleh lagi setelah dibalik. Wajib: sebesar tarif, bulan wajib, bulan sebelum bergabung dan bulan depan ditolak, bulan ganda ditolak, tunggakan beberapa bulan, tarif berubah tidak mengubah baris lama. Sukarela: minimal, tarik tidak melebihi saldo.
+- Penarikan pokok atau wajib manual ditolak selama aktif.
+- Pembalikan: setoran dan penarikan, sekali saja, pembalik tidak bisa dibalik, alasan wajib, saldo minus ditolak, tercatat di log, tetap bisa untuk anggota keluar.
+- Keluar anggota: semua saldo ditarik, status dan tanggal, tidak bisa dua kali, tidak ada mutasi baru sesudahnya, atomik (kegagalan paksa tidak menyisakan penarikan sebagian).
+- Nomor anggota berurutan dan tidak dipakai ulang setelah soft delete atau keluar; unik di database. Nomor, tanggal, dan status tidak bisa diubah dari form.
+- Penjualan dengan anggota aktif; anggota keluar atau tak ada menolak penjualan; struk memuat anggota.
+- Hak akses: kasir 403 di `/anggota*`, admin dan bendahara boleh, bendahara 403 di pencarian kasir, pencarian kasir hanya id nomor nama dan hanya aktif.
+- Model ledger menolak `update` dan `delete` lewat Eloquent, `CHECK (amount <> 0)` dan unik pembalik di database. Seperti ledger stok, **tidak** menguji query langsung (tanpa trigger).
 
 ## 8. Bonus Tahap 7 (sketsa, belum dibuat)
 
