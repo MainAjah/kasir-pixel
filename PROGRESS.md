@@ -77,6 +77,17 @@ Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab
 - **Lab:** `components/diorama/counter-lab.tsx`, pratinjau 4×: siklus melayani, pembatalan, kasir tutup, contoh angka layar.
 - **Tes:** 9 tes baru (`sprites/counter.test.ts`); seluruhnya 115 tes Vitest lulus.
 
+### Elemen: vending machine (disetujui)
+
+- **Bentuk dari rancangan 5A** (`sprites/vending-sprite.ts`):
+  - tiga mesin (merah, biru, hijau) di depan dinding;
+  - papan nama "MINUM", kaca dengan lima baris rak dan pantulan, panel tombol dengan layar harga, lubang koin dan uang kertas, pintu ambil, pelat bawah.
+- **Botol, isi empat tingkat:** kaleng dari 5A diganti botol (tutup, badan berwarna, label). Isinya 0, 1, 3, atau 5 botol per baris untuk kosong, sedikit, setengah, penuh. Di diorama sementara penuh; isi menurut stok di 5D.
+- **Lampu berkedip pelan:** papan nama, lampu di atas kaca, dan layar harga berganti menyala (kuning lampu) dan redup (krem) tiap 1,2 detik, dengan fase berbeda tiap mesin.
+- Hanya palet 24 warna. Kaca versi malam dari 5A tidak dipakai (siang dan malam di 5D).
+- **Lab:** `components/diorama/vending-lab.tsx`, pratinjau 4× dengan latar dinding biru langit: tiga mesin berjajar dan empat tingkat isi.
+- **Tes:** 4 tes baru (`sprites/vending.test.ts`); seluruhnya 119 tes Vitest lulus.
+
 ---
 
 ## Tahap 5B: Mesin diorama (21 Nov 2026)

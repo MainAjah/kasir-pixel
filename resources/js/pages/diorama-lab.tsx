@@ -4,6 +4,7 @@ import DioramaCanvas from '@/components/diorama/diorama-canvas';
 import CounterLab from '@/components/diorama/counter-lab';
 import ReferenceLab from '@/components/diorama/reference-lab';
 import RoomLab from '@/components/diorama/room-lab';
+import VendingLab from '@/components/diorama/vending-lab';
 import SpriteLab from '@/components/diorama/sprite-lab';
 import { useDiorama } from '@/components/diorama/use-diorama';
 import Heading from '@/components/heading';
@@ -162,24 +163,24 @@ export default function DioramaLab() {
 
                 <section className="space-y-3 rounded-md border p-4">
                     <h3 className="font-medium">
-                        Tahap 5C elemen 2: meja kasir, scanner, dan layar mini
+                        Tahap 5C elemen 3: vending machine
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                        Bentuk dari rancangan 5A. Di diorama di bawah, meja
-                        kasir sudah memakai sprite ini: coba "Pesanan lengkap"
-                        untuk melihat zombie memindai, layar mini menampilkan
-                        total belanja lalu total harian naik, dan "Batalkan"
-                        untuk melihat total harian turun.
+                        Bentuk dari rancangan 5A, dengan botol empat tingkat isi
+                        dan lampu yang berkedip pelan. Di diorama di bawah,
+                        ketiga vending machine di dinding belakang sudah memakai
+                        sprite ini.
                     </p>
-                    <CounterLab />
+                    <VendingLab />
                 </section>
 
                 <details className="rounded-md border p-4">
                     <summary className="cursor-pointer font-medium">
                         Tahap 5C yang sudah disetujui: pelanggan, rak, karakter
-                        dari gambar Anda, lantai, dinding, dan pintu
+                        dari gambar Anda, lantai, dinding, pintu, dan meja kasir
                     </summary>
                     <div className="mt-4 space-y-8">
+                        <CounterLab />
                         <RoomLab />
                         <ReferenceLab />
                         <SpriteLab />

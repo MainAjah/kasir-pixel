@@ -51,6 +51,12 @@ import {
 } from '../sprites/counter-sprite';
 import type { CounterLook } from '../sprites/counter-sprite';
 import { drawRoom } from '../sprites/room-sprite';
+import {
+    VENDING_CANVAS,
+    drawVending,
+    vendingLightOn,
+} from '../sprites/vending-sprite';
+import type { VendingColor } from '../sprites/vending-sprite';
 import { SpriteCache } from '../sprites/sprite-cache';
 import { drawText, isoBox, leftDot, onTop, rightDot, textWidth } from './pixel';
 
@@ -77,6 +83,13 @@ const SHIRTS = [
 ];
 
 const fl = Math.floor;
+
+/** Warna badan tiap vending machine di denah: merah, biru, hijau. */
+const VENDING_COLORS: Record<string, VendingColor> = {
+    'vending-merah': 0,
+    'vending-biru': 1,
+    'vending-hijau': 2,
+};
 
 /** Kasir 2: komputer mati, layar bertuliskan TUTUP. */
 const CLOSED_COUNTER: CounterLook = {
@@ -355,19 +368,28 @@ export class PlaceholderRenderer {
             }
 
             case 'vending': {
-                const [ox, oy] = onTop(cx, ty, 0, 2, 4);
-                isoBox(
-                    ctx,
-                    ox,
-                    oy,
-                    28,
-                    24,
-                    item.height,
-                    shade(item.color, 0.35),
-                    item.color,
-                    shade(item.color, -0.25),
+                // Sprite 5C. Isi menurut stok menyusul di 5D; sementara penuh.
+                const color = VENDING_COLORS[item.id] ?? 0;
+                const on = vendingLightOn(world.time, color);
+                const sprite = this.sprites.getDrawn(
+                    `vending|${color}|penuh|${on ? 1 : 0}`,
+                    VENDING_CANVAS.width,
+                    VENDING_CANVAS.height,
+                    (c) =>
+                        drawVending(
+                            c,
+                            VENDING_CANVAS.originX,
+                            VENDING_CANVAS.originY,
+                            color,
+                            'penuh',
+                            on,
+                        ),
                 );
-                leftDot(ctx, ox, oy, 24, item.height, 4, 14, '#e8f6fb', 18, 36);
+                ctx.drawImage(
+                    sprite,
+                    cx - VENDING_CANVAS.originX,
+                    ty - VENDING_CANVAS.originY,
+                );
 
                 break;
             }
