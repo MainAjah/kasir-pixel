@@ -3,6 +3,7 @@ import { CANVAS_H, CANVAS_W } from '@/diorama/engine/iso';
 import { startLoop } from '@/diorama/engine/loop';
 import type { DioramaWorld } from '@/diorama/engine/world';
 import { PlaceholderRenderer } from '@/diorama/render/placeholder-renderer';
+import { loadReferences } from '@/diorama/sprites/reference-loader';
 import type { RenderOptions } from '@/diorama/render/placeholder-renderer';
 
 type Props = {
@@ -40,6 +41,11 @@ export default function DioramaCanvas({ world, options, className }: Props) {
         observer.observe(wrap);
 
         return () => observer.disconnect();
+    }, []);
+
+    // Gambar karakter pemilik (zombie penjaga kasir); sebelum termuat dipakai kotak pengganti.
+    useEffect(() => {
+        void loadReferences();
     }, []);
 
     useEffect(() => {

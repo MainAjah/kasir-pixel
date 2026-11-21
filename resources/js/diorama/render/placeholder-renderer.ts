@@ -8,7 +8,7 @@
  */
 import { CASHIER_DURATION } from '../actors/cashier';
 import type { Customer } from '../actors/customer';
-import { DURATION, isWalking } from '../actors/customer';
+import { DURATION, RUN, isWalking } from '../actors/customer';
 import {
     LAYER,
     actorDepth,
@@ -28,6 +28,29 @@ import {
 import type { Facing } from '../engine/iso';
 import type { DioramaWorld } from '../engine/world';
 import type { Furniture, StoreScene } from '../scenes/store-scene';
+import {
+    FOOT_X,
+    FOOT_Y,
+    FRAME_W,
+    buildCustomerFrame,
+    frameAt,
+    variantForLook,
+    variantKey,
+} from '../sprites/customer-sprite';
+import type { CustomerAction } from '../sprites/customer-sprite';
+import { mirror } from '../sprites/pixels';
+import { RACK_CANVAS, drawRackSlice } from '../sprites/rack-sprite';
+import { referenceMatrix } from '../sprites/reference-loader';
+import {
+    REFERENCE_CHARACTERS,
+    motionFrame,
+    referenceByKey,
+    referenceFlip,
+    referenceFrameSize,
+    transformFrame,
+} from '../sprites/reference-sprite';
+import type { ReferenceCharacter } from '../sprites/reference-sprite';
+import { SpriteCache } from '../sprites/sprite-cache';
 import {
     drawText,
     formatRupiah,
@@ -61,9 +84,69 @@ const SHIRTS = [
     '#f4b6c2',
     '#a7d7a5',
 ];
-const HAIR = ['#7a5c4b', '#2b2a33', '#e89b4f', '#5b5470'];
 
 const fl = Math.floor;
+
+const CUSTOMER_REFERENCES = REFERENCE_CHARACTERS.filter(
+    (c) => c.role === 'pelanggan',
+);
+
+/**
+ * Karakter pelanggan (keputusan D6): ketujuh karakter dari gambar pemilik
+ * bergiliran menurut nomor pelanggan, dan setiap giliran kedelapan pelanggan
+ * buatan kode (variasi palet). null = pelanggan buatan kode.
+ */
+export function customerCharacter(
+    customer: Pick<Customer, 'id'>,
+): ReferenceCharacter | null {
+    const slot = (customer.id - 1) % (CUSTOMER_REFERENCES.length + 1);
+
+    return slot < CUSTOMER_REFERENCES.length ? CUSTOMER_REFERENCES[slot] : null;
+}
+
+/** Arah tampilan di layar: ke kiri atau kanan, mendekat (depan) atau menjauh (belakang). */
+export type Heading = { left: boolean; front: boolean };
+
+/**
+ * Arah tampilan pelanggan. Saat berjalan mengikuti tujuan jalurnya, bukan tiap
+ * langkah, supaya tidak berbalik bolak-balik di jalur bertangga; bila seri
+ * memakai arah sebelumnya. Saat berdiri mengikuti arah hadapnya (menghadap
+ * kasir di antrean, menghadap rak saat mengambil barang).
+ */
+export function headingOf(customer: Customer, previous?: Heading): Heading {
+    const standing: Heading = {
+        left: customer.facing === 'sw' || customer.facing === 'nw',
+        front: customer.facing === 'sw' || customer.facing === 'se',
+    };
+    const goal = customer.path.at(-1);
+
+    if (!goal) {
+        return standing;
+    }
+
+    const base = previous ?? standing;
+    // Layar: x mengikuti gx - gy, y mengikuti gx + gy.
+    const dx = goal.gx - goal.gy - (customer.fx - customer.fy);
+    const dy = goal.gx + goal.gy - (customer.fx + customer.fy);
+
+    return {
+        left: dx < 0 ? true : dx > 0 ? false : base.left,
+        front: dy > 0 ? true : dy < 0 ? false : base.front,
+    };
+}
+
+/** Gerakan sprite pelanggan dari state mesin. Kejar ketinggalan dan kabur memakai lari. */
+export function customerAction(customer: Customer): CustomerAction {
+    if (customer.state === 'ambil') {
+        return 'ambil';
+    }
+
+    if (isWalking(customer)) {
+        return customer.speed >= RUN ? 'lari' : 'jalan';
+    }
+
+    return 'diam';
+}
 
 /** Warna lebih gelap atau terang untuk sisi balok. */
 function shade(hex: string, amount: number): string {
@@ -80,6 +163,8 @@ function shade(hex: string, amount: number): string {
 
 export class PlaceholderRenderer {
     private background: HTMLCanvasElement | null = null;
+    private readonly sprites = new SpriteCache();
+    private readonly headings = new Map<number, Heading>();
 
     constructor(private readonly scene: StoreScene) {}
 
@@ -146,6 +231,16 @@ export class PlaceholderRenderer {
             });
         }
 
+        if (this.headings.size > 64) {
+            const present = new Set(world.customers.map((c) => c.id));
+
+            for (const id of this.headings.keys()) {
+                if (!present.has(id)) {
+                    this.headings.delete(id);
+                }
+            }
+        }
+
         for (const customer of world.customers) {
             const depth = actorDepth(customer.fx, customer.fy);
             items.push({
@@ -154,7 +249,7 @@ export class PlaceholderRenderer {
                 layer: LAYER.actor,
                 gx: customer.fx,
                 draw: (c) =>
-                    this.drawCustomer(c, customer, options.ids ?? false),
+                    this.drawCustomer(c, world, customer, options.ids ?? false),
             });
 
             if (customer.state === 'bayar') {
@@ -315,33 +410,26 @@ export class PlaceholderRenderer {
 
         switch (item.kind) {
             case 'rak': {
-                const [ox, oy] = onTop(cx, ty, 0, 0, 4);
-                isoBox(
-                    ctx,
-                    ox,
-                    oy,
-                    32,
-                    24,
-                    item.height,
-                    CREAM,
-                    '#b08d62',
-                    '#937452',
+                // Sprite 5C. Isi rak menurut stok menyusul di 5D; sementara penuh.
+                const seed = (item.id === 'rak-a' ? 0 : 10) + index + 1;
+                const sprite = this.sprites.getDrawn(
+                    `rak|penuh|${seed}`,
+                    RACK_CANVAS.width,
+                    RACK_CANVAS.height,
+                    (c) =>
+                        drawRackSlice(
+                            c,
+                            RACK_CANVAS.originX,
+                            RACK_CANVAS.originY,
+                            'penuh',
+                            seed,
+                        ),
                 );
-
-                for (const d of [11, 21]) {
-                    leftDot(
-                        ctx,
-                        ox,
-                        oy,
-                        24,
-                        item.height,
-                        0,
-                        d,
-                        '#7a5c4b',
-                        32,
-                        1,
-                    );
-                }
+                ctx.drawImage(
+                    sprite,
+                    cx - RACK_CANVAS.originX,
+                    ty - RACK_CANVAS.originY,
+                );
 
                 break;
             }
@@ -545,50 +633,69 @@ export class PlaceholderRenderer {
         }
     }
 
+    /** Pelanggan: sprite 5C (diam, jalan, lari, ambil), arah hadap lewat cermin. */
     private drawCustomer(
         ctx: CanvasRenderingContext2D,
+        world: DioramaWorld,
         customer: Customer,
         ids: boolean,
     ): void {
         const { x, y } = tileCenter(customer.fx, customer.fy);
+        // Muncul dan hilang perlahan di ambang pintu (di luar grid, fx < 0).
         const alpha = Math.max(0, Math.min(1, customer.fx + 1));
-        // Pelanggan yang kabur berlari: ayunan lebih cepat.
-        const lift = isWalking(customer)
-            ? fl(customer.stateTime * (customer.state === 'kabur' ? 12 : 6)) % 2
-            : 0;
-        const latar = customer.kind === 'latar';
+        const action = customerAction(customer);
+        const frame = frameAt(action, world.time, customer.id * 0.37);
+        const lift = 0;
+        const heading = headingOf(customer, this.headings.get(customer.id));
+        this.headings.set(customer.id, heading);
+        const character = customerCharacter(customer);
+        const src = character ? referenceMatrix(character.key) : null;
+        // Puncak kepala, untuk nomor pelanggan.
+        let top = y - 42;
 
-        ctx.globalAlpha = alpha;
-        this.drawFigure(
-            ctx,
-            x,
-            y,
-            {
-                shirt: latar
-                    ? '#d9d2e4'
-                    : SHIRTS[customer.look % SHIRTS.length],
-                skin: SKIN[customer.look % SKIN.length],
-                hair: HAIR[customer.look % HAIR.length],
-                legs: latar ? '#8f88a8' : '#6a9fc4',
-            },
-            customer.facing,
-            lift,
-            customer.state === 'ambil' ? { dx: 0, dy: -1 } : undefined,
-        );
+        if (character && src) {
+            // Karakter dari gambar pemilik, cara 1: transformasi saja.
+            const movingLeft = heading.left;
+            const flip = referenceFlip(character, movingLeft);
+            const size = referenceFrameSize(src);
+            const sprite = this.sprites.get(
+                `ref|${character.key}|${action}|${frame}|${flip ? 1 : 0}|${movingLeft ? 1 : 0}`,
+                () => {
+                    const m = transformFrame(
+                        src,
+                        motionFrame(character, action, frame, movingLeft),
+                    );
 
-        if (latar) {
-            // Topi abu: penanda pelanggan latar.
-            isoBox(
-                ctx,
-                x,
-                y - 6 - lift - 36,
-                12,
-                12,
-                2,
-                '#8f88a8',
-                '#5b5470',
-                '#4a4560',
+                    return flip ? mirror(m) : m;
+                },
             );
+            const footX = flip ? size.width - 1 - size.footX : size.footX;
+            const s = Math.max(8, Math.min(24, Math.round(src.width * 0.45)));
+
+            ctx.globalAlpha = alpha * 0.25;
+            isoBox(ctx, x, y - fl(s / 2), s, s, 0, SHADOW, null, null);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(sprite, x - footX, y - size.footY - character.hover);
+            top = y - src.height - character.hover;
+        } else {
+            // Gambar depan menghadap kiri-bawah, gambar belakang kanan-atas.
+            const side = heading.front ? 'depan' : 'belakang';
+            const flip = heading.front ? !heading.left : heading.left;
+            const variant = variantForLook(customer.look);
+            const sprite = this.sprites.get(
+                `pelanggan|${variantKey(variant)}|${side}|${action}|${frame}|${flip ? 1 : 0}`,
+                () => {
+                    const m = buildCustomerFrame(variant, side, action, frame);
+
+                    return flip ? mirror(m) : m;
+                },
+            );
+            const footX = flip ? FRAME_W - 1 - FOOT_X : FOOT_X;
+
+            ctx.globalAlpha = alpha * 0.25;
+            isoBox(ctx, x, y - 6, 12, 12, 0, SHADOW, null, null);
+            ctx.globalAlpha = alpha;
+            ctx.drawImage(sprite, x - footX, y - FOOT_Y);
         }
 
         if (customer.hasBag) {
@@ -624,13 +731,64 @@ export class PlaceholderRenderer {
             drawText(
                 ctx,
                 x - fl(textWidth(label) / 2),
-                y - 56 - lift,
+                top - 8 - lift,
                 label,
                 INK,
             );
         }
 
         ctx.globalAlpha = 1;
+    }
+
+    /**
+     * Penjaga kasir = zombie dari gambar pemilik (D6), cara 1: transformasi saja.
+     * Lari saat mengejar, jalan saat pulang, diam di meja; geleng dan angguk
+     * lewat geser kecil. Mengembalikan false bila gambar belum termuat.
+     */
+    private drawZombie(
+        ctx: CanvasRenderingContext2D,
+        world: DioramaWorld,
+        x: number,
+        y: number,
+        shift: { dx: number; dy: number },
+    ): boolean {
+        const zombie = referenceByKey('zombie');
+        const src = referenceMatrix('zombie');
+
+        if (!zombie || !src) {
+            return false;
+        }
+
+        const cashier = world.cashier;
+        const action: CustomerAction =
+            cashier.state === 'mengejar'
+                ? 'lari'
+                : cashier.state === 'kembali'
+                  ? 'jalan'
+                  : 'diam';
+        const frame = frameAt(action, world.time);
+        const movingLeft = cashier.facing === 'sw' || cashier.facing === 'nw';
+        const flip = referenceFlip(zombie, movingLeft);
+        const size = referenceFrameSize(src);
+        const sprite = this.sprites.get(
+            `ref|zombie|${action}|${frame}|${flip ? 1 : 0}`,
+            () => {
+                const m = transformFrame(
+                    src,
+                    motionFrame(zombie, action, frame),
+                );
+
+                return flip ? mirror(m) : m;
+            },
+        );
+        const footX = flip ? size.width - 1 - size.footX : size.footX;
+
+        ctx.globalAlpha = 0.25;
+        isoBox(ctx, x, y - 6, 12, 12, 0, SHADOW, null, null);
+        ctx.globalAlpha = 1;
+        ctx.drawImage(sprite, x - footX + shift.dx, y - size.footY + shift.dy);
+
+        return true;
     }
 
     private drawGuard(
@@ -657,6 +815,11 @@ export class PlaceholderRenderer {
             headShift.dy = 1;
         }
 
+        if (this.drawZombie(ctx, world, x, y, headShift)) {
+            return;
+        }
+
+        // Cadangan selama gambar zombie belum termuat.
         this.drawFigure(
             ctx,
             x,

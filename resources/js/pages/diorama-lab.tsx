@@ -1,6 +1,8 @@
 import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import DioramaCanvas from '@/components/diorama/diorama-canvas';
+import ReferenceLab from '@/components/diorama/reference-lab';
+import SpriteLab from '@/components/diorama/sprite-lab';
 import { useDiorama } from '@/components/diorama/use-diorama';
 import Heading from '@/components/heading';
 import { Button } from '@/components/ui/button';
@@ -153,8 +155,32 @@ export default function DioramaLab() {
             <div className="space-y-6 p-4">
                 <Heading
                     title="Diorama lab"
-                    description="Pratinjau mesin diorama Tahap 5B dengan gambar pengganti. Tombol uji hanya memutar peristiwa palsu di halaman ini: tidak ada data yang ditulis dan tidak ada yang dikirim ke server."
+                    description="Pratinjau mesin dan sprite diorama. Tombol uji hanya memutar peristiwa palsu di halaman ini: tidak ada data yang ditulis dan tidak ada yang dikirim ke server."
                 />
+
+                <section className="space-y-3 rounded-md border p-4">
+                    <h3 className="font-medium">
+                        Tahap 5C langkah 2: karakter dari gambar Anda
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        Gambar dipakai apa adanya dan diberi gerak lewat
+                        transformasi saja (cara 1). Di diorama di bawah, penjaga
+                        kasir memakai zombie, dan pelanggan dari "Peristiwa
+                        kasir" memakai ketujuh karakter Anda secara bergiliran
+                        (setiap giliran kedelapan pelanggan buatan kode). Coba
+                        "Kabur tanpa bayar" untuk melihat zombie mengejar.
+                    </p>
+                    <ReferenceLab />
+                </section>
+
+                <details className="rounded-md border p-4">
+                    <summary className="cursor-pointer font-medium">
+                        Tahap 5C langkah 1 (disetujui): pelanggan dan rak
+                    </summary>
+                    <div className="mt-4">
+                        <SpriteLab />
+                    </div>
+                </details>
 
                 <DioramaCanvas
                     world={world}

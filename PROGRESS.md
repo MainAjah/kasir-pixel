@@ -1,5 +1,48 @@
 # PROGRESS
 
+## Tahap 5C: Sprite dan animasi (21 Nov 2026, berjalan)
+
+Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab` dengan perbesaran 4× dan menunggu persetujuan pemilik. Elemen yang belum disetujui masih kotak pengganti dari 5B.
+
+### Langkah 1: pelanggan dan potongan rak (disetujui)
+
+- **Palet:** `sprites/palette.ts` berisi 24 warna rancangan. Semua sprite buatan kode hanya memakai warna ini (dites).
+- **Infrastruktur:**
+  - `sprites/pixels.ts`: sprite sebagai matriks piksel murni, grid huruf → peran warna, cermin.
+  - `sprites/sprite-cache.ts`: dilukis sekali ke kanvas cadangan, lalu dipakai ulang tiap bingkai.
+- **Pelanggan buatan kode** `sprites/customer-sprite.ts` (bingkai 26 × 46, tinggi tokoh ±42):
+  - depan dan belakang; diam (2 bingkai), jalan (4), lari (4), ambil barang (2);
+  - arah kanan dan kiri lewat cermin;
+  - variasi lewat tukar palet kulit (3), rambut (7), baju (7), celana (4).
+  - Di diorama, lari dipakai saat kabur dan kejar ketinggalan.
+- **Potongan rak** `sprites/rack-sprite.ts`: dipindahkan dari rancangan 5A yang disetujui, dengan isi 4 tingkat (kosong, sedikit, setengah, penuh). Di diorama sementara penuh; isi menurut stok di 5D.
+- **Lab:** `components/diorama/sprite-lab.tsx` menampilkan pratinjau 4×. Di diorama, pelanggan dan rak sudah memakai sprite.
+- **Tes:** 14 tes sprite baru (`sprites/sprites.test.ts`); seluruhnya 81 tes Vitest lulus.
+
+### Langkah 2: karakter dari gambar pemilik (disetujui)
+
+- **Gambar dipakai apa adanya.** Kedelapan PNG olahan disalin ke `sprites/referensi/` (sama persis dengan `docs/referensi-karakter/olahan/`), tidak dijadikan kostum dan tidak digambar ulang.
+- **Cara 1, transformasi saja** (`sprites/reference-sprite.ts`):
+  - naik-turun, memipih dan memanjang (skala tetangga-terdekat, tetap tajam), miring per baris, cermin, dan bayangan di lantai;
+  - titik pijak dari letak kaki sebenarnya;
+  - profil gerak per karakter: langkah (ninja, pahlawan bertopeng, bajak laut), hentak (monster), seret (zombie), memantul pelan (bintang laut), lompat (ikan), melayang (pahlawan berzirah);
+  - jumlah bingkai sama dengan pelanggan buatan kode.
+- **Pemuat gambar:** `sprites/reference-loader.ts` membaca PNG lewat Vite ke matriks piksel, sekali saja.
+- **Penjaga kasir = zombie:** diam di meja, lari saat mengejar, jalan saat pulang; angguk dan geleng lewat geser kecil.
+- **Calon cara 2** bila nanti terlihat kaku: bajak laut dan pahlawan bertopeng (kaki terlihat).
+- **Pelanggan di diorama:** ketujuh karakter bergiliran menurut nomor pelanggan, dan setiap giliran kedelapan pelanggan buatan kode.
+- **Arah hadap (koreksi pemilik):**
+  - arah asli tiap gambar diperiksa ulang: ninja, pahlawan bertopeng (sedikit menoleh), bajak laut, dan berzirah ke kanan; monster, ikan, bintang laut (wajah di sisi kiri kepala), dan zombie ke kiri; semua dicermin mengikuti arah jalan;
+  - bintang laut memantul pelan dengan sedikit condong ke depan (goyangan kiri-kanan sebelumnya terlihat seperti jeli);
+  - saat berjalan, arah tampilan mengikuti tujuan jalur, bukan tiap langkah, supaya tidak berbalik bolak-balik di jalur bertangga; saat berdiri menghadap kasir atau rak.
+- **Hasil pemeriksaan:**
+  - **Ukuran:** tinggi 26 sampai 56 px; pelanggan buatan kode 42 px. Pahlawan bertopeng dan monster sekitar 1,3× lebih besar; dibiarkan, karena mengecilkan pixel art dengan skala tidak bulat merusak gambarnya.
+  - **Warna:** tidak ada yang tepat di palet 24 (82 sampai 1.104 warna, kebanyakan derau). Dipaksa ke palet merusak identitas (zombie jadi ungu), jadi tetap warna asli sesuai pengecualian D6.
+- **Lab:** `components/diorama/reference-lab.tsx` (pratinjau 4×, perbandingan ukuran dan warna) dan `components/diorama/sprite-cells.tsx` (kerangka pratinjau bersama).
+- **Tes:** 14 tes baru (`sprites/reference.test.ts`); seluruhnya 95 tes Vitest lulus.
+
+---
+
 ## Tahap 5B: Mesin diorama (21 Nov 2026)
 
 Status: **selesai, disetujui pemilik.** Tidak ada paket baru: tes JavaScript memakai Vitest yang sudah ikut di dalam `vite-plus` (`vite-plus/test`).
