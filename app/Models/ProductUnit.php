@@ -37,12 +37,10 @@ class ProductUnit extends Model
         return $this->belongsTo(Product::class);
     }
 
-    /**
-     * Satuan dianggap terpakai bila sudah muncul di ledger stok.
-     * Tahap 3 menambahkan pengecekan sale_items di sini.
-     */
+    /** Satuan dianggap terpakai bila sudah muncul di ledger stok atau di baris penjualan. */
     public function isInUse(): bool
     {
-        return StockMovement::where('input_unit_id', $this->id)->exists();
+        return StockMovement::where('input_unit_id', $this->id)->exists()
+            || SaleItem::where('product_unit_id', $this->id)->exists();
     }
 }

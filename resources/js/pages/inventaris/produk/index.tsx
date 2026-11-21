@@ -1,4 +1,4 @@
-import { Head, Link, router } from '@inertiajs/react';
+import { Head, Link, router, usePage } from '@inertiajs/react';
 import { useState } from 'react';
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
 import StockCardController from '@/actions/App/Http/Controllers/Inventory/StockCardController';
@@ -30,6 +30,8 @@ export default function ProdukIndex({
     products: Paginated<Row>;
     filters: { q: string; menipis: boolean };
 }) {
+    // Kasir hanya membaca; mengelola produk khusus admin.
+    const isAdmin = usePage().props.auth.roles.includes('admin');
     const [q, setQ] = useState(filters.q);
     const [low, setLow] = useState(filters.menipis);
 
@@ -56,11 +58,13 @@ export default function ProdukIndex({
                         title="Produk"
                         description="Stok dihitung dari ledger mutasi, bukan kolom yang ditimpa."
                     />
-                    <Button asChild>
-                        <Link href={ProductController.create()}>
-                            Tambah produk
-                        </Link>
-                    </Button>
+                    {isAdmin && (
+                        <Button asChild>
+                            <Link href={ProductController.create()}>
+                                Tambah produk
+                            </Link>
+                        </Button>
+                    )}
                 </div>
 
                 <form
@@ -149,20 +153,26 @@ export default function ProdukIndex({
                                         {formatRupiah(p.base_price)}
                                     </td>
                                     <td className="space-x-3 p-3 text-right whitespace-nowrap">
-                                        <Link
-                                            className="underline"
-                                            href={StockCardController.show(
-                                                p.id,
-                                            )}
-                                        >
-                                            Kartu stok
-                                        </Link>
-                                        <Link
-                                            className="underline"
-                                            href={ProductController.edit(p.id)}
-                                        >
-                                            Ubah
-                                        </Link>
+                                        {isAdmin && (
+                                            <>
+                                                <Link
+                                                    className="underline"
+                                                    href={StockCardController.show(
+                                                        p.id,
+                                                    )}
+                                                >
+                                                    Kartu stok
+                                                </Link>
+                                                <Link
+                                                    className="underline"
+                                                    href={ProductController.edit(
+                                                        p.id,
+                                                    )}
+                                                >
+                                                    Ubah
+                                                </Link>
+                                            </>
+                                        )}
                                     </td>
                                 </tr>
                             ))}

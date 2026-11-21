@@ -1,4 +1,5 @@
 import { createInertiaApp } from '@inertiajs/react';
+import StoreEventBridge from '@/components/store-event-bridge';
 import { Toaster } from '@/components/ui/sonner';
 import { TooltipProvider } from '@/components/ui/tooltip';
 import { initializeTheme } from '@/hooks/use-appearance';
@@ -13,6 +14,7 @@ void createInertiaApp({
     layout: (name) => {
         switch (true) {
             case name === 'welcome':
+            case name === 'kasir/struk':
                 return null;
             case name.startsWith('auth/'):
                 return AuthLayout;
@@ -28,6 +30,7 @@ void createInertiaApp({
             <TooltipProvider delayDuration={0}>
                 {app}
                 <Toaster />
+                <StoreEventBridge />
             </TooltipProvider>
         );
     },

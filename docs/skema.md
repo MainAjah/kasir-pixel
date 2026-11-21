@@ -179,19 +179,15 @@ Waktu: database menyimpan UTC; tampilan dan input tanggal memakai `config('app.d
 | closing_note | text null | wajib bila selisih ≠ 0 |
 | timestamps | | |
 
-Aturan: satu shift aktif per kasir (dicek di Action `OpenShift`). Transisi hanya `aktif → tutup`, sekali. Setelah tutup, baris tidak diubah.
+Aturan: satu shift aktif per kasir (dicek di Action `OpenShift`, dengan kunci baris pengguna). Transisi hanya `aktif → tutup`, sekali. Setelah tutup, baris tidak diubah (dijaga di model `CashShift`; tanpa trigger). `CloseShift` dan `VoidSale` sama-sama mengunci baris shift, jadi pembatalan tidak bisa menyelinap saat shift ditutup. Tabel dibuat di Tahap 3.
 
-**`sales`**: dibuat sekali dalam keadaan selesai, tidak pernah diubah.
+**`sales`**: dibuat sekali dalam keadaan selesai, tidak pernah diubah (trait `AppendOnly`, tanpa soft delete). **Tahap 3 menunda diskon dan `member_id`**: kolom `member_id` (dengan FK) ditambah di Tahap 4, kolom diskon lewat migration baru bila nanti dibutuhkan; untuk sekarang `total = Σ line_total`.
 
 | Kolom | Tipe | Keterangan |
 | --- | --- | --- |
 | number | string unik | `INV-20261121-0001` |
 | cash_shift_id | FK | |
-| member_id | FK null | |
-| subtotal | rupiah | Σ `qty × unit_price` |
-| item_discount_total | rupiah | Σ diskon baris |
-| sale_discount | rupiah | diskon transaksi |
-| total | rupiah ≥ 0 | `subtotal − item_discount_total − sale_discount` |
+| total | rupiah > 0 | Σ `line_total` |
 | created_by, created_at | | |
 
 **`sale_items`**: salinan data produk saat transaksi.
@@ -205,8 +201,7 @@ Aturan: satu shift aktif per kasir (dicek di Action `OpenShift`). Transisi hanya
 | qty | int > 0 | dalam satuan yang dijual |
 | base_qty | int | `qty × conversion` |
 | unit_price | rupiah | salinan harga saat itu |
-| discount | rupiah ≥ 0 | ≤ `qty × unit_price` |
-| line_total | rupiah | `qty × unit_price − discount` |
+| line_total | rupiah | `qty × unit_price` |
 
 **`payments`**
 
@@ -228,6 +223,8 @@ Aturan: Σ `payments.amount` = `sales.total`.
 | sale_id | FK unik | sekali saja |
 | reason | string | wajib |
 | created_by, created_at | | `admin` |
+
+Status penjualan dibaca dari ada tidaknya baris `sale_voids`. Foreign key `stock_movements.sale_item_id` → `sale_items.id` ditambahkan lewat migration Tahap 3.
 
 ### 3.4 Anggota dan simpanan
 
@@ -314,10 +311,11 @@ Nomor dokumen (`INV-`, `BM-`, `SP-`, `A-`) dibuat dari nomor urut terakhir hari 
 | --- | --- |
 | K1 | Penjualan butuh shift aktif milik kasir itu. |
 | K2 | Server menghitung ulang harga dari `product_units.sell_price`. Harga dari browser diabaikan. |
-| K3 | `CompleteSale`, satu transaksi: insert `sales`, `sale_items`, `payments`, panggil `AdjustStock(sale)` per baris, cek Σ pembayaran = total. `SaleCompleted` dipancarkan setelah commit. |
-| K4 | Diskon baris ≤ nilai baris; total ≥ 0. |
+| K3 | `CompleteSale`, satu transaksi: kunci baris shift, insert `sales`, `sale_items`, `payments`, panggil `AdjustStock(sale)` per baris. Stok kurang menolak seluruh penjualan (rollback penuh). Uang diterima harus ≥ total; `payments.amount` = total dan `change` = diterima − total. Baris dengan satuan sama digabung; total harus > 0. `SaleCompleted` dipancarkan setelah commit. |
+| K4 | **Ditunda** (diskon tidak dibuat di Tahap 3). |
 | K5 | `VoidSale`: hanya selama shift masih aktif, oleh `admin`, alasan wajib. Insert `sale_voids`, lalu `AdjustStock(sale_void)` untuk setiap baris. Penjualan dari shift yang sudah tutup tidak bisa dibatalkan. |
-| K6 | `expected_cash` = `opening_cash` + Σ `amount` pembayaran tunai dari penjualan yang tidak dibatalkan di shift itu. Dibekukan saat tutup. |
+| K6 | `expected_cash` = `opening_cash` + Σ `amount` pembayaran tunai dari penjualan yang tidak dibatalkan di shift itu (`amount`, bukan uang diterima: kembalian tidak masuk laci). Dibekukan saat tutup. `difference` = hitungan fisik − `expected_cash`; catatan wajib bila ≠ 0. Hanya pemilik shift yang bisa menutup. |
+| K7 | Peristiwa untuk diorama: `SaleCompleted` dan `SaleVoided` dipancarkan dari Action setelah commit. `SaleOpened` dan `ItemScanned` terjadi di browser sebelum ada data, jadi dikirim lewat `POST /kasir/peristiwa` (fire-and-forget, tanpa database) yang hanya memancarkan event Laravel itu. Kasir yang bersangkutan menggerakkan diorama langsung dari pemancar di browser (`resources/js/lib/store-events.ts`). Reverb menyusul di Tahap 8. |
 
 ## 7. Tes Pest wajib
 
@@ -336,7 +334,7 @@ Nomor dokumen (`INV-`, `BM-`, `SP-`, `A-`) dibuat dari nomor urut terakhir hari 
 - Hanya admin yang bisa membuka dan menulis halaman inventaris.
 - Zona waktu: input WIB disimpan UTC dan tampil kembali WIB.
 
-**Tahap 3 (kasir)**
+**Tahap 3 (kasir)**: sudah ditulis, di `tests/Feature/Pos/` (82 tes pada hasil Pest, 4 berkas). Daftar rencana awal:
 
 - Penjualan mengurangi stok sesuai `base_qty`.
 - Harga dari browser diabaikan.
@@ -345,6 +343,8 @@ Nomor dokumen (`INV-`, `BM-`, `SP-`, `A-`) dibuat dari nomor urut terakhir hari 
 - `expected_cash` dan `difference` benar, termasuk dengan pembatalan.
 - Kasir tidak bisa membuka dua shift aktif.
 - Kasir tidak bisa membatalkan penjualan.
+- Tambahan yang sudah ada: stok kurang menolak seluruh penjualan tanpa sisa data; gagal di baris kedua membatalkan baris pertama; satuan dus dan konversi; salinan nama dan harga bertahan; nomor INV berurutan; kembalian tidak masuk `expected_cash`; hak akses kasir, admin, bendahara, dan tamu; kasir tidak bisa melihat struk kasir lain; pencarian barcode dan nama; relai peristiwa; `ProductUnit::isInUse()` memeriksa `sale_items`.
+- Seperti ledger stok, perlindungan `sales`, `sale_items`, `payments`, `sale_voids`, dan shift tertutup hanya di model; hanya itu yang diuji, bukan query langsung.
 
 **Tahap 4 (simpanan)**
 

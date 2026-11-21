@@ -5,6 +5,7 @@ use App\Enums\StockMovementType;
 use App\Exceptions\StockException;
 use App\Models\Product;
 use App\Models\ProductUnit;
+use App\Models\SaleItem;
 use App\Models\StockEntry;
 use App\Models\StockMovement;
 use App\Models\User;
@@ -16,6 +17,8 @@ beforeEach(function () {
     $this->pcs = $this->product->baseUnit;
     $this->dus = ProductUnit::factory()->for($this->product)->create(['name' => 'dus', 'conversion' => 24]);
     $this->action = app(AdjustStock::class);
+    // Baris penjualan sungguhan: sale_item_id kini punya FK.
+    $this->saleItem = SaleItem::factory()->create(['product_id' => $this->product->id, 'product_unit_id' => $this->pcs->id]);
 });
 
 function terima($t, int $qty, ?ProductUnit $unit = null): StockMovement
@@ -33,7 +36,7 @@ test('saldo = jumlah qty = balance_after terakhir setelah campuran mutasi', func
     terima($this, 100);
     $this->action->handle($this->product, StockMovementType::Adjustment, $this->pcs, -30, $this->user->id, note: 'rusak');
     terima($this, 2, $this->dus);
-    $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -10, $this->user->id, saleItemId: 1);
+    $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -10, $this->user->id, saleItemId: $this->saleItem->id);
     $this->action->handle($this->product, StockMovementType::Adjustment, $this->pcs, 5, $this->user->id, note: 'ketemu');
 
     $sum = (int) StockMovement::where('product_id', $this->product->id)->sum('qty');
@@ -71,7 +74,7 @@ test('mutasi yang membuat saldo minus ditolak untuk semua jenis', function () {
 
     expect(fn () => $this->action->handle($this->product, StockMovementType::Adjustment, $this->pcs, -6, $this->user->id, note: 'x'))
         ->toThrow(StockException::class, 'tidak cukup');
-    expect(fn () => $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -6, $this->user->id, saleItemId: 1))
+    expect(fn () => $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -6, $this->user->id, saleItemId: $this->saleItem->id))
         ->toThrow(StockException::class, 'tidak cukup');
 
     // 1 dus = 24 > 5: konversi ikut diperhitungkan.
@@ -85,7 +88,7 @@ test('mutasi yang membuat saldo minus ditolak untuk semua jenis', function () {
 test('produk tanpa mutasi bersaldo nol dan tidak bisa langsung keluar', function () {
     expect($this->product->currentStock())->toBe(0);
 
-    expect(fn () => $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -1, $this->user->id, saleItemId: 1))
+    expect(fn () => $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -1, $this->user->id, saleItemId: $this->saleItem->id))
         ->toThrow(StockException::class);
 });
 
@@ -123,7 +126,7 @@ test('baris pembalik tidak bisa dibalik lagi', function () {
 
 test('membalik penerimaan yang stoknya sudah terjual ditolak', function () {
     $m = terima($this, 10);
-    $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -8, $this->user->id, saleItemId: 1);
+    $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -8, $this->user->id, saleItemId: $this->saleItem->id);
 
     expect(fn () => $this->action->reverse($m, $this->user->id, note: 'batal'))
         ->toThrow(StockException::class, 'tidak cukup');
@@ -131,18 +134,18 @@ test('membalik penerimaan yang stoknya sudah terjual ditolak', function () {
 
 test('pembatalan penjualan memakai jenis sale_void dan membalik mutasi sale', function () {
     terima($this, 10);
-    $sale = $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -4, $this->user->id, saleItemId: 77);
+    $sale = $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, -4, $this->user->id, saleItemId: $this->saleItem->id);
 
     $void = $this->action->reverse($sale, $this->user->id);
 
     expect($void->type)->toBe(StockMovementType::SaleVoid)
         ->and($void->qty)->toBe(4)
-        ->and($void->sale_item_id)->toBe(77)
+        ->and($void->sale_item_id)->toBe($this->saleItem->id)
         ->and($void->balance_after)->toBe(10);
 });
 
 test('sale_void tidak bisa dibuat lewat handle()', function () {
-    expect(fn () => $this->action->handle($this->product, StockMovementType::SaleVoid, $this->pcs, 1, $this->user->id, saleItemId: 1))
+    expect(fn () => $this->action->handle($this->product, StockMovementType::SaleVoid, $this->pcs, 1, $this->user->id, saleItemId: $this->saleItem->id))
         ->toThrow(StockException::class);
 });
 
@@ -167,7 +170,7 @@ test('saldo awal hanya untuk produk yang belum punya mutasi', function () {
 test('tanda jumlah harus sesuai jenis mutasi', function () {
     expect(fn () => $this->action->handle($this->product, StockMovementType::Opening, $this->pcs, -1, $this->user->id))
         ->toThrow(StockException::class);
-    expect(fn () => $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, 1, $this->user->id, saleItemId: 1))
+    expect(fn () => $this->action->handle($this->product, StockMovementType::Sale, $this->pcs, 1, $this->user->id, saleItemId: $this->saleItem->id))
         ->toThrow(StockException::class);
     expect(fn () => $this->action->handle($this->product, StockMovementType::Adjustment, $this->pcs, 0, $this->user->id, note: 'x'))
         ->toThrow(StockException::class, 'nol');

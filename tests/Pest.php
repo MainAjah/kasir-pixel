@@ -1,5 +1,12 @@
 <?php
 
+use App\Actions\Inventory\AdjustStock;
+use App\Actions\Pos\OpenShift;
+use App\Enums\StockMovementType;
+use App\Models\CashShift;
+use App\Models\Product;
+use App\Models\ProductUnit;
+use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
 use Tests\TestCase;
 
@@ -47,4 +54,44 @@ expect()->extend('toBeOne', function () {
 function something()
 {
     // ..
+}
+
+/** Isi stok produk lewat satu-satunya pintu ledger (saldo awal, atau koreksi tambah bila sudah ada mutasi). */
+function isiStok(Product $product, int $qty, ?ProductUnit $unit = null): void
+{
+    $user = User::factory()->create();
+    $adjust = app(AdjustStock::class);
+
+    if ($product->movements()->exists()) {
+        $adjust->handle($product, StockMovementType::Adjustment, $unit ?? $product->baseUnit, $qty, $user->id, note: 'isi stok tes');
+    } else {
+        $adjust->handle($product, StockMovementType::Opening, $unit ?? $product->baseUnit, $qty, $user->id);
+    }
+}
+
+/**
+ * Buat pengguna dengan shift terbuka. Mengembalikan [user, shift].
+ *
+ * @return array{0: User, 1: CashShift}
+ */
+function kasirDenganShift(int $kasAwal = 100000, string $role = 'kasir'): array
+{
+    $user = User::factory()->create();
+    $user->assignRole($role);
+    $shift = app(OpenShift::class)->handle($user, $kasAwal);
+
+    return [$user, $shift];
+}
+
+/** Produk dengan satuan dasar (harga $harga) dan stok $stok. */
+function produkSiapJual(int $stok = 100, int $harga = 3000, string $nama = 'Mie Instan'): Product
+{
+    $product = Product::factory()->create(['name' => $nama]);
+    $product->baseUnit->update(['sell_price' => $harga]);
+
+    if ($stok > 0) {
+        isiStok($product, $stok);
+    }
+
+    return $product->refresh();
 }

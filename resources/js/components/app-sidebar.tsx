@@ -3,15 +3,19 @@ import {
     BookOpen,
     ClipboardPen,
     FolderGit2,
+    History,
     LayoutGrid,
     Package,
     PackagePlus,
+    ShoppingCart,
     Tags,
 } from 'lucide-react';
 import CategoryController from '@/actions/App/Http/Controllers/Inventory/CategoryController';
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
 import StockAdjustmentController from '@/actions/App/Http/Controllers/Inventory/StockAdjustmentController';
 import StockReceiptController from '@/actions/App/Http/Controllers/Inventory/StockReceiptController';
+import PosController from '@/actions/App/Http/Controllers/Pos/PosController';
+import SaleController from '@/actions/App/Http/Controllers/Pos/SaleController';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -35,6 +39,22 @@ const mainNavItems: NavItem[] = [
         icon: LayoutGrid,
     },
 ];
+
+// Menu kasir untuk kasir dan admin. Kasir juga boleh membaca daftar produk.
+const posNavItems: NavItem[] = [
+    { title: 'Kasir', href: PosController.index(), icon: ShoppingCart },
+    {
+        title: 'Riwayat penjualan',
+        href: SaleController.index(),
+        icon: History,
+    },
+];
+
+const readOnlyProductNav: NavItem = {
+    title: 'Produk',
+    href: ProductController.index(),
+    icon: Package,
+};
 
 // Menu inventaris hanya untuk admin (route middleware role:admin tetap jadi penjaga utama).
 const inventoryNavItems: NavItem[] = [
@@ -68,6 +88,12 @@ const footerNavItems: NavItem[] = [
 export function AppSidebar() {
     const { auth } = usePage().props;
     const isAdmin = auth.roles.includes('admin');
+    const isKasir = auth.roles.includes('kasir');
+    const navItems = isAdmin
+        ? [...mainNavItems, ...posNavItems, ...inventoryNavItems]
+        : isKasir
+          ? [...mainNavItems, ...posNavItems, readOnlyProductNav]
+          : mainNavItems;
 
     return (
         <Sidebar collapsible="icon" variant="inset">
@@ -84,13 +110,7 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain
-                    items={
-                        isAdmin
-                            ? [...mainNavItems, ...inventoryNavItems]
-                            : mainNavItems
-                    }
-                />
+                <NavMain items={navItems} />
             </SidebarContent>
 
             <SidebarFooter>

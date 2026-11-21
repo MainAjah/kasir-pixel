@@ -7,9 +7,13 @@ use App\Http\Controllers\Inventory\StockCardController;
 use App\Http\Controllers\Inventory\StockReceiptController;
 use Illuminate\Support\Facades\Route;
 
-// Inventaris (Tahap 2): hanya admin. Akses baca kasir menyusul di Tahap 3.
-Route::middleware(['auth', 'role:admin'])->group(function () {
+// Kasir boleh membaca daftar produk (Tahap 3); menulis dan halaman lain tetap admin.
+Route::middleware(['auth', 'role:kasir|admin'])->group(function () {
     Route::get('produk', [ProductController::class, 'index'])->name('products.index');
+});
+
+// Inventaris (Tahap 2): hanya admin.
+Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('produk/baru', [ProductController::class, 'create'])->name('products.create');
     Route::post('produk', [ProductController::class, 'store'])->name('products.store');
     Route::get('produk/{product}/ubah', [ProductController::class, 'edit'])->name('products.edit');

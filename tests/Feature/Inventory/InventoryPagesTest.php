@@ -26,7 +26,7 @@ test('hanya admin yang boleh membuka halaman inventaris', function (string $url)
     $this->get($url)->assertRedirect(route('login'));
     $this->actingAs($this->admin)->get($url)->assertOk();
 })->with([
-    '/produk', '/produk/baru', '/penerimaan-barang', '/penerimaan-barang/baru', '/koreksi-stok', '/kategori',
+    '/produk/baru', '/penerimaan-barang', '/penerimaan-barang/baru', '/koreksi-stok', '/kategori',
 ]);
 
 test('kasir dan bendahara tidak bisa menulis data inventaris', function (Role $role) {
