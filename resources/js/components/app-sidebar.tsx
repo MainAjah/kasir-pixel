@@ -1,5 +1,17 @@
-import { Link } from '@inertiajs/react';
-import { BookOpen, FolderGit2, LayoutGrid } from 'lucide-react';
+import { Link, usePage } from '@inertiajs/react';
+import {
+    BookOpen,
+    ClipboardPen,
+    FolderGit2,
+    LayoutGrid,
+    Package,
+    PackagePlus,
+    Tags,
+} from 'lucide-react';
+import CategoryController from '@/actions/App/Http/Controllers/Inventory/CategoryController';
+import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
+import StockAdjustmentController from '@/actions/App/Http/Controllers/Inventory/StockAdjustmentController';
+import StockReceiptController from '@/actions/App/Http/Controllers/Inventory/StockReceiptController';
 import AppLogo from '@/components/app-logo';
 import { NavFooter } from '@/components/nav-footer';
 import { NavMain } from '@/components/nav-main';
@@ -24,6 +36,22 @@ const mainNavItems: NavItem[] = [
     },
 ];
 
+// Menu inventaris hanya untuk admin (route middleware role:admin tetap jadi penjaga utama).
+const inventoryNavItems: NavItem[] = [
+    { title: 'Produk', href: ProductController.index(), icon: Package },
+    {
+        title: 'Penerimaan barang',
+        href: StockReceiptController.index(),
+        icon: PackagePlus,
+    },
+    {
+        title: 'Koreksi stok',
+        href: StockAdjustmentController.create(),
+        icon: ClipboardPen,
+    },
+    { title: 'Kategori', href: CategoryController.index(), icon: Tags },
+];
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -38,6 +66,9 @@ const footerNavItems: NavItem[] = [
 ];
 
 export function AppSidebar() {
+    const { auth } = usePage().props;
+    const isAdmin = auth.roles.includes('admin');
+
     return (
         <Sidebar collapsible="icon" variant="inset">
             <SidebarHeader>
@@ -53,7 +84,13 @@ export function AppSidebar() {
             </SidebarHeader>
 
             <SidebarContent>
-                <NavMain items={mainNavItems} />
+                <NavMain
+                    items={
+                        isAdmin
+                            ? [...mainNavItems, ...inventoryNavItems]
+                            : mainNavItems
+                    }
+                />
             </SidebarContent>
 
             <SidebarFooter>

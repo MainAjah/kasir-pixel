@@ -68,6 +68,12 @@ return [
     'timezone' => 'UTC',
 
     /*
+    | Zona waktu tampilan dan input tanggal pengguna. Database tetap menyimpan UTC.
+    */
+
+    'display_timezone' => env('APP_DISPLAY_TIMEZONE', 'Asia/Jakarta'),
+
+    /*
     |--------------------------------------------------------------------------
     | Application Locale Configuration
     |--------------------------------------------------------------------------

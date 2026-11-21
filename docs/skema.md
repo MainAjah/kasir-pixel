@@ -1,14 +1,14 @@
 # Rancangan Skema Database — Tahap 0 (versi tugas)
 
-Status: **DRAF, menunggu persetujuan.** Belum ada kode atau migration.
-Revisi: 21 Nov 2026. Acuan: `CLAUDE.md`, bagian "Versi tugas".
+Status: bagian inventaris (3.2, bagian 4, tes Tahap 2) **sudah dibangun di Tahap 2**; kasir dan simpanan masih rancangan.
+Revisi: 21 Nov 2026 (Tahap 2: keputusan Q1-Q5). Acuan: `CLAUDE.md`, bagian "Versi tugas".
 
 Ini proyek tugas kuliah, bukan produksi. Skema dibuat sesederhana mungkin, tetapi aturan ledger tetap dijaga.
 
 Tanda:
 
 - **[usulan]**: tidak tercantum di `CLAUDE.md`, perlu disetujui.
-- Keputusan yang masih terbuka ada di bagian 9.
+- Keputusan skema ada di bagian 9.
 
 ---
 
@@ -36,7 +36,7 @@ Tanda:
 4. **Koreksi lewat mutasi baru.** Kesalahan diperbaiki dengan baris pembalik (`reverses_*_id` menunjuk baris asal) atau baris penyesuaian, selalu dengan alasan.
 5. **Satu pintu.** Hanya `AdjustStock` dan `PostSaving` yang menulis ke ledger. Action lain memanggil keduanya.
 6. **Urutan resmi = `id`.** `occurred_at` hanya informasi.
-7. **Penjagaan:** Action satu pintu, model Eloquent ledger melempar exception saat `updating` / `deleting`, dan tes Pest.
+7. **Penjagaan, dan batasnya.** Perlindungan ledger **hanya di tingkat aplikasi**: (a) Action satu pintu, (b) model Eloquent ledger melempar exception saat `updating` / `deleting` (trait `AppendOnly`), (c) tes Pest. **Database sendiri tidak menolak perubahan**: tidak ada trigger (dibuang untuk versi tugas), jadi `DB::table(...)->update()`, SQL manual, atau akses langsung ke MySQL tetap bisa mengubah atau menghapus baris ledger. Satu-satunya aturan yang ditegakkan database adalah `CHECK (qty <> 0)`, kolom `balance_after` tak bertanda, dan indeks unik pada `reverses_*_id`. Tes tidak mengklaim melindungi dari query langsung.
 8. **Satu transaksi database per aksi.** Saat menghitung `balance_after`, baris saldo terakhir dibaca dengan `lockForUpdate()` biasa. Tidak ada aturan urutan kunci.
 
 ---
@@ -53,9 +53,8 @@ erDiagram
     sales ||--o| sale_voids : "dibatalkan oleh"
     categories |o--o{ products : "mengelompokkan"
     products ||--|{ product_units : "punya satuan"
-    product_units ||--o{ product_barcodes : "punya barcode"
     products ||--o{ stock_movements : "mutasi"
-    stock_entries |o--o{ stock_movements : "dokumen masuk/koreksi"
+    stock_entries |o--o{ stock_movements : "dokumen penerimaan"
     sale_items |o--o{ stock_movements : "penjualan/pembatalan"
     stock_movements |o--o| stock_movements : "membalik"
     members ||--o{ savings_ledger : "simpanan"
@@ -112,29 +111,27 @@ Tidak ada kolom `stock`.
 | conversion | int ≥ 1 | isi satuan dasar per satuan ini (dus = 24) |
 | is_base | bool | tepat satu per produk, dengan `conversion` = 1 |
 | sell_price | rupiah | harga jual per satuan ini |
+| barcode | string null, unik | satu kolom, menunjuk satuan ini (keputusan Q1) |
 | timestamps, deleted_at | | |
 
-Aturan: unik `(product_id, name)`. `conversion` tidak boleh diubah setelah satuan dipakai di mutasi atau penjualan.
+Aturan (ditegakkan di `SaveProduct`):
 
-**`product_barcodes`** **[usulan]**
+- Unik `(product_id, name)`. Tepat satu satuan dasar, isi 1.
+- `conversion` tidak boleh diubah setelah satuan dipakai di mutasi (`ProductUnit::isInUse()`). Tahap 3 menambah pengecekan `sale_items`.
+- Satuan yang sudah dipakai tidak bisa dihapus. Satuan dasar tidak bisa diganti setelah produk punya mutasi, karena saldo tersimpan dalam satuan dasar.
+- Satuan yang belum dipakai dan dihapus (soft delete) melepas barcode dan namanya (nama diberi akhiran `~id`) supaya bisa dipakai lagi.
 
-| Kolom | Tipe | Keterangan |
-| --- | --- | --- |
-| product_unit_id | FK | barcode menunjuk satuan |
-| barcode | string unik | |
-
-Bila tidak disetujui: kolom `barcode` unik null di `product_units` (lihat Q1).
-
-**`stock_entries`** **[usulan]**: dokumen barang masuk dan koreksi.
+**`stock_entries`**: catatan penerimaan barang saja (keputusan Q4). Tanpa saldo, tanpa soft delete, tidak bisa diubah. Stok tetap hanya di `stock_movements`.
 
 | Kolom | Tipe | Keterangan |
 | --- | --- | --- |
-| number | string unik | `BM-20261121-0001` |
-| type | enum | `opening`, `receipt`, `adjustment` |
+| number | string unik | `BM-20261121-0001`, urut per hari (tanggal WIB) |
 | supplier_name | string null | teks bebas |
-| note | text null | wajib untuk `adjustment` |
+| note | text null | |
 | occurred_at | datetime | |
-| created_by, created_at | | tidak bisa diubah |
+| created_by, created_at | | |
+
+Saldo awal (`opening`) dan koreksi (`adjustment`) **tidak** punya dokumen kepala: ditulis langsung ke `stock_movements` dengan `stock_entry_id` null; `adjustment` wajib `note`.
 
 **`stock_movements`** (ledger stok)
 
@@ -143,26 +140,28 @@ Bila tidak disetujui: kolom `barcode` unik null di `product_units` (lihat Q1).
 | product_id | FK | |
 | type | enum | `opening`, `receipt`, `sale`, `sale_void`, `adjustment` |
 | qty | int ≠ 0, bertanda | `+` masuk, `−` keluar, satuan dasar |
-| balance_after | int | saldo produk setelah mutasi |
+| balance_after | int tak bertanda | saldo produk setelah mutasi (tidak pernah minus) |
 | input_unit_id | FK `product_units` | satuan yang diketik (misalnya dus) |
 | input_qty | int | jumlah dalam satuan itu. `qty` = `input_qty × conversion` |
 | cost_total | rupiah null | harga beli total, untuk `opening` dan `receipt` |
-| stock_entry_id | FK null | untuk `opening`, `receipt`, `adjustment` |
+| stock_entry_id | FK null | hanya untuk `receipt` |
 | sale_item_id | FK null | untuk `sale`, `sale_void` |
 | reverses_movement_id | FK null, unik | baris yang dibalik; unik agar tidak bisa dibalik dua kali |
 | note | string null | |
 | occurred_at | datetime | |
 | created_by, created_at | | |
 
-Constraint: `CHECK (qty <> 0)`. Indeks `(product_id, id)`.
+Constraint: `CHECK (qty <> 0)`, `balance_after` unsigned, `reverses_movement_id` unik. Indeks `(product_id, id)`. Hanya `AdjustStock` yang boleh menulis ke tabel ini. FK `sale_item_id` ditambahkan di migration Tahap 3.
+
+Waktu: database menyimpan UTC; tampilan dan input tanggal memakai `config('app.display_timezone')` (`Asia/Jakarta`).
 
 | type | Tanda | Sumber |
 | --- | --- | --- |
-| `opening` | + | `stock_entries` |
-| `receipt` | + | `stock_entries` |
+| `opening` | + | langsung, hanya bila produk belum punya mutasi |
+| `receipt` | + | `stock_entries` (wajib) |
 | `sale` | − | `sale_items` |
 | `sale_void` | + | `sale_items`, wajib `reverses_movement_id` |
-| `adjustment` | ± | `stock_entries`, wajib alasan |
+| `adjustment` | ± | langsung, wajib alasan; juga dipakai untuk membalik mutasi selain `sale` |
 
 ### 3.3 Kasir
 
@@ -222,7 +221,7 @@ Aturan: satu shift aktif per kasir (dicek di Action `OpenShift`). Transisi hanya
 
 Aturan: Σ `payments.amount` = `sales.total`.
 
-**`sale_voids`** **[usulan]**: pembatalan, agar `sales` tetap tidak di-update.
+**`sale_voids`** (disetujui, Q4): pembatalan, agar `sales` tetap tidak di-update.
 
 | Kolom | Tipe | Keterangan |
 | --- | --- | --- |
@@ -245,16 +244,7 @@ Aturan: Σ `payments.amount` = `sales.total`.
 | qr_token | string unik | isi QR kartu anggota (token acak) |
 | timestamps, deleted_at | | |
 
-**`savings_rates`** **[usulan]**: besaran pokok dan wajib.
-
-| Kolom | Tipe | Keterangan |
-| --- | --- | --- |
-| savings_type | enum | `pokok`, `wajib` |
-| amount | rupiah > 0 | |
-| effective_from | date | tarif baru = baris baru |
-| created_by, created_at | | |
-
-Bila tidak disetujui: dua nilai tetap di `config/koperasi.php` (lihat Q3).
+**Tarif simpanan** (keputusan Q3): tidak ada tabel `savings_rates`. Besaran simpanan pokok dan wajib ada di berkas `config/koperasi.php` (dibuat di Tahap 4).
 
 **`savings_ledger`** (ledger simpanan)
 
@@ -299,9 +289,11 @@ Nomor dokumen (`INV-`, `BM-`, `SP-`, `A-`) dibuat dari nomor urut terakhir hari 
 | S1 | Stok produk = `balance_after` baris terakhir = Σ `qty`. |
 | S2 | `AdjustStock` dalam satu transaksi: baca saldo terakhir, hitung `balance_after`, insert. |
 | S3 | `qty` selalu dalam satuan dasar. |
-| S4 | Mutasi `adjustment` yang membuat saldo minus ditolak. Penjualan: lihat Q2. |
+| S4 | Mutasi apa pun yang membuat saldo minus ditolak (keputusan Q2): koreksi, penjualan, dan pembalikan. Dengan begitu penjualan dengan stok kurang otomatis ditolak. |
 | S5 | Baris pembalik: `qty` = −`qty` asal, `reverses_movement_id` unik. `sale_void` hanya membalik `sale`. |
 | S6 | Peringatan stok minimum bila saldo ≤ `min_stock` (tampilan saja). |
+| S7 | Baris pembalik tidak bisa dibalik lagi. Mutasi `sale` dibalik dengan `sale_void`; mutasi lain dibalik dengan `adjustment` (alasan wajib). |
+| S8 | `opening` hanya untuk produk yang belum punya mutasi. `receipt` wajib punya dokumen `stock_entries`. |
 
 ## 5. Aturan simpanan
 
@@ -329,15 +321,20 @@ Nomor dokumen (`INV-`, `BM-`, `SP-`, `A-`) dibuat dari nomor urut terakhir hari 
 
 ## 7. Tes Pest wajib
 
-**Tahap 2 (stok)**
+**Tahap 2 (stok)**: sudah ditulis, di `tests/Feature/Inventory/`.
 
-- Saldo = Σ `qty` = `balance_after` terakhir setelah campuran masuk, keluar, koreksi.
-- Menerima 2 dus (isi 24) menambah 48 satuan dasar.
-- Barcode dus terbaca sebagai satuan dus.
-- Baris ledger tidak bisa di-update atau di-delete.
-- `adjustment` yang membuat saldo minus ditolak.
-- Baris yang sama tidak bisa dibalik dua kali.
-- `conversion` satuan yang sudah dipakai tidak bisa diubah.
+- Saldo = Σ `qty` = `balance_after` terakhir setelah campuran masuk, keluar, koreksi; rantai `balance_after` konsisten baris ke baris.
+- Menerima 2 dus (isi 24 atau 40) menambah satuan dasar sesuai isi.
+- Barcode dus terbaca sebagai satuan dus; barcode ganda ditolak.
+- Model ledger menolak `update` dan `delete` lewat Eloquent. **Hanya itu yang diuji**; query langsung tidak dijaga dan tidak diuji (tanpa trigger).
+- Mutasi yang membuat saldo minus ditolak untuk semua jenis.
+- Baris yang sama tidak bisa dibalik dua kali; baris pembalik tidak bisa dibalik lagi; unique database ikut diuji.
+- `conversion` satuan yang sudah dipakai tidak bisa diubah; satuan terpakai tidak bisa dihapus; satuan dasar tidak bisa diganti setelah ada mutasi.
+- `CHECK (qty <> 0)` di database.
+- Penerimaan barang: dokumen bernomor urut, mutasi cocok, gagal seluruhnya bila satu baris bermasalah.
+- Perubahan harga dan isi satuan tercatat di `activity_logs`.
+- Hanya admin yang bisa membuka dan menulis halaman inventaris.
+- Zona waktu: input WIB disimpan UTC dan tampil kembali WIB.
 
 **Tahap 3 (kasir)**
 
@@ -366,11 +363,12 @@ Nomor dokumen (`INV-`, `BM-`, `SP-`, `A-`) dibuat dari nomor urut terakhir hari 
 | `loans`, `loan_installments` | pinjaman sederhana; anggota tidak bisa keluar bila masih punya pinjaman |
 | `shu_periods`, `shu_allocations` | SHU dari jasa modal (saldo simpanan) dan jasa usaha (`sales.member_id`) |
 
-## 9. Keputusan yang masih terbuka
+## 9. Keputusan skema
 
-| Kode | Pertanyaan | Rekomendasi |
+| Kode | Pertanyaan | Keputusan |
 | --- | --- | --- |
-| Q1 | Barcode di tabel terpisah `product_barcodes`, atau satu kolom di `product_units`? | Satu kolom saja, cukup untuk tugas |
-| Q2 | Bila stok sistem kurang, penjualan ditolak atau tetap jalan dengan peringatan? | Ditolak. Lebih sederhana dan mudah diuji; data contoh dibuat dengan stok cukup |
-| Q3 | Tarif pokok dan wajib di tabel `savings_rates` atau di berkas config? | Berkas config |
-| Q4 | Setujui `stock_entries` dan `sale_voids`? | Ya. Keduanya menjaga aturan "penjualan tidak diedit" dan "koreksi lewat dokumen" tanpa menambah rumit |
+| Q1 | Barcode di tabel terpisah atau satu kolom? | Satu kolom `barcode` unik di `product_units`. Tabel `product_barcodes` tidak dibuat. |
+| Q2 | Stok sistem kurang: tolak atau tetap jalan? | Tolak. Ditegakkan di `AdjustStock` untuk semua jenis mutasi. |
+| Q3 | Tarif pokok dan wajib di tabel atau config? | Berkas `config/koperasi.php`. Tabel `savings_rates` tidak dibuat. |
+| Q4 | `stock_entries` dan `sale_voids`? | Disetujui. `stock_entries` hanya catatan penerimaan barang tanpa saldo; `opening` dan `adjustment` tanpa dokumen kepala. |
+| Q5 | `activity_logs` kapan dibuat? | Di Tahap 2, karena perubahan harga, konversi, penerimaan, dan koreksi stok wajib tercatat. |
