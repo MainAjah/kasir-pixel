@@ -1,0 +1,979 @@
+<!doctype html>
+<html lang="id">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Rancangan Diorama</title>
+<style>
+  :root { --bg: #fbf7ef; --panel: #ffffff; --ink: #2b2a33; --muted: #6b6578; --line: #e6dccb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 1240px; margin: 0 auto; padding: 32px 16px 64px; }
+  h1 { font-size: 28px; margin: 0 0 4px; letter-spacing: -0.01em; }
+  h2 { font-size: 19px; margin: 40px 0 8px; }
+  p.lead { color: var(--muted); margin: 0 0 24px; max-width: 75ch; }
+  .note { color: var(--muted); font-size: 13px; }
+  .panel { background: var(--panel); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+  .controls { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 12px; font-size: 14px; }
+  .controls label { display: inline-flex; gap: 6px; align-items: center; cursor: pointer; }
+  .canvas-wrap { overflow-x: auto; }
+  canvas { display: block; image-rendering: pixelated; image-rendering: crisp-edges; }
+  .grid2 { display: grid; gap: 16px; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); }
+  .grid2 canvas { width: 100%; height: auto; }
+  .legend { display: grid; gap: 6px 16px; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); font-size: 14px; margin-top: 12px; }
+  .legend span.sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; vertical-align: -2px; margin-right: 6px; border: 1px solid rgba(0,0,0,.15); }
+  .people { display: grid; gap: 12px; grid-template-columns: repeat(auto-fill, minmax(190px, 1fr)); }
+  .person { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 10px; }
+  .person canvas { width: 100%; height: auto; border-radius: 6px; }
+  .person .meta { font-size: 13px; margin-top: 6px; }
+  .person .meta div { color: var(--muted); }
+  .tag { display: inline-block; font-size: 11px; padding: 1px 7px; border-radius: 999px; background: #fdf1dc; border: 1px solid #f2dbb0; margin-left: 4px; vertical-align: 1px; }
+  .tag.own { background: #eef6ee; border-color: #cfe5cf; }
+  .palette { display: grid; gap: 10px; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); }
+  .swatch { border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: var(--panel); }
+  .swatch .chip { height: 56px; }
+  .swatch .meta { padding: 8px 10px; font-size: 13px; }
+  .swatch .meta code { font-weight: 600; }
+  .swatch .meta div { color: var(--muted); }
+  .flow { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; margin: 8px 0 4px; }
+  .state { background: #eef6ee; border: 1px solid #cfe5cf; border-radius: 999px; padding: 3px 10px; font-size: 13px; font-family: ui-monospace, Menlo, Consolas, monospace; }
+  .state.cashier { background: #fdf1dc; border-color: #f2dbb0; }
+  .arrow { color: var(--muted); }
+  table { border-collapse: collapse; width: 100%; font-size: 14px; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { color: var(--muted); font-weight: 600; }
+  code { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 0.92em; }
+  .depth-caption { font-size: 14px; margin-top: 8px; }
+  #zoomCounter { width: 100%; max-width: 760px; height: auto; }
+</style>
+</head>
+<body>
+<main>
+  <h1>Rancangan diorama isometrik</h1>
+  <p class="lead">
+    Tahap 5A, minimarket koperasi (revisi 5, disetujui pemilik 21 Nov 2026). Halaman ini statis dan hanya acuan rancangan, bukan bagian aplikasi.
+    Karakter utama diambil dari gambar referensi Anda (latarnya dibuang); karakter lain, toko, dan perabot digambar sendiri.
+    Sprite final dan animasinya dibuat di 5C, satu per satu dengan persetujuan Anda.
+  </p>
+
+  <h2>1. Denah isometrik (kanvas 768 × 432, tile 64 × 32, grid 12 × 9)</h2>
+  <div class="panel">
+    <div class="controls">
+      <label><input type="checkbox" id="optLabels"> Label objek</label>
+      <label><input type="checkbox" id="optCoords"> Koordinat tile</label>
+      <label><input type="checkbox" id="optPath"> Jalur contoh pelanggan</label>
+      <label><input type="checkbox" id="optBlocked"> Tile terlarang</label>
+      <label><input type="checkbox" id="optNight"> Malam</label>
+      <label>Lantai
+        <select id="optFloor">
+          <option value="mint" selected>Kotak mint dan krem (dipilih)</option>
+          <option value="ornamen">Ubin ornamen hangat</option>
+          <option value="parket">Parket kayu madu</option>
+        </select>
+      </label>
+      <label>Skala
+        <select id="optScale">
+          <option value="1">×1 (768 × 432)</option>
+          <option value="2" selected>×2 (1536 × 864)</option>
+        </select>
+      </label>
+    </div>
+    <div class="canvas-wrap"><canvas id="map"></canvas></div>
+    <div class="legend" id="legend"></div>
+    <p class="note">Pilih pola lantai di atas untuk membandingkan. Karpet terakota di bawah antrean ada di semua pilihan. Jalur contoh dihitung dengan BFS di grid ini sendiri.</p>
+  </div>
+
+  <h2>2. Meja kasir dari dekat</h2>
+  <div class="panel">
+    <canvas id="zoomCounter"></canvas>
+    <p class="note">
+      Penjaga kasir: zombie dari gambar Anda. Kasir 1 (aktif): monitor kasir (dilihat dari belakang), keyboard, scanner datar dengan garis laser, scanner genggam,
+      printer struk, laci uang, kantong belanja, dan layar pelanggan yang menampilkan total. Kasir 2 (tutup): komputer yang
+      sama dalam keadaan mati, layar pelanggan bertuliskan "TUTUP".
+    </p>
+  </div>
+
+  <h2>3. Karakter</h2>
+  <div class="panel">
+    <p class="note" style="margin-top:0">
+      <b>Dari gambar Anda</b>: latar, bayangan, dan efek (percikan, asap, semburan api) dibuang; piksel dikembalikan ke grid aslinya.
+      Warnanya dibiarkan asli (pengecualian palet pastel). Gambar sumber hanya punya satu pose, jadi arah kiri dan kanan memakai
+      cermin, dan gerak jalan di 5C memakai ayunan naik-turun. <b>Buatan sendiri</b>: penjaga kasir dan karakter tambahan, disusun dari
+      lapisan; di sini masih tampil ×2 dari grid 16 × 24 dan akan digambar ulang sedetail karakter referensi di 5C.
+      Pratinjau peta menampilkan semua karakter sekaligus; saat berjalan, paling banyak 5 pelanggan tampil.
+    </p>
+    <div class="people" id="gallery"></div>
+  </div>
+
+  <h2>4. Urutan gambar menurut kedalaman</h2>
+  <div class="grid2">
+    <div class="panel"><canvas id="depthBehind"></canvas><div class="depth-caption">Pelanggan di <code>(1,0)</code>, kedalaman 1, <b>di belakang</b> rak <code>(1,1)</code>, kedalaman 2: badan bawah tertutup rak, kepala tetap terlihat.</div></div>
+    <div class="panel"><canvas id="depthFront"></canvas><div class="depth-caption">Pelanggan di <code>(1,2)</code>, kedalaman 3, <b>di depan</b> rak: digambar sesudah rak, terlihat utuh.</div></div>
+    <div class="panel"><canvas id="depthSplit"></canvas><div class="depth-caption">Rak panjang <b>dipotong per tile</b>; tiap potongan digambar menurut kedalamannya sendiri.</div></div>
+  </div>
+  <div class="panel" style="margin-top:16px">
+    <ol style="margin:0;padding-left:20px">
+      <li>Lantai semua tile, lalu keset dan bayangan lantai.</li>
+      <li>Dua dinding belakang beserta lukisan, jam, dan jendela.</li>
+      <li>Objek dan aktor diurutkan menurut <code>gx + gy</code> titik pijak. Seri: furnitur dulu, lalu aktor, lalu <code>gx</code> kecil dulu. Benda di atas meja ikut potongan mejanya.</li>
+      <li>Barang bawaan dan efek (laser, koin, gelembung) memakai kedalaman pemiliknya + 0,1.</li>
+      <li>Lapisan malam, lalu lapisan menyala (layar komputer, kaca vending machine, jendela).</li>
+      <li>Angka antrean "+N". Tombol mute dan hemat daya ada di HTML, di luar kanvas.</li>
+    </ol>
+  </div>
+
+  <h2>5. Palet 24 warna pastel</h2>
+  <p class="note">Dipakai untuk toko, perabot, dan karakter buatan sendiri. Karakter dari gambar referensi memakai warna aslinya.</p>
+  <div class="palette" id="palette"></div>
+
+  <h2>6. State machine</h2>
+  <div class="panel">
+    <b>Pelanggan</b>
+    <div class="flow" id="flowCustomer"></div>
+    <p class="note">Kejar ketinggalan: bila <code>sale.completed</code> datang saat pelanggan masih berjalan, ia berjalan ×3 ke kasir. Pelanggan latar (paling banyak 2) berkeliling lalu keluar tanpa antre atau bayar.</p>
+    <b>Penjaga kasir</b>
+    <div class="flow" id="flowCashier"></div>
+    <p class="note">Satu <code>pindai</code> per <code>item.scanned</code>. <code>batal</code> hanya dipicu <code>sale.voided</code>.</p>
+  </div>
+
+  <h2>7. Peristiwa ke animasi</h2>
+  <div class="panel">
+    <table>
+      <thead><tr><th>Peristiwa (<code>store-events.ts</code>)</th><th>Di diorama</th></tr></thead>
+      <tbody>
+        <tr><td><code>sale.opened</code></td><td>Pelanggan baru muncul di pintu. Bila sudah ada 5 pelanggan, antrean menampilkan "+N".</td></tr>
+        <tr><td><code>item.scanned</code></td><td>Barang dipindai di scanner datar (garis laser berkedip, bip opsional), lalu masuk kantong.</td></tr>
+        <tr><td><code>sale.completed</code></td><td>Koin ke laci uang, struk keluar dari printer, pelanggan keluar membawa kantong. Layar pelanggan menampilkan total, layar harian naik.</td></tr>
+        <tr><td><code>sale.voided</code></td><td>Penjaga menggeleng, gelembung "×", total harian turun.</td></tr>
+      </tbody>
+    </table>
+  </div>
+</main>
+
+<script>
+(() => {
+  // ---- Palet -------------------------------------------------------------
+  const PALETTE = [
+    ['#2b2a33', 'garis tepi gelap'], ['#5b5470', 'bayangan'], ['#8f88a8', 'abu lavender'],
+    ['#fdf8f0', 'sorotan'], ['#f7f1e3', 'krem terang'], ['#efe2c4', 'dinding krem'],
+    ['#d9c7a3', 'lantai terang'], ['#c4ad86', 'lantai gelap'], ['#a7d7a5', 'hijau daun pastel'],
+    ['#6fae7b', 'hijau tua'], ['#ffe9a8', 'kuning lampu'], ['#f6c56b', 'oranye kunyit'],
+    ['#e89b4f', 'kunyit gelap'], ['#e8907e', 'merah bata pastel'], ['#c2675a', 'bata gelap'],
+    ['#f4b6c2', 'merah muda'], ['#c9b6e4', 'lavender'], ['#9fd3e6', 'biru langit, kaca'],
+    ['#6a9fc4', 'biru tua'], ['#7a5c4b', 'kayu, rambut'], ['#f2c9a5', 'kulit terang'],
+    ['#c98e6a', 'kulit sedang'], ['#8d5a3f', 'kulit gelap'], ['#3a3d6b', 'biru malam'],
+  ];
+  const C = Object.fromEntries(PALETTE.map(([hex], i) => [i + 1, hex]));
+  const fl = Math.floor;
+
+  // ---- Geometri: kanvas 768 x 432, tile 64 x 32 ---------------------------
+  const HW = 32, HH = 16, T = 32, GW = 12, GH = 9, BASE_W = 768, BASE_H = 432, WALL = 80;
+  const makeProj = (ox, oy) => (gx, gy) => ({ cx: ox + (gx - gy) * HW, ty: oy + (gx + gy) * HH });
+
+  // Balok isometrik: (ox, oy) = pojok belakang di lantai; a = panjang searah gx, b = searah gy, h = tinggi.
+  function isoBox(ctx, ox, oy, a, b, h, top, left, right) {
+    if (left) { ctx.fillStyle = left; for (let i = 0; i < a; i++) ctx.fillRect(ox - b + i, oy + fl(b / 2) + fl(i / 2) - h, 1, h + 1); }
+    if (right) { ctx.fillStyle = right; for (let j = 0; j < b; j++) ctx.fillRect(ox + a - b + j, oy + fl((a + b) / 2) - fl(j / 2) - h, 1, h + 1); }
+    if (top) {
+      ctx.fillStyle = top;
+      for (let k = -b; k < a; k++) {
+        const jmin = Math.max(0, -k), jmax = Math.min(b - 1, a - 1 - k); if (jmax < jmin) continue;
+        const y0 = oy + fl((k + 2 * jmin) / 2) - h, y1 = oy + fl((k + 2 * jmax) / 2) - h;
+        ctx.fillRect(ox + k, y0, 1, y1 - y0 + 1);
+      }
+    }
+  }
+  // Titik pada sisi kiri (menghadap +gy): kolom i, d = jarak dari tepi atas sisi.
+  function leftDot(ctx, ox, oy, b, h, i, d, color, w = 1, hgt = 1) {
+    ctx.fillStyle = color;
+    for (let k = 0; k < w; k++) ctx.fillRect(ox - b + i + k, oy + fl(b / 2) + fl((i + k) / 2) - h + d, 1, hgt);
+  }
+  // Titik pada sisi kanan (menghadap +gx): kolom j dari kiri ke kanan.
+  function rightDot(ctx, ox, oy, a, b, h, j, d, color, w = 1, hgt = 1) {
+    ctx.fillStyle = color;
+    for (let k = 0; k < w; k++) ctx.fillRect(ox + a - b + j + k, oy + fl((a + b) / 2) - fl((j + k) / 2) - h + d, 1, hgt);
+  }
+  // Titik di permukaan atas: i searah gx, j searah gy.
+  function topDot(ctx, ox, oy, h, i, j, color) { ctx.fillStyle = color; ctx.fillRect(ox + i - j, oy + fl((i + j) / 2) - h, 1, 1); }
+  // Titik pojok belakang benda yang diletakkan di atas permukaan setinggi h, posisi lokal (u, v) dalam tile.
+  const onTop = (cx, ty, h, u, v) => [cx + u - v, ty + fl((u + v) / 2) - h];
+
+  // ---- Huruf 3 x 5 untuk layar dan papan ---------------------------------
+  const FONT = {
+    0: '111101101101111', 1: '010110010010111', 2: '111001111100111', 3: '111001111001111', 4: '101101111001001',
+    5: '111100111001111', 6: '111100111101111', 7: '111001001001001', 8: '111101111101111', 9: '111101111001111',
+    '.': '000000000000010', R: '110101110101101', p: '000110101110100', T: '111010010010010', U: '101101101101111',
+    P: '110101110100100', B: '110101110101110', K: '101101110101101', A: '010101111101101', ' ': '000000000000000',
+    M: '101111111101101', I: '111010010010111', N: '101111111111101', S: '111100111001111', O: '111101101101111',
+  };
+  // Tulisan pada sisi kiri balok (miring mengikuti sisi).
+  function leftText(ctx, ox, oy, b, h, i0, d0, text, color) {
+    let i = i0;
+    for (const ch of text) {
+      const g = FONT[ch] || FONT[' '];
+      const width = ch === '.' ? 2 : 4;
+      for (let r = 0; r < 5; r++) for (let c = 0; c < 3; c++) if (g[r * 3 + c] === '1') leftDot(ctx, ox, oy, b, h, i + c - (ch === '.' ? 1 : 0), d0 + r, color);
+      i += width;
+    }
+  }
+
+  // ---- Denah sebagai data ---------------------------------------------------
+  const segments = [];
+  const add = (kind, gx, gy, extra = {}) => segments.push({ kind, gx, gy, ...extra });
+  const FILL = ['penuh', 'setengah', 'penuh', 'sedikit', 'kosong'];
+  for (let gx = 2; gx <= 6; gx++) add('rak', gx, 2, { fill: FILL[gx - 2], seed: gx });
+  for (let gx = 2; gx <= 6; gx++) add('rak', gx, 4, { fill: FILL[(gx + 1) % 5], seed: gx + 7 });
+  for (let gx = 7; gx <= 9; gx++) add('vending', gx, 0, { color: gx - 7, fill: ['penuh', 'setengah', 'sedikit'][gx - 7] });
+  add('meja', 9, 6, { part: 'kiri', on: true }); add('meja', 10, 6, { part: 'kanan', on: true });
+  add('meja', 9, 3, { part: 'kiri', on: false }); add('meja', 10, 3, { part: 'kanan', on: false });
+  add('kursi', 9, 2);
+  add('tanaman', 0, 0); add('tanaman', 11, 5);
+
+  const blocked = new Set();
+  for (const s of segments) blocked.add(s.gx + ',' + s.gy);
+  for (let gx = 9; gx <= 11; gx++) { blocked.add(gx + ',5'); blocked.add(gx + ',2'); }
+  blocked.add('11,3');
+
+  const labels = [
+    ['Rak A', 4, 2], ['Rak B', 4, 4], ['Vending machine', 8, 0], ['Kasir 1 (aktif)', 10, 6], ['Kasir 2 (tutup)', 10, 3],
+    ['Penjaga', 9, 5], ['Pintu', 0, 6.5], ['Dilayani', 9, 7], ['Antrean', 7, 7], ['Lajur keluar', 4, 8],
+  ];
+
+  // ---- Rak ------------------------------------------------------------------
+  const RACK_TOP = C[5];
+  const PRODUCTS = [[C[14], C[15]], [C[12], C[13]], [C[9], C[10]], [C[18], C[19]], [C[16], C[14]], [C[17], C[3]], [C[4], C[3]]];
+  function drawRack(ctx, cx, ty, fill, seed) {
+    const h = 32, level = { kosong: 0, sedikit: 0.25, setengah: 0.6, penuh: 1 }[fill] ?? 0;
+    isoBox(ctx, cx, ty, T, T, h, RACK_TOP, C[20], C[23]);
+    for (let i = 0; i < T; i++) { leftDot(ctx, cx, ty, T, h, i, 0, C[23]); topDot(ctx, cx, ty, h, i, T - 1, C[20]); }
+    for (let j = 0; j < T; j++) topDot(ctx, cx, ty, h, T - 1, j, C[20]);
+    // Tiga tingkat rak; barang berdiri di atas papan.
+    const shelves = [11, 22, 31];
+    let rnd = seed * 9301 + 49297;
+    const rand = () => (rnd = (rnd * 9301 + 49297) % 233280) / 233280;
+    for (let s = 0; s < 3; s++) {
+      const floorD = shelves[s];
+      leftDot(ctx, cx, ty, T, h, 0, floorD, C[8], T, 1);              // papan
+      leftDot(ctx, cx, ty, T, h, 0, floorD - 1, C[1], T, 1);          // bayangan papan
+      let i = 2;
+      while (i < T - 3) {
+        const w = 2 + fl(rand() * 2), ph = 4 + fl(rand() * 4), [body, dark] = PRODUCTS[fl(rand() * PRODUCTS.length)];
+        if (i / T <= level) {
+          leftDot(ctx, cx, ty, T, h, i, floorD - 1 - ph, body, w, ph);
+          leftDot(ctx, cx, ty, T, h, i + w - 1, floorD - 1 - ph, dark, 1, ph);
+          leftDot(ctx, cx, ty, T, h, i, floorD - 1 - ph, C[4], 1, 1);   // kilau
+          if (ph > 5) leftDot(ctx, cx, ty, T, h, i, floorD - 3 - fl(ph / 2), C[4], w - 1, 1); // label
+        }
+        i += w + 1;
+      }
+      for (let t = 4; t < T - 2; t += 9) leftDot(ctx, cx, ty, T, h, t, floorD, C[4], 2, 1); // label harga
+    }
+    // Sisi ujung: panel kayu dengan garis.
+    for (let j = 6; j < T; j += 10) rightDot(ctx, cx, ty, T, T, h, j, 2, C[20], 1, h - 3);
+  }
+
+  // ---- Vending machine -------------------------------------------------------
+  const VENDING = [[C[14], C[15]], [C[18], C[19]], [C[9], C[10]]];
+  const CANS = [C[14], C[12], C[9], C[16], C[19], C[17]];
+  function drawVending(ctx, cx, ty, color, fill, night) {
+    const a = 30, b = 22, h = 76, [front, side] = VENDING[color];
+    const level = { kosong: 0, sedikit: 1, setengah: 3, penuh: 5 }[fill] ?? 0;
+    isoBox(ctx, cx + 1, ty, a, b, h, C[5], front, side);
+    const L = (i, d, col, w = 1, hh = 1) => leftDot(ctx, cx + 1, ty, b, h, i, d, col, w, hh);
+    for (let i = 0; i < a; i++) { L(i, 0, C[1]); }
+    L(1, 3, C[4], a - 2, 9);                         // papan nama
+    L(3, 5, front, a - 6, 1); L(3, 9, front, a - 6, 1);
+    leftText(ctx, cx + 1, ty, b, h, 6, 5, 'MINUM', C[1]);
+    L(2, 15, C[1], 19, 1); L(2, 56, C[1], 19, 1); L(2, 15, C[1], 1, 42); L(20, 15, C[1], 1, 42);
+    L(3, 16, night ? '#cfeaf2' : C[18], 17, 40);       // kaca
+    for (let row = 0; row < 5; row++) {
+      const d = 18 + row * 8;
+      L(3, d + 6, C[3], 17, 1);                      // rak dalam
+      for (let c = 0; c < 5; c++) {
+        if (c >= level) continue;
+        const can = CANS[(row + c + color) % CANS.length];
+        L(4 + c * 3, d, can, 2, 6); L(4 + c * 3, d, C[4], 1, 1); L(5 + c * 3, d + 2, C[1], 1, 1);
+      }
+    }
+    for (let k = 0; k < 6; k++) L(14 + k, 20 + k * 2, C[4]);   // pantulan kaca
+    L(22, 16, C[2], 6, 30);                          // panel tombol
+    L(23, 18, C[1], 4, 4); L(23, 19, C[9], 3, 2);    // layar harga
+    for (let r = 0; r < 5; r++) { L(23, 25 + r * 3, C[11], 1, 1); L(25, 25 + r * 3, C[11], 1, 1); }
+    L(23, 41, C[3], 3, 1); L(23, 43, C[1], 4, 1);    // lubang koin dan uang kertas
+    L(4, 60, C[1], 15, 9); L(5, 61, C[2], 13, 7); L(6, 62, C[3], 11, 1);   // pintu ambil
+    L(0, 71, C[2], a, 5);                            // pelat bawah
+    for (let j = 3; j < 6; j++) rightDot(ctx, cx + 1, ty, a, b, h, j, 2, front, 1, h - 4);   // garis samping
+    for (let j = 10; j < 18; j += 2) rightDot(ctx, cx + 1, ty, a, b, h, j, h - 10, C[1], 1, 5);
+  }
+
+  // ---- Meja kasir dan komputer --------------------------------------------
+  function drawCounter(ctx, cx, ty, part, on, night) {
+    const h = 28;
+    isoBox(ctx, cx, ty, T, T, h, C[4], C[12], C[13]);
+    for (let i = 0; i < T; i++) { leftDot(ctx, cx, ty, T, h, i, 0, C[3]); leftDot(ctx, cx, ty, T, h, i, h - 3, C[2], 1, 4); }
+    for (let i = 4; i < T; i += 8) leftDot(ctx, cx, ty, T, h, i, 3, C[13], 1, h - 7);   // panel depan
+    for (let j = 0; j < T; j++) rightDot(ctx, cx, ty, T, T, h, j, h - 3, C[2], 1, 4);
+    const at = (u, v) => onTop(cx, ty, h, u, v);
+    const screen = on ? (night ? '#b9f3c3' : C[9]) : C[2];
+    if (part === 'kiri') {
+      // Monitor kasir menghadap penjaga (kita melihat punggungnya), di atas penyangga.
+      let [ox, oy] = at(12, 4); isoBox(ctx, ox, oy, 4, 4, 4, C[3], C[2], C[1]);
+      [ox, oy] = at(5, 6); isoBox(ctx, ox, oy - 4, 17, 3, 13, C[2], C[2], C[1]);
+      for (let i = 2; i < 15; i += 3) leftDot(ctx, ox, oy - 4, 3, 13, i, 3, C[1], 1, 4);   // ventilasi
+      leftDot(ctx, ox, oy - 4, 3, 13, 8, 9, on ? C[9] : C[3], 2, 1);                     // lampu daya
+      // Keyboard dengan tuts.
+      [ox, oy] = at(5, 12); isoBox(ctx, ox, oy, 16, 6, 2, C[3], C[2], C[1]);
+      for (let i = 1; i < 15; i += 2) for (let j = 1; j < 5; j += 2) topDot(ctx, ox, oy, 2, i, j, C[4]);
+      // Scanner datar tertanam di meja dengan garis laser.
+      [ox, oy] = at(22, 12);
+      for (let i = 0; i < 8; i++) for (let j = 0; j < 10; j++) topDot(ctx, ox, oy, 0, i, j, j === 0 || i === 0 ? C[3] : C[1]);
+      if (on) for (let i = 1; i < 8; i++) topDot(ctx, ox, oy, 0, i, 5, C[14]);
+      // Scanner genggam di dudukan.
+      [ox, oy] = at(24, 26); isoBox(ctx, ox, oy, 4, 4, 3, C[2], C[1], C[1]);
+      isoBox(ctx, ox, oy - 3, 3, 3, 6, C[2], C[2], C[1]);
+      leftDot(ctx, ox, oy - 3, 3, 6, 0, 1, on ? C[14] : C[3], 2, 1);
+    } else {
+      // Laci uang dan printer struk.
+      let [ox, oy] = at(4, 3); isoBox(ctx, ox, oy, 20, 14, 5, C[2], C[1], C[1]);
+      leftDot(ctx, ox, oy, 14, 5, 8, 2, C[3], 5, 1);
+      [ox, oy] = at(6, 4); isoBox(ctx, ox, oy - 5, 10, 9, 7, C[4], C[3], C[2]);
+      leftDot(ctx, ox, oy - 5, 9, 7, 2, 2, C[1], 6, 1);
+      // Struk keluar dari celah depan printer ke arah pembeli, tidak mencuat ke atas
+      // agar tidak menutupi wajah penjaga kasir yang berdiri di belakang meja.
+      if (on) { leftDot(ctx, ox, oy - 5, 9, 7, 3, 3, C[4], 4, 3); leftDot(ctx, ox, oy - 5, 9, 7, 3, 4, C[3], 3, 1); }
+      // Kantong belanja terlipat.
+      [ox, oy] = at(24, 6); isoBox(ctx, ox, oy, 6, 6, 4, C[5], C[6], C[8]);
+      // Layar pelanggan menghadap pembeli (+gy), menampilkan total atau TUTUP.
+      [ox, oy] = at(15, 24); isoBox(ctx, ox, oy, 4, 4, 4, C[3], C[2], C[1]);
+      [ox, oy] = at(1, 25);
+      isoBox(ctx, ox, oy - 4, 30, 3, 12, C[2], C[1], C[1]);
+      leftDot(ctx, ox, oy - 4, 3, 12, 1, 1, screen, 28, 10);
+      if (on) {
+        leftDot(ctx, ox, oy - 4, 3, 12, 1, 1, C[10], 28, 2);
+        leftText(ctx, ox, oy - 4, 3, 12, 2, 4, '113.000', C[1]);
+      } else {
+        leftText(ctx, ox, oy - 4, 3, 12, 5, 4, 'TUTUP', C[3]);
+        for (let k = 0; k < 4; k++) leftDot(ctx, ox, oy - 4, 3, 12, 20 + k, 2 + k, '#6f6788');   // pantulan layar mati
+      }
+    }
+  }
+
+  function drawPlant(ctx, cx, ty) {
+    const [ox, oy] = onTop(cx, ty, 0, 10, 10);
+    isoBox(ctx, ox, oy, 12, 12, 10, C[20], C[14], C[15]);
+    leftDot(ctx, ox, oy, 12, 10, 0, 0, C[13], 12, 1);
+    const leaves = [[-6, 0, 4, 14, C[10]], [0, -4, 4, 18, C[9]], [5, -1, 4, 15, C[10]], [-2, -8, 3, 10, C[9]], [3, -9, 3, 11, C[10]], [-8, 4, 3, 8, C[9]], [8, 4, 3, 8, C[9]]];
+    for (const [dx, dy, w, hh, col] of leaves) {
+      for (let k = 0; k < hh; k++) { ctx.fillStyle = col; ctx.fillRect(ox + dx - fl(w / 2) + (k % 3 === 0 ? 1 : 0), oy - 10 + dy - k, w, 1); }
+      ctx.fillStyle = C[1]; ctx.fillRect(ox + dx, oy - 10 + dy - hh, 1, 1);
+    }
+  }
+
+  function drawStool(ctx, cx, ty) {
+    const [ox, oy] = onTop(cx, ty, 0, 10, 10);
+    for (const [u, v] of [[1, 1], [9, 1], [1, 9], [9, 9]]) { const [x, y] = onTop(ox, oy, 0, u, v); ctx.fillStyle = C[2]; ctx.fillRect(x, y - 10, 1, 10); }
+    isoBox(ctx, ox, oy - 10, 12, 12, 2, C[17], C[3], C[2]);
+  }
+
+  // ---- Lukisan prosedural ---------------------------------------------------
+  function framed(w, h, paint) {
+    const rows = [];
+    for (let y = 0; y < h; y++) {
+      const row = [];
+      for (let x = 0; x < w; x++) {
+        if (x === 0 || y === 0 || x === w - 1 || y === h - 1) row.push(C[20]);
+        else if (x === 1 || y === 1 || x === w - 2 || y === h - 2) row.push(C[12]);
+        else row.push(paint(x - 2, y - 2, w - 4, h - 4));
+      }
+      rows.push(row);
+    }
+    return rows;
+  }
+  const inCircle = (x, y, cx, cy, r) => (x - cx) ** 2 + (y - cy) ** 2 <= r * r;
+  const PAINTINGS = {
+    gunung: framed(26, 20, (x, y, w, h) => {
+      if (inCircle(x, y, 17, 3, 2)) return C[12];
+      const peak1 = 9 - Math.abs(x - 7) * 0.9, peak2 = 8 - Math.abs(x - 15) * 0.8;
+      const mountain = Math.max(peak1, peak2);
+      if (y >= h - 5) return (x + y) % 3 === 0 ? C[10] : C[9];        // sawah
+      if (h - 5 - y <= mountain) return h - 5 - y > mountain - 2 && mountain > 6 ? C[4] : (peak1 > peak2 ? C[10] : '#5f9a6b');
+      return y < 3 ? C[18] : y < 6 ? '#bfe3ee' : C[4];
+    }),
+    laut: framed(26, 18, (x, y, w, h) => {
+      if (y < 7 && inCircle(x, y, 11, 7, 4)) return C[11];
+      if (y < 3) return C[16]; if (y < 5) return C[13]; if (y < 7) return C[12];
+      return (x + y * 3) % 7 === 0 ? C[4] : y < 10 ? C[18] : C[19];
+    }),
+    buah: framed(22, 20, (x, y, w, h) => {
+      if (y >= h - 3) return C[20];
+      if (inCircle(x, y, 6, 8, 3)) return C[12];
+      if (inCircle(x, y, 11, 7, 3)) return C[14];
+      if (inCircle(x, y, 14, 10, 2)) return C[9];
+      if (y >= 10 && y <= 13 && Math.abs(x - 9) <= 8 - (y - 10)) return y === 10 ? C[4] : C[19];
+      return C[17];
+    }),
+    bunga: framed(18, 22, (x, y, w, h) => {
+      if (y >= 12 && Math.abs(x - 7) <= 3 - (y > 16 ? 1 : 0)) return y === 12 ? C[4] : C[19];
+      if (inCircle(x, y, 4, 4, 2)) return C[14]; if (inCircle(x, y, 9, 3, 2)) return C[16]; if (inCircle(x, y, 11, 7, 2)) return C[12];
+      if ((x === 5 && y > 5 && y < 12) || (x === 8 && y > 4 && y < 12) || (x === 10 && y > 8 && y < 12)) return C[10];
+      if ((x === 6 && y === 9) || (x === 9 && y === 8)) return C[9];
+      return C[5];
+    }),
+  };
+  function hangArt(ctx, P, side, tile, o, top, rows) {
+    const { cx, ty } = side === 'kanan' ? P(tile, 0) : P(0, tile);
+    rows.forEach((row, r) => row.forEach((col, c) => {
+      const i = o + c; ctx.fillStyle = col;
+      if (side === 'kanan') ctx.fillRect(cx + i, ty + fl(i / 2) - top + r, 1, 1);
+      else ctx.fillRect(cx - HW + i, ty + HH - fl(i / 2) - top + r, 1, 1);
+    }));
+  }
+
+  // ---- Dinding, pintu, jendela, jam --------------------------------------
+  function drawWalls(ctx, P, night) {
+    for (let gy = 0; gy < GH; gy++) {
+      const { cx, ty } = P(0, gy); const isDoor = gy === 6 || gy === 7;
+      for (let i = 0; i < HW; i++) {
+        const x = cx - HW + i, yb = ty + HH - fl(i / 2);
+        if (isDoor) {
+          const post = (gy === 7 && i < 3) || (gy === 6 && i > HW - 4);
+          ctx.fillStyle = post ? C[20] : night ? '#2f3360' : C[18]; ctx.fillRect(x, yb - WALL + 10, 1, WALL - 10);
+          ctx.fillStyle = C[20]; ctx.fillRect(x, yb - WALL, 1, 10);
+          if (!post && (i + gy * 3) % 9 === 0) { ctx.fillStyle = C[4]; ctx.fillRect(x, yb - WALL + 16 + (i % 5), 1, 12); }
+          if (!post && i % 16 === 0) { ctx.fillStyle = C[20]; ctx.fillRect(x, yb - WALL + 10, 1, WALL - 10); }
+          continue;
+        }
+        ctx.fillStyle = C[6]; ctx.fillRect(x, yb - WALL, 1, WALL);
+        ctx.fillStyle = C[5]; ctx.fillRect(x, yb - WALL, 1, 4);
+        ctx.fillStyle = C[8]; ctx.fillRect(x, yb - 8, 1, 8);
+        ctx.fillStyle = C[20]; ctx.fillRect(x, yb - 9, 1, 1);
+      }
+    }
+    // Papan "BUKA" di atas pintu dan gagang dorong.
+    { const { cx, ty } = P(0, 7); ctx.fillStyle = C[3]; for (let i = 6; i < 26; i++) ctx.fillRect(cx - HW + i + 32, ty + HH - fl((i + 32) / 2) - 44, 1, 2); }
+    for (let gx = 0; gx < GW; gx++) {
+      const { cx, ty } = P(gx, 0);
+      for (let i = 0; i < HW; i++) {
+        const x = cx + i, yb = ty + fl(i / 2);
+        ctx.fillStyle = '#e6d6b2'; ctx.fillRect(x, yb - WALL, 1, WALL);
+        ctx.fillStyle = C[5]; ctx.fillRect(x, yb - WALL, 1, 4);
+        ctx.fillStyle = C[8]; ctx.fillRect(x, yb - 8, 1, 8);
+        ctx.fillStyle = C[20]; ctx.fillRect(x, yb - 9, 1, 1);
+      }
+    }
+    // Jendela (gx 11) dengan bingkai, kaca, dan langit siang/malam.
+    const sky = framed(26, 28, (x, y) => night ? ((x * 7 + y * 3) % 23 === 0 ? C[11] : '#2f3360') : (y > 17 && (x + y) % 4 === 0 ? C[9] : y > 18 ? C[10] : ((x - 6) ** 2 + (y - 6) ** 2 < 8 ? C[4] : C[18])));
+    sky.forEach((row) => { row[12] = C[20]; row[13] = C[20]; }); sky[13] = sky[13].map(() => C[20]);
+    hangArt(ctx, P, 'kanan', 11, 3, 66, sky);
+    // Jam dinding (gx 5).
+    const clock = framed(12, 12, (x, y) => (x === 3 && y <= 4) || (y === 4 && x >= 3 && x <= 6) ? C[1] : C[4]);
+    hangArt(ctx, P, 'kanan', 5, 10, 70, clock);
+    // Lukisan.
+    hangArt(ctx, P, 'kanan', 1, 2, 62, PAINTINGS.gunung);
+    hangArt(ctx, P, 'kanan', 3, 6, 60, PAINTINGS.laut);
+    hangArt(ctx, P, 'kiri', 1, 4, 60, PAINTINGS.buah);
+    hangArt(ctx, P, 'kiri', 3, 6, 62, PAINTINGS.bunga);
+  }
+
+  // ---- Karakter -------------------------------------------------------------
+  // ---- Sprite orang 16 x 24: grid huruf, satu huruf = satu warna ------------
+  // O garis tepi, S kulit, E mata, H rambut, B baju, P celana, F sepatu, W putih,
+  // A dan a warna utama dan kedua aksesoris. Titik = transparan.
+  const LEGS = {
+    10: '....OOBBBBOO....', 11: '...OBBBBBBBBO...', 12: '...OBBBBBBBBO...',
+    13: '...OSBBBBBBSO...', 14: '...OSBBBBBBSO...', 15: '....OBBBBBBO....',
+    16: '....OPPPPPPO....', 17: '....OPPPPPPO....', 18: '....OPPOOPPO....',
+    19: '....OPPOOPPO....', 20: '....OPPOOPPO....', 21: '....OFFOOFFO....',
+    22: '....OOOOOOOO....',
+  };
+  const BODY = {
+    front: { 2: '.....OOOOOO.....', 3: '....OHHHHHHO....', 4: '....OHHHHHHO....',
+      5: '....OHSSSSHO....', 6: '....OSESSESO....', 7: '....OSSSSSSO....',
+      8: '.....OSSSSO.....', 9: '......OSSO......', ...LEGS },
+    back: { 2: '.....OOOOOO.....', 3: '....OHHHHHHO....', 4: '....OHHHHHHO....',
+      5: '....OHHHHHHO....', 6: '....OHHHHHHO....', 7: '....OHHHHHHO....',
+      8: '.....OHHHHO.....', 9: '......OSSO......', ...LEGS },
+  };
+  const SPIKY_TOP = { 0: '....O...O..O....', 1: '...OHO.OHOOHO...', 2: '...OHHOHHHHHHO..', 3: '..OHHHHHHHHHHO..' };
+  const TWIN = { 3: '..OHO......OHO..', 4: '..OHO......OHO..', 5: '..OHO......OHO..', 6: '..OHO......OHO..',
+    7: '..OHO......OHO..', 8: '..OHO......OHO..', 9: '...O........O...' };
+  const HAIR = {
+    pendek: { label: 'rambut pendek', front: {}, back: {} },
+    panjang: {
+      label: 'rambut panjang',
+      front: { 2: '....OOOOOOOO....', 3: '...OHHHHHHHHO...', 4: '...OHHHHHHHHO...',
+        5: '...OH......HO...', 6: '...OH......HO...', 7: '...OH......HO...',
+        8: '...OH......HO...', 9: '...OHH....HHO...', 10: '....OH....HO....' },
+      back: { 2: '....OOOOOOOO....', 3: '...OHHHHHHHHO...', 4: '...OHHHHHHHHO...',
+        5: '...OHHHHHHHHO...', 6: '...OHHHHHHHHO...', 7: '...OHHHHHHHHO...',
+        8: '...OHHHHHHHHO...', 9: '...OHHHHHHHHO...', 10: '...OHHHHHHHHO...', 11: '....OHHHHHHO....' },
+    },
+    kuncir: {
+      label: 'rambut kuncir',
+      front: { 2: '..........OO....', 3: '...........HO...', 4: '...........HHO..',
+        5: '............HO..', 6: '............O...' },
+      back: { 8: '......OHHO......', 9: '......OHHO......', 10: '.......OO.......' },
+    },
+    jabrik: {
+      label: 'rambut jabrik',
+      front: { ...SPIKY_TOP, 4: '...OHHHHHHHHO...', 5: '...OH......HO...' },
+      back: { ...SPIKY_TOP, 4: '...OHHHHHHHHO...', 5: '...OHHHHHHHHO...', 6: '...OHHHHHHHHO...',
+        7: '...OHHHHHHHHO...', 8: '....OHHHHHHO....' },
+    },
+    kuncir_dua: { label: 'rambut kuncir dua', front: TWIN, back: TWIN },
+    konde: { label: 'rambut konde', front: { 0: '.......OO.......', 1: '......OHHO......' }, back: { 0: '.......OO.......', 1: '......OHHO......' } },
+  };
+  const ACC = {
+    jubah_panjang: {
+      label: 'jubah panjang',
+      front: { 16: '....OBBBBBBO....', 17: '....OBBBBBBO....', 18: '....OBBBBBBO....', 19: '...OBBBBBBBBO...',
+        20: '...OBBBBBBBBO...', 21: '...OBBBBBBBBO...', 22: '...OOOOOOOOOO...' },
+    },
+    rompi: { label: 'rompi terbuka', front: { 11: '.......SS.......', 12: '.......SS.......', 13: '.......SS.......', 14: '.......SS.......' }, back: null },
+    sabuk: { label: 'sabuk', front: { 15: '....OaaAAaaO....' }, back: { 15: '....OaaaaaaO....' } },
+    kerudung: {
+      label: 'kerudung', hidesHair: true,
+      front: { 2: '.....OOOOOO.....', 3: '....OAAAAAAO....', 4: '...OAAAAAAAAO...',
+        5: '...OAASSSSAAO...', 6: '...OAAESSEAAO...', 7: '...OAASSSSAAO...',
+        8: '...OAAASSAAAO...', 9: '...OAAAAAAAAO...', 10: '..OAAAAAAAAAAO..',
+        11: '..OaAAAAAAAAaO..', 12: '...OAAAAAAAAO...' },
+      back: { 2: '.....OOOOOO.....', 3: '....OAAAAAAO....', 4: '...OAAAAAAAAO...',
+        5: '...OAAAAAAAAO...', 6: '...OAAAAAAAAO...', 7: '...OAAAAAAAAO...',
+        8: '...OAAAAAAAAO...', 9: '...OAAAAAAAAO...', 10: '..OAAAAAAAAAAO..',
+        11: '..OaAAAAAAAAaO..', 12: '...OAAAAAAAAO...' },
+    },
+    kacamata: { label: 'kacamata', front: { 6: '....OaEaaEaO....' }, back: null },
+    masker: { label: 'masker ninja', front: { 7: '....OAAAAAAO....', 8: '.....OAAAAO.....' }, back: null },
+    ikat_kepala: {
+      label: 'ikat kepala',
+      front: { 3: '....OAAaaAAO....' },
+      back: { 3: '....OAAAAAAO....', 4: '...........AA...', 5: '............A...' },
+    },
+    peci: { label: 'peci', front: { 2: '....OOOOOOOO....', 3: '....OaAAAAAO....', 4: '....OAAAAAAO....' } },
+    topi_pet: {
+      label: 'topi pet',
+      front: { 1: '.....OOOOOO.....', 2: '....OAAAAAAO....', 3: '....OAAWAAAO....', 4: '...OaaaaaaaaO...' },
+      back: { 1: '.....OOOOOO.....', 2: '....OAAAAAAO....', 3: '....OAAAAAAO....', 4: '....OAAaaAAO....' },
+    },
+    topi_bucket: {
+      label: 'topi bucket',
+      front: { 1: '.....OOOOOO.....', 2: '....OAAAAAAO....', 3: '...OAAAAAAAAO...', 4: '..OaaaaaaaaaaO..' },
+    },
+    topi_jerami: {
+      label: 'topi jerami',
+      front: { 1: '.....OOOOOO.....', 2: '....OAAAAAAO....', 3: '....OaaaaaaO....', 4: '.OOAAAAAAAAAAOO.', 5: '..OOOOOOOOOOOO..' },
+    },
+    topi_penyihir: {
+      label: 'topi penyihir',
+      front: { 0: '.........OO.....', 1: '........OAAO....', 2: '.......OAAAO....', 3: '......OAAAAAO...', 4: '..OaaaaaaaaaaO..' },
+    },
+    helm_rider: {
+      label: 'helm bermata besar', hidesHair: true,
+      front: { 0: '.....O....O.....', 1: '.....OOOOOO.....', 2: '....OAAAAAAO....', 3: '...OAAAAAAAAO...',
+        4: '...OAaaAAaaAO...', 5: '...OaaaAAaaaO...', 6: '...OAaaAAaaAO...', 7: '....OAWWWWAO....',
+        8: '.....OAAAAO.....', 9: '......OAAO......' },
+      back: { 0: '.....O....O.....', 1: '.....OOOOOO.....', 2: '....OAAAAAAO....', 3: '...OAAAAAAAAO...',
+        4: '...OAAAAAAAAO...', 5: '...OAAAAAAAAO...', 6: '...OAAAAAAAAO...', 7: '....OAAAAAAO....',
+        8: '.....OAAAAO.....', 9: '......OAAO......' },
+    },
+    kepala_robot: {
+      label: 'kepala robot', hidesHair: true,
+      front: { 0: '.......O........', 1: '.......a........', 2: '....OOOOOOOO....', 3: '....OAAAAAAO....',
+        4: '....OAaAAaAO....', 5: '....OAAAAAAO....', 6: '....OAWWWWAO....', 7: '....OAAAAAAO....',
+        8: '....OOOOOOOO....', 9: '......OaaO......' },
+      back: { 0: '.......O........', 1: '.......a........', 2: '....OOOOOOOO....', 3: '....OAAAAAAO....',
+        4: '....OAAAAAAO....', 5: '....OAAAAAAO....', 6: '....OAAAAAAO....', 7: '....OAAAAAAO....',
+        8: '....OOOOOOOO....', 9: '......OaaO......' },
+    },
+    bando: { label: 'bando pita', front: { 2: '..........AaA...', 3: '....OaaaaaAAA...' } },
+    celemek: {
+      label: 'celemek koperasi',
+      front: { 11: '.....A....A.....', 12: '.....AAAAAA.....', 13: '.....AAWAAA.....', 14: '.....AAAAAA.....',
+        15: '.....AAAAAA.....', 16: '.....AAAAAA.....', 17: '.....AAAAAA.....' },
+      back: { 11: '.....A....A.....', 12: '......AAAA......' },
+    },
+    syal: {
+      label: 'syal panjang',
+      front: { 9: '....OaaaaaaO....', 10: '....OaaaaaaO....', 11: '..........aO....', 12: '..........aO....', 13: '...........a....' },
+      back: { 9: '....OaaaaaaO....', 10: '....OaaaaaaO....', 11: '....a...........', 12: '...aa...........', 13: '..aa............', 14: '..a.............' },
+    },
+    jubah_pahlawan: {
+      label: 'jubah pahlawan',
+      front: { 10: '...OA......AO...', 11: '..OA........AO..', 12: '..OA........AO..', 13: '..OA........AO..',
+        14: '..OA........AO..', 15: '..OA........AO..', 16: '..OA........AO..', 17: '..OA........AO..', 18: '..OOO......OOO..' },
+      back: { 10: '...OAAAAAAAAO...', 11: '...OAAAAAAAAO...', 12: '...OAAAAAAAAO...', 13: '...OAAAAAAAAO...',
+        14: '...OAAAAAAAAO...', 15: '...OAAAAAAAAO...', 16: '...OAAAAAAAAO...', 17: '...OAAAAAAAAO...',
+        18: '...OAAAAAAAAO...', 19: '...OAAAAAAAAO...', 20: '..OAAAAAAAAAAO..', 21: '..OAAAAAAAAAAO..', 22: '..OOOOOOOOOOOO..' },
+    },
+    ransel: {
+      label: 'ransel',
+      front: { 10: '.....a....a.....', 11: '.....a....a.....', 12: '.....a....a.....', 13: '.....a....a.....', 14: '.....a....a.....' },
+      back: { 10: '....OOOOOOOO....', 11: '....OAAAAAAO....', 12: '....OAaaaaAO....', 13: '....OAAAAAAO....',
+        14: '....OAAAAAAO....', 15: '....OAAaaAAO....', 16: '....OOOOOOOO....' },
+    },
+    selempang: {
+      label: 'tas selempang',
+      front: { 10: '..........a.....', 11: '.........a......', 12: '........a.......', 13: '.......a........',
+        14: '......a.........', 15: '..OOOOO.........', 16: '..OAAAO.........', 17: '..OAAAO.........', 18: '..OOOOO.........' },
+    },
+    pedang: {
+      label: 'pedang di pinggang',
+      front: { 12: '.............a..', 13: '............a...', 14: '...........A....', 15: '..........A.....', 16: '.........A......' },
+    },
+  };
+  // Urutan tumpukan lapisan: pakaian dulu, lalu kepala, lalu barang yang menempel di luar badan.
+  const ACC_ORDER = ['jubah_panjang', 'rompi', 'sabuk', 'kerudung', 'kacamata', 'masker', 'ikat_kepala', 'peci',
+    'topi_pet', 'topi_bucket', 'topi_jerami', 'topi_penyihir', 'helm_rider', 'kepala_robot', 'bando', 'celemek',
+    'syal', 'jubah_pahlawan', 'ransel', 'selempang', 'pedang'];
+  const PROPS = {
+    keranjang: { label: 'keranjang belanja', A: 14, a: 15, rows: { 12: '...........OOOO.', 13: '..........O....O',
+      14: '..........OaaaaO', 15: '..........OAAAAO', 16: '..........OAWAAO', 17: '...........OOOO.' } },
+    kantong: { label: 'kantong belanja', A: 5, a: 6, rows: { 13: '...........OO...', 14: '..........OAAO..',
+      15: '..........OAAO..', 16: '..........OAAO..', 17: '..........OOOO..' } },
+  };
+
+  function drawGrid(ctx, x0, y0, rows, colors, S = 1) {
+    for (const [r, line] of Object.entries(rows)) {
+      for (let c = 0; c < 16; c++) {
+        const color = colors[line[c]];
+        if (!color) continue;
+        ctx.fillStyle = color;
+        ctx.fillRect(x0 + c * S, y0 + Number(r) * S, S, S);
+      }
+    }
+  }
+
+  // p: { skin, hair, hairStyle, shirt, pants, shoes?, acc: [[nama, A, a]], prop?, facing }
+  function drawPerson(ctx, footX, footY, p, S = 2) {
+    const x0 = footX - 8 * S, y0 = footY - 23 * S;
+    const side = p.facing === 'back' ? 'back' : 'front';
+    const base = { O: C[1], E: C[1], S: C[p.skin], H: C[p.hair], B: C[p.shirt], P: C[p.pants], F: C[p.shoes || 20], W: C[4] };
+    drawGrid(ctx, x0, y0, BODY[side], base, S);
+    const acc = Object.fromEntries((p.acc || []).map(([name, A, a]) => [name, { A: C[A], a: C[a] }]));
+    const hidesHair = Object.keys(acc).some((n) => ACC[n].hidesHair);
+    if (!hidesHair) drawGrid(ctx, x0, y0, HAIR[p.hairStyle || 'pendek'][side], base, S);
+    for (const name of ACC_ORDER) {
+      if (!acc[name]) continue;
+      const def = ACC[name];
+      const rows = side === 'back' ? (def.back === undefined ? def.front : def.back) : def.front;
+      if (rows) drawGrid(ctx, x0, y0, rows, { ...base, ...acc[name] }, S);
+    }
+    if (p.prop) {
+      const prop = PROPS[p.prop];
+      drawGrid(ctx, x0, y0, prop.rows, { ...base, A: C[prop.A], a: C[prop.a] }, S);
+    }
+  }
+
+  // Karakter kostum: desain asli bergaya genre (anime ninja, bajak laut, tokusatsu, fantasi).
+  // Bukan salinan karakter berhak cipta: tanpa nama, logo, atau simbol resmi.
+  const COSTUMES = {
+    ninja_oranye: { title: 'Ninja oranye', style: 'gaya anime ninja',
+      p: { skin: 21, hair: 12, hairStyle: 'jabrik', shirt: 12, pants: 13, acc: [['ikat_kepala', 19, 3]] } },
+    bajak_laut: { title: 'Bajak laut topi jerami', style: 'gaya anime bajak laut',
+      p: { skin: 22, hair: 1, shirt: 14, pants: 19, acc: [['rompi', 1, 1], ['topi_jerami', 12, 15]] } },
+    pahlawan_bertopeng: { title: 'Pahlawan bertopeng', style: 'gaya tokusatsu',
+      p: { skin: 21, hair: 1, shirt: 2, pants: 2, acc: [['sabuk', 11, 3], ['helm_rider', 10, 14], ['syal', 15, 15]] } },
+    samurai: { title: 'Samurai pengembara', style: 'gaya anime samurai',
+      p: { skin: 22, hair: 1, hairStyle: 'konde', shirt: 17, pants: 2, acc: [['sabuk', 19, 19], ['pedang', 20, 1]] } },
+    penyihir: { title: 'Penyihir', style: 'gaya fantasi',
+      p: { skin: 21, hair: 3, hairStyle: 'panjang', shirt: 19, pants: 19, acc: [['jubah_panjang', 1, 1], ['topi_penyihir', 19, 11]] } },
+    ninja_bayangan: { title: 'Ninja bayangan', style: 'gaya anime ninja',
+      p: { skin: 22, hair: 1, shirt: 24, pants: 24, acc: [['masker', 2, 2], ['ikat_kepala', 2, 3], ['pedang', 3, 1]] } },
+    robot: { title: 'Robot', style: 'gaya mecha',
+      p: { skin: 3, hair: 3, shirt: 3, pants: 2, shoes: 2, acc: [['kepala_robot', 3, 18]] } },
+    pahlawan_berjubah: { title: 'Pahlawan berjubah', style: 'gaya superhero',
+      p: { skin: 21, hair: 1, shirt: 19, pants: 19, acc: [['sabuk', 11, 15], ['jubah_pahlawan', 14, 14]] } },
+    gadis_penyihir: { title: 'Gadis penyihir', style: 'gaya anime magical girl',
+      p: { skin: 21, hair: 16, hairStyle: 'kuncir_dua', shirt: 16, pants: 17, acc: [['bando', 14, 15]] } },
+    penjaga: { title: 'Penjaga kasir', style: 'seragam koperasi',
+      p: { skin: 22, hair: 20, shirt: 5, pants: 2, acc: [['topi_pet', 10, 9], ['celemek', 10, 9]] } },
+  };
+  const costume = (key, extra) => ({ ...COSTUMES[key].p, ...extra });
+
+
+
+  const REF = {"ref1":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABQAAAAuCAYAAAAoaDnGAAAEh0lEQVR4nKWWPXMbRRjHb3cvFHGomUF3hruTbOy4jEQcMIVivWSI/DZOhZMZ2w3gdOCGGrshHyFywVDiglgOAzoVfpGbfAkLSioGx0Uc6Q/Pc9rTybZ85+Fmdu502v3t/3ndM4yYy/M8uK6L5eXlcNC7uHWXXo7jgEYUpn/TJtcGamWrq6t8X1lZ6bsTPDGMzIou1CB61nd6dy1gFBZRxIOe8/l8cpUEFEKGQLoLIdDpdHhoaGIg+U8IE47jhiYSUEgDIqLyWkDJwJ7Pzlo+fniURqdVx7NH6WRAVsFDQtKQEqZQaG5Mo3Pso31cR6fl43DzPsOSpA9PvFuc5ZEtz+BoNAMpFDrHdTQ3p/FsMc2buc4wpJLxJpNCDbxXnGdg8/sCbgnB4JQw8NKysGNbqNkpCKXizaZgRBU2N+7jzR97ONooQEoBJRV2LQu7dgpSiAR+NAyI/xZpoClMvG3VcbA5xcEiGKlUceo0MFuoMPBeoYI7DyowpcJnCzVMLbyAkO+EQPJlHA+56Ydsbq40C8fxkC1XoIRkNd+sfxcq/GXY4yyIVacDYkgZ+lEJBSGHsL7+LQfmpWWzH3XCD4TRhI/Lc3C4UgRypRlky7Mw5Q18sbbPbpDiJn5PWWG1DFSpgZOlObgRoOukcTg2AlMIPF7bvwDsNoyLF+00CHhwOw0pb+Hx13sQ4ianSyxQCMVBIL/pidliBY4zHJhmmMjP7yA//3PYiWKAJiw3A9v1QmeT2lzhIftJsv8UlDCg3ROrUKvTQPpNgWi3fPy1twFTSAwZZjhnIJByjICTxZk+IPmQSovykMqPmoHspsuVQMp4x3O5hsmPvaDMQskbnIdSBo3V9+tJgIF5k4UKchwIpwekKpEKipqCEtxhGo1GCOzmYQ9KL0gRLWZoaS4Enpye4mAsg7f/nEFJiZptYdtzsGtbDKU5F4DRcuOguG4I/KRcQfbzRTTHMpzcZHqN+6AVmntR4Xlgd6LuiXeKFRyOjePoo1EoafaZqxWGplMa5KYrXL+u4+HDrroAmA43cT0PRyMjkLKXMjpwGshNQh9KFOXeM3cP3C3O9KkmxVFgNCh9HSc42SRqqWEeHFFThUBSehmQFG7b1tU9kVr/znAKh2MZfFpc7B5UOpX6gXv1OnYte3A/7F44e/03mqPjDNWpFCgNgKSMAlOzUvC7qTOQVrOClDg7OcHr01MGBtAZBqquQtdxsVf3uXMPXWUy7fxq/DZeZSa4U+vUIQC1LzJRm9zwffxqvXf1Yc8TGw1MlubDBA+ADh9OOqFja9k4d6YEFeOFQOf/ANlvD3p9kY6AmmXDpCarBCYiZg8EEsztmqhzLrqoZr8PJQQf+NsfuMkUGpHPuegCz7GDSqJGYAhMpHr/6fkDgefBkfbEly6zxKAokL6lBy3a2tpCtVpNDiQl7Xb7UqBQJgi4VX2eHPi8+iOWnh7wkHKof6FSyC/UsFX9CUtPfZiGGW/+1PwLLK0d4slX+1j5cr/vs42O1akFOuyHkF/YgZTv4s2fv/GpORBIf0adnzQA/wKofLiAAS4UJAAAAABJRU5ErkJggg==","ref2":"data:image/png;base64,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","ref3":"data:image/png;base64,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","ref4":"data:image/png;base64,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","ref5":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAACUAAAAuCAYAAACvWdDAAAAE8UlEQVR4nMWYz2/jVBDH/XLcpntp/VI3HGGR6mdXFK6c2Uq0lfofNMnfwCFZoVTcoAm0nPeQ9J/gsL5temmaKgvtwrkVagvigAQrwWHQzPsR/0zSrtdYGtmJn+3Pm5n3nbEtK4eNsRKQWXrPII/7PgzGsgDtXAg4F56xLl8Bfa5YIMZg5AmyDl8h01AjNE9AlzsIVRxYiZUMRKfC4eakBrcn9YjH0IqEohB1lXfQM732ugKryRDaDp3v7RcHZqAwbGeehOq1fQK7G9QodHj+blAvHqpLUEJBSW+F7feXBUJtlW0D1dv3lXlwc1KPQhXpqaPlVdgucwnT9qH29ENlTyIeKzynOnbF5FIzeA39qzdkCKehWi8ui4Pq8FXYWeDQ5avKW+u0l+FrqH0devsfFygLjJmcGrueSfSEFRi+CNRBpULaNFmBdWPF1kEFdcBX6cFhqDPPhbFYIyvAS0w/BMKeQrOoMEt118puxr5LmN1HNuwuoD5xpdgOdGwHdh9x2FrkwJhFXiMjaAe2Fm06xknkCoQhGooNGAtBXkFPdO2qWn0rcO6FWhdXjtlaXKbfqPY7C1JoWY5g1IbE+6W7QQNGQsCpL6B/9XeiO9D2LLigcRTi/KAYtIKf4PjqDeWLhrodNFRz58PIU32U50EzuKCxreBCecql/2kVslJ+IUS3o2LjAxAIw7ZT5qZ1mZgwqn589ZcCFe8m4bH31kseGzl8ACY11j4ExDpI3YLvQjP4maCawSVdc0DdJ4N+289Tsxj8uCaoR0IovDlCHX/5CZWVDrcJTvZWDgx9H4a+B0Nftsl9pehYD3NN9FeuiHSVOhz4oF77I1N80Ytat1AKbpRWYcHGCeWW6OhyhBq7QmlQODekJu1tPjFqjgvg9qQBt4M6QevijUaalUMIyTPXpy24Pm2ClX5D1dzVZFeg4GqfrVG3gOd17nVyeruRLwX7/rSbUWMnQ7keCaX2FHqn196gcW8NhTdDjbkePku9GZ7HlYfJTCGjTtOHvc0PYG/zfRJYPI8eRsB+23s7b+GSN2+7LNtLY3fDKLouxuGk/9rhZmEgvC7eD2Eil+uVNGUpw9B3ofXil4iQjjxXJbcsyBrq0Ob0//YCN4V7Pg9ROZAyoAtwSJUn4xiD75ar5B18EI1Tqo7H22WbkvubyiRceA0CbatCPm+RVlWd66VvElXqE4vIgQ5v+P1PX/P5YzsePvOMziSEpPgzPoQwKKleKO5a+Tv0H2P0Zky6NKhTDp35QumSA0dLVZKKfqJHZ3BoO+qrDKNPRxlSM9n+/BdA23SnMkponUc3oU6TXlDb67TXZSl+rT5qBpfTH6Nhfvj1n1lgpuTEOgH6ZtVXQGkrbf5Jq03DhPdZUAe8Kr9PUV5FtMeod/z71D0mHYVC++LlH6CPs6Beua5ph2MrSK2+RILfZ9JJMA2VNUYX6aOl98gjcajnXwn4fqmaCjXnpCebHhzepwxTLw/1cHInzme9Gc8z6VSwT7+9zAKydOegNcpKlqDMJJ9z0veHYgoKNSqjhilPJavAnJNO3/CiKacpbNjyZkGhRh0up3cDD4LSQFkXlZgsL78NGpkF1bTEZTsVbMakp4PFN4TA1UZ1cMo7nP4Im5ZXsyad2OIrIv5be2kWVDN4bWVBWbl7ioqwIG+1govM6xHKSqlrsyb9v26zPPUf0ZOXxBDw96UAAAAASUVORK5CYII=","ref6":"data:image/png;base64,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","ref7":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABwAAAAaCAYAAACkVDyJAAACiklEQVR4nJ1WXU7bQBDOQaDy2jGKSYPUYldp6A2ipjfoQ0kleKm87m0a1Cd44xThDTgB/mkinlqOQPBUs39ee+1gx9KneGd355tvdnacXq/hsS0fbNIBlg9Nvl59bBLAH3pQwip0DVt1Hol3IPNhHdqGw/kibyR7upwIUgdsK2hPapNjyGocnl7kCmnUryX9e/URUjqAlLZUimlscobpkmhSmQpSfM/CAWDwr6by+6+XihMP9uwTNd4nJ5BGLrMzx5QH8PV3zmyrsK9IWxMm1ANUi2eBiKOBIlyHDjhYvWIOx/MFCOQQRyP4dzVR67eeJ5LMF6iQRx1HnpE2eb5yDseni1wjfMsy8HQ5howORGA+EGsMhrqq8z1n3Hhe1fXfLl5KQTHCcFDKkFKLESTU0za4IqU8dfKc1F2zfDWn7zEJPXa9ZKEldMibA25MqZ4+V3QO8wyxKIg1KZ3htmag+1uHhKs0CXUl9R3H6USoZ61E6ML1u2OGoirNjqPj+v1IYds6QgJ4/NFvVqiXdV217gK8l4owoYfGgn3HZylLGoJpC9k4HqKhVqk110IqrENrVVqGjM6DeUalmSht3sIOa+BBFrlqXaY1BMQb8okXifg+8uL7UN9xpAIkJ6T8rtvq7IiYDsU16PSJ8uHmsw83M34t8Hc5C2D5JYDlrLiffFz87kwolWL6WEH9dGAVHjCkrLFz0jSyC3tks7Sxu0lJd8KeOFN0cJtsSpCOddtdvGE2gJwp7UxW9EsfpucjmJ4dcZwfqS+AsgnoezqT3cc8asT0rB2hXH8bb5qr0iQL4C5+Vpt1QgyiSnj/kBuEHM/tlHLCTS1hW4USrVMr/9RKEFKGXFe163u2kf0HAF7KxmIjVHwAAAAASUVORK5CYII=","ref8":"data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABsAAAApCAYAAADEZlLzAAADm0lEQVR4nK2YzU4bMRCAPQ7dCwlIZPdAeymCS5NdJFKBKnpom0gpySu04V7IE/TnBgmkzxCgz0B4vU41Y8+udxPSrGGlwTHrzOf58XhAqdUeXHGdnzJIQoT9EHlMpY5g1mLhu6U2ky7WccSQ8e2Y5fPgZE7idoI+kMwSpbASh3h9M8arm8WQIlDHoR8U9uuPWrIUqKC8dRSPoiIRmhfdKu90ErnW/R9Mwb+8G6WKYD+aAzU7SSrdQTd9n2TxW9WqEC/+jJa6i4Cz2T2PtL6ZWh6Xg+kkZHeI0sWgB7yfzXicTEdI38lcGSLASi6sW2UzHsV1LowA9J7Wzhg448wVGGSw5UBaSF+OOzGPekGikIsFQnJ9M5qHrZKVOq6nbpJ4uNnGCZOYQ37/YKzXDqh0zNyS1Pt6wjEgCFUTGhPZPcU2Djkj03jFUflDTYDuaS/nwv4XM3YL506Sgl2otFfJ4h2Ob0d4PR1jr0rH4ZJHyVAXttb0LFXuQzWyvx4xxB1JsoSIUIPGRhWws6vlJvAEgmZIUQSmFGB7T+XEEwg4mY6x70B+27nUQkrz7qDHY3tPwODlUs4+itGPnZc5i/hKAeAYVuz10rGW0dioalRQMmGoGpAIDAB4TnHqrxt49/QkBxProCxMHlL8fedVLm4Cm0wnORgdARqbVVitmiwxlUE/d7YZRlaN7i4KsKfFzrEwSi2jnXPJAuDPnT3ANzXjPnEnW7fKLbDoIciv19uckQKjOEpi8NlzYGQdnUEvC7OYRXOw9gJY5zlgVC04vRW5KlNO8wXnze/cNWrAYnasrXLNVjatBcYyilUFa2+HCMGhV1baXedh9LmzC6m1plwBbrTOcbM1RBUc8bwsTBXcYiyhVpxvaDtXCjdaZ7jJ4g9LL1O6NJXtnLMboM6/2zoYWtAZbh2cPQFmb2yph8WmyFgGbGn8KTEgXxj1GW5vL31J1hTFpn7alpBuBN94Kdl103a/BJCbmkE2dohIP5S0DP5/5YBUdDBWQgU3WkP+Hb0TkJG/Zj1tMjiSPsUDbGNByigZVPCOFQmIldqYScIonzoJwXvcag2x1jpHCI5R08ENDueOhVaa05/eaX7vcccRbLP1DfWLY6ysHfPBBljDwccgLVdUUajamATRRrINlXpYGSkefFhnBY1qsfkxRdgVm5keddLu3OyeypZO5ywuhJPkab1lvmypfEvnXC3P+u+M9AFlGiSwleSxdf8ACIqXOv11mnIAAAAASUVORK5CYII="};
+  const REF_INFO = {
+    ref1: { title: 'Ninja berjubah awan merah' }, ref2: { title: 'Pahlawan bertopeng putih-merah' },
+    ref3: { title: 'Bajak laut berompi merah' }, ref4: { title: 'Monster kadal raksasa' },
+    ref5: { title: 'Pahlawan berzirah merah-emas', note: 'api biru di telapak tangan ditambahkan; melayang' },
+    ref6: { title: 'Bintang laut merah muda' }, ref7: { title: 'Ikan oranye bersepatu' },
+    ref8: { title: 'Zombie', note: 'penjaga kasir' },
+  };
+  const images = {};
+  function shadow(ctx, x, y, w) {
+    ctx.fillStyle = 'rgba(43,42,51,.22)';
+    ctx.fillRect(x - fl(w / 2), y - 1, w, 3); ctx.fillRect(x - fl(w / 2) + 2, y - 2, w - 4, 5);
+  }
+  function drawRef(ctx, key, footX, footY, flip = false, hover = 0) {
+    const im = images[key];
+    shadow(ctx, footX, footY, Math.min(im.width, 28) - (hover ? 8 : 0));
+    const x = footX - fl(im.width / 2), y = footY - im.height + 1 - hover;
+    if (!flip) { ctx.drawImage(im, x, y); return; }
+    ctx.save(); ctx.translate(x + im.width, y); ctx.scale(-1, 1); ctx.drawImage(im, 0, 0); ctx.restore();
+  }
+  function drawActor(ctx, P, a) {
+    const { cx, ty } = P(a.gx, a.gy);
+    const footX = cx, footY = ty + HH + 2;
+    if (a.ref) drawRef(ctx, a.ref, footX, footY, a.flip, a.hover || 0);
+    else { shadow(ctx, footX, footY, 22); drawPerson(ctx, footX, footY, a.p, 2); }
+  }
+  // Pratinjau menampilkan semua karakter sekaligus; saat berjalan paling banyak 5 pelanggan.
+  const getActors = () => [
+    { gx: 9, gy: 5, ref: 'ref8' },                 // penjaga kasir: zombie
+    { gx: 9, gy: 7, ref: 'ref3' },
+    { gx: 8, gy: 7, ref: 'ref1' },
+    { gx: 7, gy: 7, ref: 'ref2' },
+    { gx: 8, gy: 1, ref: 'ref5', hover: 10 },
+    { gx: 5, gy: 5, ref: 'ref4', flip: true },
+    { gx: 1, gy: 6, ref: 'ref6' },
+    { gx: 7, gy: 4, ref: 'ref7' },
+    { gx: 3, gy: 3, p: costume('penyihir', { facing: 'back' }) },
+  ];
+
+
+  // ---- Adegan ---------------------------------------------------------------
+  function drawSegment(ctx, P, s, night) {
+    const { cx, ty } = P(s.gx, s.gy);
+    if (s.kind === 'rak') drawRack(ctx, cx, ty, s.fill, s.seed);
+    else if (s.kind === 'vending') drawVending(ctx, cx, ty, s.color, s.fill, night);
+    else if (s.kind === 'meja') drawCounter(ctx, cx, ty, s.part, s.on, night);
+    else if (s.kind === 'kursi') drawStool(ctx, cx, ty);
+    else if (s.kind === 'tanaman') drawPlant(ctx, cx, ty);
+  }
+  // ---- Lantai: tiga pilihan pola, digambar per piksel permukaan tile ----------
+  const FLOORS = {
+    ornamen: {
+      label: 'Ubin ornamen hangat',
+      color(gx, gy, i, j) {
+        if (i === 0 || j === 0) return '#fbf3e2';                        // nat terang
+        // Jarak Chebyshev di ruang tile = belah ketupat rapi di layar.
+        const ci = Math.min(i, 31 - i), cj = Math.min(j, 31 - j);
+        if (Math.max(ci, cj) <= 2) return '#e8907e';                     // ornamen sudut
+        const d = Math.max(Math.abs(i - 15.5), Math.abs(j - 15.5)), alt = (gx + gy) % 2;
+        if (d <= 5) {
+          const [fill, line] = alt ? ['#a7d7a5', '#6fae7b'] : ['#f6c56b', '#e89b4f'];
+          return d > 4 ? line : d <= 1 ? '#fdf8f0' : fill;              // hiasan tengah
+        }
+        if (d > 9 && d <= 10) return alt ? '#e3cba0' : '#e6d0a7';        // bingkai halus
+        return alt ? '#f1e2c2' : '#ead6b1';
+      },
+    },
+    parket: {
+      label: 'Parket kayu madu',
+      color(gx, gy, i, j) {
+        const plank = fl(j / 8), off = ((gy * 4 + plank) * 13) % 32;
+        if (j % 8 === 0) return '#b98552';                               // celah antar papan
+        if ((i + off) % 32 === 0) return '#a8763f';                      // sambungan ujung papan
+        if ((i * 7 + j * 13 + gx * 3) % 29 === 0) return '#c99556';      // serat kayu
+        const tones = ['#e2b47a', '#d9a566', '#e8c08a', '#d3a063'];
+        return tones[(gy * 4 + plank + fl((gx * 32 + i + off) / 32)) % 4];
+      },
+    },
+    mint: {
+      label: 'Kotak mint dan krem',
+      color(gx, gy, i, j) {
+        const alt = (gx + gy) % 2;
+        if (i === 0 || j === 0) return '#e2d8c3';
+        if (i === 1 || j === 1) return alt ? '#e1f1e1' : '#fdf8f0';
+        return alt ? '#cfe8cf' : '#f7f1e3';
+      },
+    },
+  };
+  let floorStyle = 'mint';
+  function floorTile(ctx, cx, ty, gx, gy) {
+    const f = FLOORS[floorStyle];
+    for (let i = 0; i < T; i++) for (let j = 0; j < T; j++) {
+      ctx.fillStyle = f.color(gx, gy, i, j);
+      ctx.fillRect(cx + i - j, ty + fl((i + j) / 2), 1, 1);
+    }
+  }
+  // Karpet antrean di bawah titik dilayani dan antrean (gx 5..9, gy 7).
+  function drawRug(ctx, P) {
+    const L = 5 * T;
+    for (let gx = 5; gx <= 9; gx++) {
+      const { cx, ty } = P(gx, 7);
+      for (let i = 0; i < T; i++) for (let j = 3; j < T - 3; j++) {
+        const u = (gx - 5) * T + i, e = Math.min(u, L - 1 - u, j - 3, T - 4 - j);
+        let col;
+        if (e < 1 || e === 3) col = '#c2675a';
+        else if (e < 3) col = '#f7f1e3';
+        else col = (u + Math.abs((j % 8) - 4)) % 10 === 0 ? '#f6c56b' : '#e8907e';
+        ctx.fillStyle = col; ctx.fillRect(cx + i - j, ty + fl((i + j) / 2), 1, 1);
+      }
+    }
+  }
+
+  function drawFloor(ctx, P) {
+    for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) { const { cx, ty } = P(gx, gy); floorTile(ctx, cx, ty, gx, gy); }
+    drawRug(ctx, P);
+    for (const gy of [6, 7]) {   // keset di depan pintu
+      const { cx, ty } = P(0, gy);
+      isoBox(ctx, cx + 4, ty + 2, 20, T, 0, C[10]);
+      for (let j = 2; j < T; j += 4) for (let i = 2; i < 18; i++) topDot(ctx, cx + 4, ty + 2, 0, i, j, C[9]);
+    }
+  }
+  function drawScene(ctx, P, opts) {
+    ctx.fillStyle = opts.night ? '#2a2c4a' : '#f3ead8'; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+    drawFloor(ctx, P);
+    drawWalls(ctx, P, opts.night);
+    const items = [
+      ...segments.map((s) => ({ d: s.gx + s.gy, layer: 0, gx: s.gx, draw: () => drawSegment(ctx, P, s, opts.night) })),
+      ...getActors().map((a) => ({ d: a.gx + a.gy, layer: 1, gx: a.gx, draw: () => drawActor(ctx, P, a) })),
+    ].sort((a, b) => a.d - b.d || a.layer - b.layer || a.gx - b.gx);
+    items.forEach((it) => it.draw());
+    if (opts.night) {
+      ctx.fillStyle = 'rgba(58,61,107,0.42)'; ctx.fillRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+      for (const gx of [7, 8, 9]) { const { cx, ty } = P(gx, 0); ctx.fillStyle = 'rgba(255,233,168,0.30)'; ctx.fillRect(cx - 20, ty - 62, 22, 44); }
+      const { cx, ty } = P(10, 6); ctx.fillStyle = 'rgba(167,215,165,0.35)'; ctx.fillRect(cx - 40, ty - 34, 34, 26);
+    }
+  }
+
+  // ---- BFS jalur contoh ------------------------------------------------------
+  function bfs(from, to) {
+    const key = (p) => p[0] + ',' + p[1], prev = new Map([[key(from), null]]), q = [from];
+    while (q.length) {
+      const cur = q.shift(); if (cur[0] === to[0] && cur[1] === to[1]) break;
+      for (const [dx, dy] of [[1, 0], [-1, 0], [0, 1], [0, -1]]) {
+        const n = [cur[0] + dx, cur[1] + dy];
+        if (n[0] < 0 || n[1] < 0 || n[0] >= GW || n[1] >= GH || blocked.has(key(n)) || prev.has(key(n))) continue;
+        prev.set(key(n), cur); q.push(n);
+      }
+    }
+    if (!prev.has(key(to))) return null;
+    const path = []; let c = to; while (c) { path.unshift(c); c = prev.get(key(c)); } return path;
+  }
+  function examplePath() {
+    const legs = [[[0, 7], [4, 3]], [[4, 3], [5, 7]], [[5, 7], [9, 7]], [[9, 7], [9, 8]], [[9, 8], [0, 8]], [[0, 8], [0, 7]]];
+    const out = [[-1, 7]];
+    for (const [a, b] of legs) { const p = bfs(a, b); if (!p) return null; out.push(...(out.length > 1 ? p.slice(1) : p)); }
+    out.push([-1, 7]); return out;
+  }
+
+  // ---- Peta utama --------------------------------------------------------------
+  const base = document.createElement('canvas'); base.width = BASE_W; base.height = BASE_H;
+  const bctx = base.getContext('2d');
+  const P = makeProj(336, 88);
+  const path = examplePath();
+  const $ = (id) => document.getElementById(id);
+  function render() {
+    floorStyle = $('optFloor').value;
+    const opts = { labels: $('optLabels').checked, coords: $('optCoords').checked, path: $('optPath').checked, blocked: $('optBlocked').checked, night: $('optNight').checked, scale: Number($('optScale').value) };
+    drawScene(bctx, P, opts);
+    const s = opts.scale, map = $('map');
+    map.width = BASE_W * s; map.height = BASE_H * s;
+    const ctx = map.getContext('2d'); ctx.imageSmoothingEnabled = false; ctx.drawImage(base, 0, 0, BASE_W * s, BASE_H * s);
+    const center = (gx, gy) => { const { cx, ty } = P(gx, gy); return [cx * s, (ty + HH) * s]; };
+    if (opts.blocked) {
+      ctx.fillStyle = 'rgba(194,103,90,0.35)';
+      for (const k of blocked) { const [gx, gy] = k.split(',').map(Number); const { cx, ty } = P(gx, gy);
+        ctx.beginPath(); ctx.moveTo(cx * s, ty * s); ctx.lineTo((cx + HW) * s, (ty + HH) * s); ctx.lineTo(cx * s, (ty + 2 * HH) * s); ctx.lineTo((cx - HW) * s, (ty + HH) * s); ctx.closePath(); ctx.fill(); }
+    }
+    if (opts.path && path) {
+      ctx.strokeStyle = '#c2675a'; ctx.lineWidth = 2 * s; ctx.setLineDash([6 * s, 4 * s]);
+      ctx.beginPath(); path.forEach(([gx, gy], i) => { const [x, y] = center(gx, gy); i ? ctx.lineTo(x, y) : ctx.moveTo(x, y); }); ctx.stroke(); ctx.setLineDash([]);
+      const dot = (gx, gy, t) => { const [x, y] = center(gx, gy); ctx.fillStyle = '#c2675a'; ctx.beginPath(); ctx.arc(x, y, 7 * s, 0, Math.PI * 2); ctx.fill(); ctx.fillStyle = '#fff'; ctx.font = `bold ${9 * s}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle'; ctx.fillText(t, x, y + 0.5); };
+      dot(4, 3, '1'); dot(5, 7, '2'); dot(9, 7, '3'); dot(0, 8, '4');
+    }
+    if (opts.coords) {
+      ctx.font = `${7 * s}px ui-monospace, monospace`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (let gy = 0; gy < GH; gy++) for (let gx = 0; gx < GW; gx++) { const [x, y] = center(gx, gy); ctx.fillStyle = 'rgba(43,42,51,.75)'; ctx.fillText(gx + ',' + gy, x, y); }
+    }
+    if (opts.labels) {
+      ctx.font = `600 ${8 * s}px system-ui`; ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      for (const [t, gx, gy] of labels) { const [x, y] = center(gx, gy); const w = ctx.measureText(t).width + 8 * s, yy = y - 22 * s;
+        ctx.fillStyle = 'rgba(255,255,255,.9)'; ctx.fillRect(x - w / 2, yy - 6 * s, w, 12 * s); ctx.fillStyle = '#2b2a33'; ctx.fillText(t, x, yy); }
+    }
+  }
+
+  // ---- Meja kasir dari dekat --------------------------------------------------
+  function renderCounterZoom() {
+    const W = 380, H = 150, s = 2;
+    const b = document.createElement('canvas'); b.width = W; b.height = H; const c = b.getContext('2d');
+    c.fillStyle = '#f3ead8'; c.fillRect(0, 0, W, H);
+    const ZP = makeProj(150, 30);
+    for (let gy = 0; gy < 3; gy++) for (let gx = 0; gx < 4; gx++) { const { cx, ty } = ZP(gx, gy); floorTile(c, cx, ty, gx, gy); }
+    const items = [
+      { d: 1, layer: 1, draw: () => { const { cx, ty } = ZP(1, 0); drawRef(c, 'ref8', cx, ty + HH + 2); } },
+      { d: 2, layer: 0, draw: () => { const { cx, ty } = ZP(1, 1); drawCounter(c, cx, ty, 'kiri', true, false); } },
+      { d: 3, layer: 0, draw: () => { const { cx, ty } = ZP(2, 1); drawCounter(c, cx, ty, 'kanan', true, false); } },
+      { d: 3, layer: 1, draw: () => { const { cx, ty } = ZP(1, 2); drawRef(c, 'ref3', cx, ty + HH + 2); } },
+    ].sort((a, b) => a.d - b.d || a.layer - b.layer);
+    items.forEach((it) => it.draw());
+    const out = $('zoomCounter'); out.width = W * s * 2; out.height = H * s * 2;
+    const o = out.getContext('2d'); o.imageSmoothingEnabled = false; o.drawImage(b, 0, 0, W * s * 2, H * s * 2);
+  }
+
+  // ---- Galeri karakter -----------------------------------------------------------
+  const describe = (p) => {
+    const parts = p.acc.some(([n]) => ACC[n].hidesHair) ? [] : [HAIR[p.hairStyle || 'pendek'].label];
+    for (const [name] of p.acc) parts.push(ACC[name].label);
+    return parts.join(', ');
+  };
+  function renderGallery() {
+    const own = ['penyihir', 'samurai', 'gadis_penyihir', 'robot'];
+    const cards = [
+      ...Object.keys(REF).map((k) => ({ kind: 'ref', key: k, title: REF_INFO[k].title, desc: `${images[k].width} × ${images[k].height} piksel, warna asli${REF_INFO[k].note ? '; ' + REF_INFO[k].note : ''}; kiri asli, kanan cermin` })),
+      ...own.map((k) => ({ kind: 'own', key: k, title: COSTUMES[k].title, desc: `${COSTUMES[k].style}: ${describe(COSTUMES[k].p)}` })),
+    ];
+    $('gallery').innerHTML = cards.map((g, i) => `<div class="person"><canvas id="person${i}"></canvas><div class="meta"><b>${g.title}</b>${g.kind === 'ref' ? '<span class="tag">dari gambar Anda</span>' : '<span class="tag own">buatan sendiri</span>'}<div>${g.desc}</div></div></div>`).join('');
+    cards.forEach((g, i) => {
+      const W = 130, H = 66, s = 2;
+      const b = document.createElement('canvas'); b.width = W; b.height = H; const c = b.getContext('2d');
+      c.fillStyle = '#f3ead8'; c.fillRect(0, 0, W, H);
+      if (g.kind === 'ref') { drawRef(c, g.key, 34, 62); drawRef(c, g.key, 96, 62, true); }
+      else { shadow(c, 34, 62, 22); drawPerson(c, 34, 62, { ...COSTUMES[g.key].p, facing: 'front' }, 2); shadow(c, 96, 62, 22); drawPerson(c, 96, 62, { ...COSTUMES[g.key].p, facing: 'back' }, 2); }
+      const out = $('person' + i); out.width = W * s; out.height = H * s;
+      const o = out.getContext('2d'); o.imageSmoothingEnabled = false; o.drawImage(b, 0, 0, W * s, H * s);
+    });
+  }
+
+  // ---- Contoh kedalaman ----------------------------------------------------------
+  function depthDemo(id, actorPos, rackTiles) {
+    const W = 300, H = 150, s = 2;
+    const b = document.createElement('canvas'); b.width = W; b.height = H; const c = b.getContext('2d');
+    const DP = makeProj(150, 46);
+    c.fillStyle = '#f3ead8'; c.fillRect(0, 0, W, H);
+    for (let gy = 0; gy < 3; gy++) for (let gx = 0; gx < 5; gx++) { const { cx, ty } = DP(gx, gy); floorTile(c, cx, ty, gx, gy); }
+    const items = [
+      ...rackTiles.map(([gx, gy], k) => ({ d: gx + gy, layer: 0, gx, draw: () => { const { cx, ty } = DP(gx, gy); drawRack(c, cx, ty, 'penuh', 3 + k); } })),
+      { d: actorPos[0] + actorPos[1], layer: 1, gx: actorPos[0], draw: () => { const { cx, ty } = DP(...actorPos); drawRef(c, 'ref3', cx, ty + HH + 2); } },
+    ].sort((a, b) => a.d - b.d || a.layer - b.layer || a.gx - b.gx);
+    items.forEach((it) => it.draw());
+    const out = $(id); out.width = W * s; out.height = H * s;
+    const o = out.getContext('2d'); o.imageSmoothingEnabled = false; o.drawImage(b, 0, 0, W * s, H * s);
+  }
+
+  // ---- Legenda, palet, state machine ----------------------------------------------
+  $('legend').innerHTML = [
+    [C[20], 'Rak kayu, papan atas krem (beda dari lantai); 3 tingkat, isi menurut stok'],
+    [C[18], 'Vending machine (3 unit); jumlah kaleng menurut stok kategori "minum"'],
+    [C[12], 'Meja kasir dengan komputer; kasir 1 aktif, kasir 2 mati (TUTUP)'],
+    [C[13], 'Lukisan: gunung dan sawah, laut senja (kanan); buah, bunga (kiri)'],
+    [C[10], 'Pintu kaca dan keset'],
+    ['#e8907e', 'Lantai: 3 pilihan pola + karpet terakota di bawah antrean'],
+    ['#c2675a', 'Jalur contoh: 1 rak → 2 antrean → 3 dilayani → 4 lajur keluar'],
+  ].map(([c, t]) => `<div><span class="sw" style="background:${c}"></span>${t}</div>`).join('');
+  $('palette').innerHTML = PALETTE.map(([hex, role], i) => `<div class="swatch"><div class="chip" style="background:${hex}"></div><div class="meta"><code>${i + 1}. ${hex}</code><div>${role}</div></div></div>`).join('');
+  const flow = (id, states, cls = '') => { $(id).innerHTML = states.map((s) => `<span class="state ${cls}">${s}</span>`).join('<span class="arrow">→</span>'); };
+  flow('flowCustomer', ['muncul', 'masuk', 'ke_rak', 'ambil (1–2×)', 'ke_antrean', 'antre', 'dilayani', 'dipindai', 'bayar', 'ambil_kantong', 'keluar']);
+  flow('flowCashier', ['diam', 'menyapa', 'pindai (per barang)', 'bungkus', 'terima_koin', 'diam'], 'cashier');
+  $('flowCashier').insertAdjacentHTML('beforeend', '<span class="arrow" style="margin-left:12px">·</span><span class="state cashier">batal (sale.voided)</span>');
+
+  // ---- Muat sprite referensi, lalu gambar semua ---------------------------------------
+  Promise.all(Object.entries(REF).map(([k, src]) => new Promise((ok, fail) => { const im = new Image(); im.onload = () => { images[k] = im; ok(); }; im.onerror = fail; im.src = src; })))
+    .then(() => {
+      const renderAll = () => {
+        render(); renderCounterZoom();
+        depthDemo('depthBehind', [1, 0], [[1, 1]]);
+        depthDemo('depthFront', [1, 2], [[1, 1]]);
+        depthDemo('depthSplit', [3, 0], [[0, 1], [1, 1], [2, 1], [3, 1], [4, 1]]);
+      };
+      for (const id of ['optLabels', 'optCoords', 'optPath', 'optBlocked', 'optNight', 'optScale']) $(id).addEventListener('change', render);
+      $('optFloor').addEventListener('change', renderAll);
+      renderAll(); renderGallery();
+    });
+})();
+</script>
+</body>
+</html>

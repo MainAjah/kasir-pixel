@@ -1,5 +1,53 @@
 # PROGRESS
 
+## Tahap 5A: Rancangan diorama isometrik (21 Nov 2026)
+
+Status: **selesai, disetujui pemilik (revisi 5).** Belum ada kode aplikasi dan tidak ada paket baru.
+
+### Yang sudah selesai
+
+- **Rancangan tertulis** `docs/diorama-rancangan.md`, acuan 5B sampai 5E:
+  - kanvas 768 × 432, tile isometrik 64 × 32, grid toko 12 × 9;
+  - denah: 2 rak, 3 vending machine, 2 meja kasir (kasir 2 tutup), pintu kaca, lukisan, jam, jendela, karpet antrean;
+  - jalur pelanggan (BFS 4 arah), state machine pelanggan dan penjaga kasir;
+  - daftar sprite, palet 24 warna, aturan urutan kedalaman;
+  - hubungan ke `resources/js/lib/store-events.ts` dan ke stok ledger;
+  - kinerja dan mode hemat, keputusan D1 sampai D7, risiko, rencana berkas 5B sampai 5E.
+- **Halaman rancangan** `docs/diorama-rancangan.html`: statis, dibuka langsung di browser. Isinya: denah isometrik (label, koordinat, jalur contoh, tile terlarang, malam, skala), meja kasir dari dekat, galeri karakter, contoh kedalaman, palet, state machine, dan peristiwa.
+- **Referensi karakter** `docs/referensi-karakter/`: 8 gambar dari pemilik (`asli/`), hasil olahan tanpa latar (`olahan/`), dan skrip Node tanpa paket tambahan (`alat/`).
+- **Lima revisi** atas koreksi pemilik; riwayatnya ada di bagian atas dokumen rancangan.
+
+### Keputusan yang disetujui
+
+| Kode | Keputusan |
+| --- | --- |
+| D1 | Canvas 2D bawaan browser, tanpa PixiJS dan tanpa paket baru |
+| D2 | Keadaan awal dari server + polling baca-saja 10 detik sampai Reverb (Tahap 8) |
+| D3 | Paling banyak 2 pelanggan latar saat sepi |
+| D4 | Kategori yang namanya mengandung "minum" ke vending machine, sisanya ke rak |
+| D5 | Kanvas 768 × 432, tile 64 × 32 |
+| D6 | 8 karakter dari gambar pemilik, warna asli, satu pose + cermin; zombie sebagai penjaga kasir |
+| D7 | Lantai kotak mint dan krem dengan karpet antrean terakota |
+
+### Batasan dan hal yang perlu diketahui
+
+- **Hak cipta:** karakter referensi milik pemegang hak masing-masing, dan gambar sumbernya kemungkinan karya penggemar. Hanya untuk tugas dan demo kelas, tidak dipublikasikan. Gambar no. 6 memuat nama pembuat polanya; dicatat di `docs/referensi-karakter/README.md`.
+- **Pengecualian aturan sprite `CLAUDE.md`:** karakter referensi memakai warna aslinya (di luar palet) dan bukan buatan Claude Code, atas permintaan pemilik.
+- **Karakter referensi hanya satu pose:** arah kiri dan kanan memakai cermin, gerak jalan berupa ayunan.
+- **Pratinjau menampilkan 8 pelanggan sekaligus** agar semua karakter terlihat. Saat berjalan tetap paling banyak 5, sisanya "+N".
+- **`docs/diorama-rancangan.html` adalah berkas rakitan.** Semua kodenya ada di dalam berkas itu (sprite sebagai data URL), jadi perubahan berikutnya dilakukan langsung di berkas tersebut.
+- `docs/visi-diorama.md` (tulisan pemilik) tidak diubah.
+
+### Saran untuk tahap berikutnya
+
+- **Tahap 5B** (mesin diorama): **Sonnet, upaya tinggi.**
+  - Cakupan: game loop 30 FPS, proyeksi isometrik, urutan kedalaman, jalur jalan BFS, state machine aktor, dan adaptor `DioramaFeed` dengan event palsu dari tombol "simulasi pesanan".
+  - Acuan: `docs/diorama-rancangan.md` bagian 1 sampai 4, 8 sampai 10, dan 13.
+  - Sprite boleh berupa kotak sementara dulu. Sprite sungguhan dikerjakan di 5C (Opus, upaya tinggi) dengan halaman `/diorama-lab`.
+- Mulai di sesi baru setelah model diganti.
+
+---
+
 ## Tahap 4: Anggota dan simpanan (21 Nov 2026)
 
 Status: **selesai, menunggu persetujuan.**
