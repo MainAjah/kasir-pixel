@@ -41,6 +41,21 @@ Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab
 - **Lab:** `components/diorama/reference-lab.tsx` (pratinjau 4×, perbandingan ukuran dan warna) dan `components/diorama/sprite-cells.tsx` (kerangka pratinjau bersama).
 - **Tes:** 14 tes baru (`sprites/reference.test.ts`); seluruhnya 95 tes Vitest lulus.
 
+### Elemen: lantai, dinding, dan pintu (disetujui)
+
+- **Bentuk dari rancangan 5A** (`sprites/room-sprite.ts`):
+  - lantai kotak mint dan krem dengan nat dan garis kilau;
+  - karpet antrean terakota bermotif zig-zag kunyit dan keset hijau bergaris;
+  - dua dinding belakang setinggi 80 px dengan list atas dan plint;
+  - pintu kaca berkusen kayu dengan pantulan dan gagang dorong.
+- **Tambahan:** alas diorama setebal 6 px di tepi depan lantai, supaya ruangan terbaca sebagai potongan diorama.
+- **Warna, pilihan pemilik dari tiga skema:**
+  - dipilih **langit dan lavender**: dinding lavender (berpintu) dan biru langit, list putih, plint dan alas hijau, lantai mint memakai hijau palet;
+  - hanya palet 24 (dites);
+  - dinding krem dan krem kecokelatan dari 5A diganti karena terlalu cokelat untuk visi "ceria dan pastel".
+- **Diorama:** latar (lantai dan dinding) dirender sekali dari sprite ini. Lab menampilkan potongan 4× (sudut pintu; sudut depan dengan karpet dan alas).
+- **Tes:** 4 tes baru (`sprites/room.test.ts`); seluruhnya 106 tes Vitest lulus.
+
 ---
 
 ## Tahap 5B: Mesin diorama (21 Nov 2026)

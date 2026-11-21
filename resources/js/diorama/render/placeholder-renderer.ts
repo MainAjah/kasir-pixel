@@ -17,14 +17,7 @@ import {
     sortDrawItems,
 } from '../engine/depth';
 import type { DrawItem } from '../engine/depth';
-import {
-    CANVAS_H,
-    CANVAS_W,
-    ORIGIN,
-    WALL_H,
-    tileCenter,
-    tileTop,
-} from '../engine/iso';
+import { CANVAS_H, CANVAS_W, tileCenter, tileTop } from '../engine/iso';
 import type { Facing } from '../engine/iso';
 import type { DioramaWorld } from '../engine/world';
 import type { Furniture, StoreScene } from '../scenes/store-scene';
@@ -50,6 +43,7 @@ import {
     transformFrame,
 } from '../sprites/reference-sprite';
 import type { ReferenceCharacter } from '../sprites/reference-sprite';
+import { drawRoom } from '../sprites/room-sprite';
 import { SpriteCache } from '../sprites/sprite-cache';
 import {
     drawText,
@@ -73,7 +67,6 @@ export type RenderOptions = {
 
 const INK = '#2b2a33';
 const SHADOW = '#5b5470';
-const CREAM = '#f7f1e3';
 const WHITE = '#fdf8f0';
 const SKIN = ['#f2c9a5', '#c98e6a', '#8d5a3f'];
 const SHIRTS = [
@@ -276,7 +269,7 @@ export class PlaceholderRenderer {
         this.drawInterface(ctx, world);
     }
 
-    // ---- Latar: lantai dan dinding, dirender sekali ------------------------
+    // ---- Latar: lantai, karpet, keset, dinding, pintu (sprite 5C), dirender sekali ---
 
     private backgroundCanvas(): HTMLCanvasElement {
         if (this.background) {
@@ -289,96 +282,12 @@ export class PlaceholderRenderer {
         const ctx = canvas.getContext('2d');
 
         if (ctx) {
-            ctx.fillStyle = '#efe7d6';
-            ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
-            this.drawFloor(ctx);
-            this.drawWalls(ctx);
+            drawRoom(ctx, this.scene, CANVAS_W, CANVAS_H);
         }
 
         this.background = canvas;
 
         return canvas;
-    }
-
-    private drawFloor(ctx: CanvasRenderingContext2D): void {
-        const rugRow = this.scene.queueSlots[0].gy;
-        const rugGx = this.scene.queueSlots.map((s) => s.gx);
-
-        for (let gy = 0; gy < this.scene.height; gy++) {
-            for (let gx = 0; gx < this.scene.width; gx++) {
-                const { x, y } = tileTop(gx, gy);
-                const alt = (gx + gy) % 2 === 1;
-                // Lantai yang disetujui: kotak mint dan krem (D7).
-                isoBox(
-                    ctx,
-                    x,
-                    y,
-                    32,
-                    32,
-                    0,
-                    alt ? '#cfe8cf' : CREAM,
-                    null,
-                    null,
-                );
-
-                for (let t = 0; t < 32; t++) {
-                    topDot(ctx, x, y, 0, t, 0, '#e2d8c3');
-                    topDot(ctx, x, y, 0, 0, t, '#e2d8c3');
-
-                    if (t > 0) {
-                        topDot(ctx, x, y, 0, t, 1, alt ? '#e1f1e1' : WHITE);
-                        topDot(ctx, x, y, 0, 1, t, alt ? '#e1f1e1' : WHITE);
-                    }
-                }
-
-                // Karpet antrean (terakota berpinggir krem) di bawah titik dilayani dan antrean.
-                if (gy === rugRow && rugGx.includes(gx)) {
-                    const [rx, ry] = onTop(x, y, 0, 0, 6);
-                    isoBox(ctx, rx, ry, 32, 20, 0, '#e8907e', null, null);
-                }
-            }
-        }
-    }
-
-    private drawWalls(ctx: CanvasRenderingContext2D): void {
-        const { x: ox, y: oy } = ORIGIN;
-        const doorFrom = this.scene.door.inside.gy - 1;
-        const doorTo = this.scene.door.inside.gy;
-
-        // Dinding belakang kanan (sepanjang gx, di atas baris gy = 0).
-        for (let u = 0; u < this.scene.width * 32; u++) {
-            const base = oy + fl(u / 2);
-            ctx.fillStyle = '#efe2c4';
-            ctx.fillRect(ox + u, base - WALL_H, 1, WALL_H);
-            ctx.fillStyle = '#c4ad86';
-            ctx.fillRect(ox + u, base - 5, 1, 5);
-            ctx.fillStyle = WHITE;
-            ctx.fillRect(ox + u, base - WALL_H, 1, 3);
-        }
-
-        // Dinding belakang kiri (sepanjang gy, di kiri kolom gx = 0) dengan lubang pintu.
-        for (let v = 0; v < this.scene.height * 32; v++) {
-            const x = ox - 1 - v;
-            const base = oy + fl(v / 2);
-            const tile = fl(v / 32);
-            const inDoor = tile >= doorFrom && tile <= doorTo;
-
-            ctx.fillStyle = '#e6d6b4';
-            ctx.fillRect(x, base - WALL_H, 1, WALL_H);
-            ctx.fillStyle = WHITE;
-            ctx.fillRect(x, base - WALL_H, 1, 3);
-
-            if (inDoor) {
-                const edge = v === doorFrom * 32 || v === (doorTo + 1) * 32 - 1;
-                ctx.fillStyle = edge ? '#7a5c4b' : '#cfeaf2';
-                ctx.fillRect(x, base - 64, 1, 64);
-                ctx.fillStyle = '#7a5c4b';
-                ctx.fillRect(x, base - 66, 1, 2);
-            } else {
-                ctx.fillStyle = '#c4ad86';
-                ctx.fillRect(x, base - 5, 1, 5);
-            }
-        }
     }
 
     private drawBlocked(

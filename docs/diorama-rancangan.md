@@ -127,9 +127,9 @@ Selama `mengejar`, `di_pintu`, dan `kembali`, kasir tidak melayani: pembeli di t
 
 | Sprite | Ukuran (px) | Frame | Catatan |
 | --- | --- | --- | --- |
-| Lantai | 64×32 | 2 varian (selang-seling) | **kotak mint dan krem** (dipilih pemilik): ubin mint `#cfe8cf` dan krem `#f7f1e3` bergantian seperti papan catur, garis kilau terang di tepi belakang, nat `#e2d8c3`. Dua pola lain (ubin ornamen, parket kayu madu) hanya tersisa sebagai pembanding di halaman rancangan dan tidak dibuat di 5C |
+| Lantai | 64×32 | 2 varian (selang-seling) | **kotak mint dan krem** (dipilih pemilik): bergantian seperti papan catur, garis kilau terang di tepi belakang, nat. Di 5C memakai warna palet: krem `#f7f1e3` dan hijau daun `#a7d7a5`, nat `#efe2c4`; ditambah alas diorama 6 px di tepi depan lantai (hijau) |
 | Karpet antrean | 160×32 (5 tile) | 1 | terakota, pinggiran krem, motif zig-zag kunyit |
-| Dinding kiri / kanan per tile | 32×80 | 1 | krem, list atas, plint kayu |
+| Dinding kiri / kanan per tile | 32×80 | 1 | diubah di 5C (pilihan pemilik): dinding kiri lavender `#c9b6e4`, dinding kanan biru langit `#9fd3e6`, list atas putih, plint hijau |
 | Pintu kaca | 64×80 (2 tile) | 1 | bingkai kayu, kaca dengan pantulan, gagang dorong, keset hijau bergaris |
 | Rak per tile | 64×64 (badan 32 px) | 1 | sisi kayu, **papan atas krem berbingkai kayu** (beda dari lantai), 3 tingkat papan, barang beraneka tinggi dan warna dengan kilau dan label, label harga; isi 4 tingkat menurut stok |
 | Vending machine per unit | 60×106 (badan 76 px) | 2 | papan nama "MINUM", kaca dengan 5 baris kaleng (isi menurut stok) dan pantulan, layar harga, tombol, lubang koin dan uang kertas, pintu ambil, garis warna di sisi; 3 warna badan; kaca menyala saat malam |
@@ -251,7 +251,7 @@ Dipakai untuk toko, perabot, dan karakter buatan sendiri. Karakter referensi mem
 | D4 | Pemetaan produk | kategori "minum" ke vending machine, disetujui |
 | D5 | Ukuran kanvas | **diubah di revisi 3: 768 × 432, tile 64 × 32**, disetujui |
 | D6 | Karakter referensi | gambar pemilik (8 karakter, termasuk zombie sebagai penjaga kasir), warna asli, satu pose + cermin, untuk tugas saja (bukan publikasi), disetujui |
-| D7 | Pola lantai | **kotak mint dan krem** dengan karpet antrean terakota, **dipilih pemilik** di revisi 5, disetujui |
+| D7 | Pola lantai dan warna ruangan | **kotak mint dan krem** dengan karpet antrean terakota, **dipilih pemilik** di revisi 5; di 5C pemilik memilih skema **langit dan lavender** untuk dinding (hanya palet 24), disetujui |
 
 ## 12. Risiko
 
