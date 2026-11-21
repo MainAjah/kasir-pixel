@@ -8,6 +8,7 @@ import {
     Package,
     PackagePlus,
     ShoppingCart,
+    Sparkles,
     Tags,
     Users,
 } from 'lucide-react';
@@ -32,6 +33,7 @@ import {
     SidebarMenuItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
+import { lab as dioramaLab } from '@/routes/diorama';
 import type { NavItem } from '@/types';
 
 const mainNavItems: NavItem[] = [
@@ -81,6 +83,13 @@ const inventoryNavItems: NavItem[] = [
     { title: 'Kategori', href: CategoryController.index(), icon: Tags },
 ];
 
+// Pratinjau mesin diorama (Tahap 5B), hanya admin.
+const dioramaLabNav: NavItem = {
+    title: 'Diorama lab',
+    href: dioramaLab(),
+    icon: Sparkles,
+};
+
 const footerNavItems: NavItem[] = [
     {
         title: 'Repository',
@@ -100,7 +109,13 @@ export function AppSidebar() {
     const isKasir = auth.roles.includes('kasir');
     const isBendahara = auth.roles.includes('bendahara');
     const navItems = isAdmin
-        ? [...mainNavItems, ...posNavItems, ...inventoryNavItems, memberNavItem]
+        ? [
+              ...mainNavItems,
+              ...posNavItems,
+              ...inventoryNavItems,
+              memberNavItem,
+              dioramaLabNav,
+          ]
         : isKasir
           ? [...mainNavItems, ...posNavItems, readOnlyProductNav]
           : isBendahara

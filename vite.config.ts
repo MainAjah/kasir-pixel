@@ -39,6 +39,11 @@ export default defineConfig({
             ],
         },
     },
+    // Tes logika murni diorama (Vitest bawaan vite-plus, `npx vp test`).
+    test: {
+        include: ['resources/js/**/*.test.ts'],
+        environment: 'node',
+    },
     lint: {
         ignorePatterns: [
             'vendor/**',

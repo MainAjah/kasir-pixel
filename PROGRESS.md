@@ -1,5 +1,61 @@
 # PROGRESS
 
+## Tahap 5B: Mesin diorama (21 Nov 2026)
+
+Status: **selesai, disetujui pemilik.** Tidak ada paket baru: tes JavaScript memakai Vitest yang sudah ikut di dalam `vite-plus` (`vite-plus/test`).
+
+### Yang sudah selesai
+
+- **Mesin murni** di `resources/js/diorama/` (tanpa DOM, bisa dites):
+  - `engine/iso.ts`: proyeksi isometrik (kanvas 768 × 432, tile 64 × 32, asal (336, 88)), pixel-snap, arah hadap.
+  - `engine/grid.ts`: BFS 4 arah dengan urutan tetangga tetap.
+  - `engine/depth.ts`: urutan gambar menurut `gx + gy`; seri perabot → aktor → efek → `gx` kecil; objek panjang dipotong per tile; efek +0,1.
+  - `engine/queue.ts`: antrean 5 slot, slot 0 = titik dilayani (9,7); yang di belakang maju saat depan keluar.
+  - `engine/feed.ts`: `DioramaFeed` menormalkan peristiwa (rupiah bulat, jumlah ≥ 1, yang cacat dibuang), membuang penjualan selesai atau batal yang sama bila datang dua kali, dan `connect(onStoreEvent)` untuk berlangganan pemancar browser.
+  - `engine/world.ts`: `DioramaWorld` menyatukan semuanya: maksimal 5 pelanggan tampil, sisanya "+N"; maksimal 2 pelanggan latar; latar memberi tempat bila toko penuh; reservasi titik ambil; total harian; layar pelanggan.
+  - `engine/loop.ts`: loop 30 FPS lewat `requestAnimationFrame`, berhenti saat tab tersembunyi, langkah dibatasi 0,1 detik.
+  - `actors/customer.ts`: state machine pelanggan sesuai rancangan (`muncul` → `masuk` → `ke_rak` ⇄ `ambil` → `ke_antrean` → `antre` → `dilayani` → `dipindai` → `bayar` → `ambil_kantong` → `keluar` → `hilang`), kejar ketinggalan ×3, lajur keluar gy = 8.
+  - `actors/cashier.ts`: penjaga kasir (`diam`, `menyapa`, `pindai`, `bungkus`, `terima_koin`, `batal`) dengan antrean aksi terbatas.
+  - `scenes/store-scene.ts`: denah sebagai data (perabot, titik ambil, slot antrean, pintu, area penjaga).
+- **Renderer gambar pengganti** `render/placeholder-renderer.ts` dan `render/pixel.ts`: kotak isometrik berwarna untuk lantai (kotak mint dan krem, D7), dinding dengan pintu, rak, vending machine, meja kasir, bangku, tanaman, pelanggan, dan penjaga; laser scanner, koin, gelembung "×", "+N", layar pelanggan, total harian. Lantai dan dinding dirender sekali ke kanvas latar.
+- **React:** `components/diorama/diorama-canvas.tsx` (skala bulat menurut lebar wadah, `image-rendering: pixelated`) dan `components/diorama/use-diorama.ts` (membuat dunia dan adaptor, berlangganan `onStoreEvent`).
+- **Halaman `/diorama-lab`** (hanya admin, menu "Diorama lab"):
+  - tombol uji: pelanggan baru, pindai barang, bayar, batalkan, pelanggan latar, pesanan lengkap, 7 pesanan sekaligus;
+  - pilihan: latar otomatis, jalur pelanggan, tile terlarang, nomor pelanggan;
+  - panel keadaan: penjaga, antrean, "+N", total harian, layar pelanggan, tabel pelanggan.
+  - Tombol uji memasukkan peristiwa palsu langsung ke `DioramaFeed`, tidak lewat `emitStoreEvent`, jadi tidak ada yang dikirim ke server dan tidak ada data yang ditulis.
+- **Tes:**
+  - 56 tes Vitest untuk logika murni (`npx vp test`): BFS dan denah, kedalaman, antrean, adaptor, jam bingkai, penjaga, dan state machine lewat dunia (alur lengkap, kejar, batas 5 dan "+N", latar, batal, tile terlarang).
+  - 4 tes Pest akses `/diorama-lab` (admin boleh, kasir dan bendahara 403, tamu ke login). Seluruh suite Pest: 250 tes lulus.
+  - `tsc`, `vp lint`, dan `pint` bersih; `npm run build` berhasil.
+- **Dicoba di browser** (`http://localhost:8010/diorama-lab`, database `kasir_test`):
+  - 7 pesanan: 5 pelanggan antre di karpet, "+2", semua dilayani lalu toko sepi;
+  - alur manual: pelanggan menunggu di kasir setelah pindaian habis, bayar menampilkan total di layar pelanggan, batal menurunkan total harian sementara pelanggan yang sudah bayar tetap membawa kantong;
+  - tidak ada error di konsol, tidak ada permintaan ke `/kasir/peristiwa`. Database `kasir` tidak tersentuh.
+
+### Batasan dan hal yang perlu diketahui
+
+- **Keputusan perilaku yang saya ambil:**
+  - "Pelanggan baru" saat transaksi sebelumnya belum dibayar berarti keranjang lama dikosongkan: pelanggan lama pergi tanpa kantong. Layar kasir sungguhan memancarkan `sale.opened` saat barang pertama masuk keranjang kosong.
+  - Kejar ketinggalan berlaku setiap kali `sale.completed` datang sebelum pelanggan membayar (bukan hanya saat masih di jalan), supaya animasi tidak tertinggal dari kasir.
+  - Pindaian yang diperlihatkan dibatasi 6 per pelanggan.
+  - Antrean urut kedatangan di antrean, bukan urut nomor penjualan; tiap pelanggan memutar penjualannya sendiri.
+- **Belum dikerjakan (tahap lain):** sprite sungguhan (5C); siang dan malam, bunyi, isi rak menurut stok, endpoint keadaan awal dan polling, mode statis dan hemat daya (5D); diorama di dasbor.
+- **Wadah lebih sempit dari 768 px:** kanvas diperkecil (bukan skala bulat), jadi bisa sedikit kabur.
+- **Animasi bergantung pada `requestAnimationFrame`:** saat jendela atau tab tidak terlihat, browser memperlambat atau menghentikannya. Ini sesuai rancangan (loop berhenti saat tab tersembunyi).
+- `vite.config.ts` mendapat blok `test` (Vitest bawaan vite-plus). Jalankan tes JavaScript dengan `npx vp test`.
+- `kasir_test` diisi ulang dengan akun demo untuk mencoba di browser. Database ini dikosongkan setiap kali `php artisan test` dijalankan.
+
+### Saran untuk tahap berikutnya
+
+- **Tahap 5C** (sprite dan animasi): **Opus, upaya tinggi.**
+  - Ganti `PlaceholderRenderer` dengan renderer sprite; mesinnya tidak perlu diubah.
+  - Mulai dari satu karakter dan satu rak di `/diorama-lab`, perlihatkan, tunggu persetujuan.
+  - Karakter referensi dari `docs/referensi-karakter/olahan/`.
+- Mulai di sesi baru setelah model diganti.
+
+---
+
 ## Tahap 5A: Rancangan diorama isometrik (21 Nov 2026)
 
 Status: **selesai, disetujui pemilik (revisi 5).** Belum ada kode aplikasi dan tidak ada paket baru.
