@@ -33,10 +33,29 @@ Status: **selesai, disetujui pemilik.** Tidak ada paket baru: tes JavaScript mem
   - alur manual: pelanggan menunggu di kasir setelah pindaian habis, bayar menampilkan total di layar pelanggan, batal menurunkan total harian sementara pelanggan yang sudah bayar tetap membawa kantong;
   - tidak ada error di konsol, tidak ada permintaan ke `/kasir/peristiwa`. Database `kasir` tidak tersentuh.
 
+### Tambahan setelah persetujuan: pelanggan tidak membayar dikejar penjaga
+
+Status: **selesai, disetujui pemilik.**
+
+- **Pelanggan:** state baru `kabur`. Pelanggan yang membawa barang lari ke pintu lewat lajur keluar (×2,5).
+- **Penjaga kasir:** kini punya posisi dan tiga state baru, `mengejar` → `di_pintu` → `kembali`, lalu `diam` di (9,5) menghadap pembeli seperti semula.
+  - Ia keluar dari balik meja lewat (8,5), mengejar sampai pintu dengan kecepatan sedikit di bawah pelanggan sehingga tidak tertangkap, berhenti 1,5 detik, lalu pulang.
+  - Selama pergi, kasir tidak melayani dan pembeli di titik dilayani menunggu.
+- **Pemicu:**
+  - transaksi terbuka ditinggalkan, yaitu transaksi baru dibuka sebelum yang lama dibayar;
+  - tombol uji baru "Kabur tanpa bayar" (peristiwa `sale.abandoned` di adaptor; layar kasir belum memancarkannya).
+- **Yang tidak dikejar:**
+  - pelanggan yang belum mengambil barang (keluar biasa);
+  - pembatalan penjualan;
+  - pelanggan latar, yang kini hanya melihat-lihat dan tidak membawa barang keluar.
+- **Kode baru:** `engine/movement.ts` (gerak bersama pelanggan dan penjaga) dan `guardExit` di denah. Gelembung "!!" di atas penjaga.
+- **Tes:** 67 tes Vitest lulus (11 baru); `tsc`, lint, dan build bersih.
+- **Dilihat dan disetujui pemilik** di `/diorama-lab`. Saat saya memeriksa, jendela aplikasi tersembunyi (`document.hidden`), jadi loop diorama berhenti sesuai rancangan.
+
 ### Batasan dan hal yang perlu diketahui
 
 - **Keputusan perilaku yang saya ambil:**
-  - "Pelanggan baru" saat transaksi sebelumnya belum dibayar berarti keranjang lama dikosongkan: pelanggan lama pergi tanpa kantong. Layar kasir sungguhan memancarkan `sale.opened` saat barang pertama masuk keranjang kosong.
+  - "Pelanggan baru" saat transaksi sebelumnya belum dibayar berarti keranjang lama dikosongkan: pelanggan lama pergi tanpa kantong. Diubah oleh tambahan di atas: kini yang sudah membawa barang kabur dan dikejar. Layar kasir sungguhan memancarkan `sale.opened` saat barang pertama masuk keranjang kosong.
   - Kejar ketinggalan berlaku setiap kali `sale.completed` datang sebelum pelanggan membayar (bukan hanya saat masih di jalan), supaya animasi tidak tertinggal dari kasir.
   - Pindaian yang diperlihatkan dibatasi 6 per pelanggan.
   - Antrean urut kedatangan di antrean, bukan urut nomor penjualan; tiap pelanggan memutar penjualannya sendiri.

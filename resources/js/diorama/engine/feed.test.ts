@@ -60,6 +60,12 @@ describe('normalizeEvent', () => {
         expect(normalizeEvent('sale.voided', null)).toBeNull();
         expect(normalizeEvent('stock.moved', {})).toBeNull();
     });
+
+    it('mengenal transaksi yang ditinggalkan tanpa dibayar', () => {
+        expect(normalizeEvent('sale.abandoned', {})).toEqual({
+            type: 'sale.abandoned',
+        });
+    });
 });
 
 describe('DioramaFeed', () => {

@@ -11,7 +11,9 @@ import {
     anchorTile,
     catchUp,
     createCustomer,
+    hasGoods,
     startLeaving,
+    startRunning,
     stepCustomer,
 } from '../actors/customer';
 import type {
@@ -61,7 +63,7 @@ export class DioramaWorld implements CustomerContext {
     readonly scene: StoreScene;
     readonly grid: Grid;
     readonly queue: QueueManager;
-    readonly cashier = new Cashier();
+    readonly cashier: Cashier;
     readonly sales = new Map<number, SaleRecord>();
     customers: Customer[] = [];
     /** Penjualan yang pelanggannya belum tampil, urut waktu. */
@@ -87,6 +89,7 @@ export class DioramaWorld implements CustomerContext {
         this.scene = options.scene ?? STORE_SCENE;
         this.grid = buildGrid(this.scene);
         this.queue = new QueueManager(this.scene.queueSlots);
+        this.cashier = new Cashier(this.scene.guard);
         this.rng = createRng(options.seed ?? Date.now());
         this.autoBackground = options.autoBackground ?? false;
         this.dailyTotal = options.dailyTotal ?? 0;
@@ -166,6 +169,11 @@ export class DioramaWorld implements CustomerContext {
 
                 break;
             }
+
+            case 'sale.abandoned':
+                this.abandonOpenSale();
+
+                break;
 
             case 'background':
                 this.spawnBackground();
@@ -320,6 +328,10 @@ export class DioramaWorld implements CustomerContext {
         return [...walking, ...legs.flat(), outside];
     }
 
+    cashierAtPost(): boolean {
+        return this.cashier.atPost;
+    }
+
     onServed(): void {
         this.cashier.greet();
         this.display = { total: null, number: null };
@@ -375,19 +387,23 @@ export class DioramaWorld implements CustomerContext {
         return sale;
     }
 
-    /** Transaksi baru dibuka sebelum yang lama selesai: keranjang lama dikosongkan, pelanggannya pergi. */
+    /**
+     * Transaksi ditinggalkan tanpa dibayar (keranjang dikosongkan, atau transaksi
+     * baru dibuka sebelum yang lama selesai). Pelanggan yang sudah membawa barang
+     * kabur dan dikejar penjaga; yang belum mengambil apa-apa keluar biasa.
+     */
     private abandonOpenSale(): void {
         const sale = this.openSale();
         this.openSaleId = null;
 
         if (sale && !sale.completed) {
             sale.abandoned = true;
-            this.dropSale(sale);
+            this.dropSale(sale, true);
         }
     }
 
-    /** Pelanggan penjualan ini batal belanja: keluar tanpa kantong bila belum membayar. */
-    private dropSale(sale: SaleRecord): void {
+    /** Pelanggan penjualan ini tidak jadi membayar: keluar tanpa kantong, atau kabur. */
+    private dropSale(sale: SaleRecord, runAway = false): void {
         this.pending = this.pending.filter((id) => id !== sale.id);
 
         if (this.openSaleId === sale.id) {
@@ -396,9 +412,31 @@ export class DioramaWorld implements CustomerContext {
 
         const customer = this.customerOf(sale);
 
-        if (customer && BEFORE_PAYING.includes(customer.state)) {
+        if (!customer || !BEFORE_PAYING.includes(customer.state)) {
+            return;
+        }
+
+        if (runAway && hasGoods(customer)) {
+            startRunning(customer, this);
+            this.chaseRunaway();
+        } else {
             startLeaving(customer, this);
         }
+    }
+
+    /** Penjaga keluar dari balik meja, mengejar sampai pintu, lalu pulang ke tempatnya. */
+    private chaseRunaway(): void {
+        const { guard, guardExit, door } = this.scene;
+        const toDoor = [
+            guardExit,
+            ...(bfs(this.grid, guardExit, door.inside) ?? []),
+        ];
+        const back = [
+            ...(bfs(this.grid, door.inside, guardExit) ?? []),
+            { gx: guard.gx, gy: guard.gy },
+        ];
+
+        this.cashier.chase(toDoor, back);
     }
 
     private customerOf(sale: SaleRecord): Customer | null {

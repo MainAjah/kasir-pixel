@@ -97,9 +97,14 @@ Belum ada kode aplikasi. Keluaran Tahap 5A hanya dokumen ini, halaman HTML ranca
 | `bayar` | koin ke laci uang, struk keluar dari printer | `ambil_kantong` |
 | `ambil_kantong` | kantong berpindah ke pelanggan | `keluar` |
 | `keluar` | berjalan lewat lajur keluar ke pintu | hilang |
+| `kabur` | transaksi ditinggalkan tanpa dibayar saat pelanggan sudah membawa barang (sudah mengambil dari rak atau sedang di kasir); berlari ×2,5 lewat lajur keluar | hilang |
 
 - **Kejar ketinggalan:** bila `sale.completed` datang saat pelanggan masih di jalan, ia berjalan ×3 ke kasir.
-- **Pelanggan latar:** paling banyak 2, berkeliling tanpa antre atau bayar.
+- **Pelanggan latar:** paling banyak 2, berkeliling tanpa antre atau bayar. Mereka hanya melihat-lihat rak dan tidak membawa barang keluar (karena itu tidak pernah dikejar).
+- **Tidak membayar** (ditambahkan setelah 5B atas permintaan pemilik):
+  - Pemicu: transaksi terbuka ditinggalkan, yaitu transaksi baru dibuka sebelum yang lama dibayar, atau tombol uji "Kabur tanpa bayar".
+  - Pelanggan yang sudah membawa barang `kabur` dan dikejar penjaga; yang belum mengambil apa-apa keluar biasa.
+  - Pembatalan (`sale.voided`) tidak memicu kejaran, karena uangnya sudah diterima lalu dikembalikan.
 - **Gerak karakter referensi** (satu pose): ayunan naik-turun 1–2 piksel saat berjalan dan sedikit miring saat mengambil barang. Tidak ada animasi kaki kecuali pemilik menyediakan pose tambahan.
 
 **Penjaga kasir 1**
@@ -112,6 +117,11 @@ Belum ada kode aplikasi. Keluaran Tahap 5A hanya dokumen ini, halaman HTML ranca
 | `bungkus` | setelah pindai | barang masuk kantong |
 | `terima_koin` | `sale.completed` | laci uang terbuka, struk keluar, layar pelanggan menampilkan total |
 | `batal` | `sale.voided` | geleng, gelembung "×", total harian turun |
+| `mengejar` | pelanggan `kabur` | keluar dari balik meja lewat (8,5), berlari 4 tile/detik (lebih lambat dari yang kabur, jadi tidak tertangkap) sampai pintu (0,7), gelembung "!!" |
+| `di_pintu` | tiba di pintu | berhenti 1,5 detik menghadap pintu, menggeleng, gelembung "!!" |
+| `kembali` | setelah berhenti | berjalan pulang ke (9,5), lalu menghadap pembeli lagi dan `diam` |
+
+Selama `mengejar`, `di_pintu`, dan `kembali`, kasir tidak melayani: pembeli di titik dilayani menunggu, dan aksi kasir yang belum diputar dibuang. Pelanggan lain yang kabur saat penjaga belum kembali tidak memicu kejaran baru.
 
 ## 5. Daftar sprite
 

@@ -4,12 +4,16 @@
  * muncul → masuk → ke_rak ⇄ ambil → ke_antrean → antre → dilayani → dipindai
  *        → bayar → ambil_kantong → keluar → hilang
  *
- * Pelanggan latar tidak antre: setelah rak terakhir langsung keluar.
+ * Tidak membayar (transaksi ditinggalkan) sambil membawa barang: `kabur`, berlari
+ * ke pintu lalu hilang, dikejar penjaga kasir.
+ * Pelanggan latar tidak antre dan tidak membawa barang: hanya melihat-lihat rak,
+ * lalu keluar.
  * Keputusan yang butuh keadaan toko (titik ambil, antrean, penjualan) diminta
  * lewat `CustomerContext`, yang diisi oleh DioramaWorld.
  */
-import { facingOf, sameTile } from '../engine/iso';
+import { sameTile } from '../engine/iso';
 import type { Facing, Tile } from '../engine/iso';
+import { moveAlong } from '../engine/movement';
 import type { PickPoint } from '../scenes/store-scene';
 
 export type CustomerState =
@@ -24,6 +28,7 @@ export type CustomerState =
     | 'bayar'
     | 'ambil_kantong'
     | 'keluar'
+    | 'kabur'
     | 'hilang';
 
 /** Pembeli muncul dari transaksi nyata; latar hanya berkeliling saat sepi. */
@@ -53,6 +58,8 @@ export type Customer = {
 
 export const WALK_SPEED = 2;
 export const CATCH_UP = 3;
+/** Kecepatan lari pelanggan yang kabur (×2,5 = 5 tile per detik), lebih cepat dari penjaga yang mengejar. */
+export const RUN = 2.5;
 export const DURATION = {
     muncul: 0.3,
     ambil: 1,
@@ -95,6 +102,8 @@ export interface CustomerContext {
     queueSlot(customer: Customer): { tile: Tile; front: boolean } | null;
     pathFrom(start: Tile, goal: Tile): Tile[] | null;
     exitPath(customer: Customer): Tile[];
+    /** Penjaga berada di belakang meja; layanan tertahan selama ia mengejar. */
+    cashierAtPost(): boolean;
     onServed(customer: Customer): void;
     onScan(customer: Customer): void;
     onPay(customer: Customer): void;
@@ -159,33 +168,7 @@ export function isWalking(customer: Customer): boolean {
 
 /** Berjalan menyusuri jalur. Mengembalikan true bila jalur sudah habis (tiba). */
 export function walk(customer: Customer, dt: number): boolean {
-    let budget = WALK_SPEED * customer.speed * dt;
-
-    while (budget > 0 && customer.path.length > 0) {
-        const next = customer.path[0];
-        const dx = next.gx - customer.fx;
-        const dy = next.gy - customer.fy;
-        const distance = Math.abs(dx) + Math.abs(dy);
-
-        customer.facing = facingOf(
-            Math.sign(dx),
-            Math.sign(dy),
-            customer.facing,
-        );
-
-        if (distance <= budget) {
-            customer.fx = next.gx;
-            customer.fy = next.gy;
-            customer.path.shift();
-            budget -= distance;
-        } else {
-            customer.fx += Math.sign(dx) * Math.min(budget, Math.abs(dx));
-            customer.fy += Math.sign(dy) * Math.min(budget, Math.abs(dy));
-            budget = 0;
-        }
-    }
-
-    return customer.path.length === 0;
+    return moveAlong(customer, WALK_SPEED * customer.speed * dt);
 }
 
 /** Ganti tujuan, mempertahankan langkah yang sedang berjalan agar tidak memotong diagonal. */
@@ -232,9 +215,11 @@ function decideNext(customer: Customer, ctx: CustomerContext): void {
     startLeaving(customer, ctx);
 }
 
+const GONE: readonly CustomerState[] = ['keluar', 'kabur', 'hilang'];
+
 /** Langsung keluar dari mana pun (ditinggalkan, dibatalkan, memberi tempat). */
 export function startLeaving(customer: Customer, ctx: CustomerContext): void {
-    if (customer.state === 'keluar' || customer.state === 'hilang') {
+    if (GONE.includes(customer.state)) {
         return;
     }
 
@@ -242,6 +227,28 @@ export function startLeaving(customer: Customer, ctx: CustomerContext): void {
     ctx.leaveQueue(customer);
     enter(customer, 'keluar');
     customer.path = ctx.exitPath(customer);
+}
+
+/** Tidak membayar: berlari ke pintu lewat lajur keluar sambil membawa barangnya. */
+export function startRunning(customer: Customer, ctx: CustomerContext): void {
+    if (GONE.includes(customer.state)) {
+        return;
+    }
+
+    ctx.releasePick(customer);
+    ctx.leaveQueue(customer);
+    enter(customer, 'kabur');
+    customer.speed = RUN;
+    customer.path = ctx.exitPath(customer);
+}
+
+/** Pelanggan dianggap membawa barang bila sudah mengambil dari rak atau sedang di kasir. */
+export function hasGoods(customer: Customer): boolean {
+    return (
+        customer.carrying > 0 ||
+        customer.state === 'dilayani' ||
+        customer.state === 'dipindai'
+    );
 }
 
 /** Kejar ketinggalan: transaksi sudah selesai, pelanggan bergegas ke kasir. */
@@ -297,7 +304,11 @@ export function stepCustomer(
             customer.timer -= dt;
 
             if (customer.timer <= 0) {
-                customer.carrying += 1;
+                // Pelanggan latar hanya melihat-lihat, tidak membawa barang keluar.
+                if (customer.kind === 'pembeli') {
+                    customer.carrying += 1;
+                }
+
                 customer.shelvesLeft -= 1;
                 ctx.releasePick(customer);
                 decideNext(customer, ctx);
@@ -312,7 +323,10 @@ export function stepCustomer(
             break;
 
         case 'dilayani':
-            if (customer.stateTime >= DURATION.dilayani / customer.speed) {
+            if (
+                ctx.cashierAtPost() &&
+                customer.stateTime >= DURATION.dilayani / customer.speed
+            ) {
                 enter(customer, 'dipindai');
             }
 
@@ -339,6 +353,7 @@ export function stepCustomer(
             break;
 
         case 'keluar':
+        case 'kabur':
             if (walk(customer, dt)) {
                 enter(customer, 'hilang');
             }
@@ -376,6 +391,16 @@ function stepQueue(customer: Customer, dt: number, ctx: CustomerContext): void {
 
     if (slot.front) {
         customer.facing = 'ne';
+
+        // Penjaga sedang mengejar pelanggan yang kabur: tunggu di titik dilayani.
+        if (!ctx.cashierAtPost()) {
+            if (customer.state === 'ke_antrean') {
+                enter(customer, 'antre');
+            }
+
+            return;
+        }
+
         enter(customer, 'dilayani');
         ctx.onServed(customer);
     } else {
@@ -397,6 +422,10 @@ function stepScanning(
     if (sale === null) {
         startLeaving(customer, ctx);
 
+        return;
+    }
+
+    if (!ctx.cashierAtPost()) {
         return;
     }
 

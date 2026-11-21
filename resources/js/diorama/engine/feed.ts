@@ -22,6 +22,8 @@ export type DioramaEvent =
           items: DioramaItem[];
       }
     | { type: 'sale.voided'; number: string; total: number }
+    /** Transaksi terbuka ditinggalkan tanpa dibayar (tombol uji; belum dipancarkan layar kasir). */
+    | { type: 'sale.abandoned' }
     /** Permintaan pelanggan latar (tombol uji atau penjadwal saat sepi). */
     | { type: 'background' };
 
@@ -179,6 +181,9 @@ export function normalizeEvent(
                 ? null
                 : { type: 'sale.voided', number, total };
         }
+
+        case 'sale.abandoned':
+            return { type: 'sale.abandoned' };
 
         case 'background':
             return { type: 'background' };

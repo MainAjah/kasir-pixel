@@ -22,7 +22,6 @@ import {
     CANVAS_W,
     ORIGIN,
     WALL_H,
-    depthOf,
     tileCenter,
     tileTop,
 } from '../engine/iso';
@@ -119,23 +118,31 @@ export class PlaceholderRenderer {
             }
         }
 
-        const guard = this.scene.guard;
-        const guardDepth = depthOf(guard.gx, guard.gy);
+        // Penjaga bisa meninggalkan meja (mengejar pelanggan kabur): kedalaman dari posisinya.
+        const cashier = world.cashier;
+        const guardDepth = actorDepth(cashier.fx, cashier.fy);
         items.push({
             id: 'penjaga',
             depth: guardDepth,
             layer: LAYER.actor,
-            gx: guard.gx,
+            gx: cashier.fx,
             draw: (c) => this.drawGuard(c, world),
         });
 
-        if (world.cashier.state === 'batal') {
+        const bubble =
+            cashier.state === 'batal'
+                ? 'xx'
+                : cashier.state === 'mengejar' || cashier.state === 'di_pintu'
+                  ? '!!'
+                  : null;
+
+        if (bubble) {
             items.push({
-                id: 'gelembung-batal',
+                id: 'gelembung-penjaga',
                 depth: effectDepth(guardDepth),
                 layer: LAYER.effect,
-                gx: guard.gx,
-                draw: (c) => this.drawCancelBubble(c),
+                gx: cashier.fx,
+                draw: (c) => this.drawGuardBubble(c, world, bubble),
             });
         }
 
@@ -545,7 +552,10 @@ export class PlaceholderRenderer {
     ): void {
         const { x, y } = tileCenter(customer.fx, customer.fy);
         const alpha = Math.max(0, Math.min(1, customer.fx + 1));
-        const lift = isWalking(customer) ? fl(customer.stateTime * 6) % 2 : 0;
+        // Pelanggan yang kabur berlari: ayunan lebih cepat.
+        const lift = isWalking(customer)
+            ? fl(customer.stateTime * (customer.state === 'kabur' ? 12 : 6)) % 2
+            : 0;
         const latar = customer.kind === 'latar';
 
         ctx.globalAlpha = alpha;
@@ -627,11 +637,19 @@ export class PlaceholderRenderer {
         ctx: CanvasRenderingContext2D,
         world: DioramaWorld,
     ): void {
-        const { x, y } = tileCenter(this.scene.guard.gx, this.scene.guard.gy);
-        const { state, stateTime } = world.cashier;
+        const cashier = world.cashier;
+        const { x, y } = tileCenter(cashier.fx, cashier.fy);
+        const { state, stateTime } = cashier;
         const headShift = { dx: 0, dy: 0 };
+        const running = cashier.path.length > 0;
+        const lift = running
+            ? fl(stateTime * (state === 'mengejar' ? 12 : 6)) % 2
+            : 0;
 
-        if (state === 'menyapa') {
+        if (state === 'di_pintu') {
+            // Kesal di pintu: kepala menggeleng pelan.
+            headShift.dx = fl(stateTime * 4) % 2 === 0 ? -1 : 1;
+        } else if (state === 'menyapa') {
             headShift.dy = fl(stateTime * 8) % 2;
         } else if (state === 'batal') {
             headShift.dx = fl(stateTime * 10) % 2 === 0 ? -1 : 1;
@@ -649,8 +667,8 @@ export class PlaceholderRenderer {
                 hair: '#6fae7b',
                 legs: '#5b5470',
             },
-            this.scene.guard.facing,
-            0,
+            cashier.facing,
+            lift,
             headShift,
         );
 
@@ -682,16 +700,20 @@ export class PlaceholderRenderer {
         }
     }
 
-    private drawCancelBubble(ctx: CanvasRenderingContext2D): void {
-        const { x, y } = tileCenter(this.scene.guard.gx, this.scene.guard.gy);
+    /** Gelembung di atas kepala penjaga: "xx" saat batal, "!!" saat mengejar dan di pintu. */
+    private drawGuardBubble(
+        ctx: CanvasRenderingContext2D,
+        world: DioramaWorld,
+        text: string,
+    ): void {
+        const { x, y } = tileCenter(world.cashier.fx, world.cashier.fy);
         const bx = x - 6;
         const by = y - 62;
         ctx.fillStyle = INK;
         ctx.fillRect(bx - 1, by - 1, 13, 11);
         ctx.fillStyle = WHITE;
         ctx.fillRect(bx, by, 11, 9);
-        drawText(ctx, bx + 2, by + 2, 'x', '#c2675a', 1);
-        drawText(ctx, bx + 6, by + 2, 'x', '#c2675a', 1);
+        drawText(ctx, bx + 2, by + 2, text, '#c2675a', 1);
     }
 
     private drawCoin(ctx: CanvasRenderingContext2D, customer: Customer): void {

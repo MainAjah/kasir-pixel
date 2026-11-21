@@ -45,6 +45,8 @@ function toLines(cart: Product[]): DioramaItem[] {
 export default function DioramaLab() {
     const { world, feed } = useDiorama({ autoBackground: false });
     const [cart, setCart] = useState<Product[]>([]);
+    // Ada transaksi terbuka (pelanggan baru atau pindai) yang belum dibayar.
+    const [isOpen, setIsOpen] = useState(false);
     const [lastSale, setLastSale] = useState<{
         number: string;
         total: number;
@@ -76,6 +78,13 @@ export default function DioramaLab() {
     const open = () => {
         feed.push('sale.opened', { cashier: 'Lab' });
         setCart([]);
+        setIsOpen(true);
+    };
+
+    const runAway = () => {
+        feed.push('sale.abandoned', {});
+        setCart([]);
+        setIsOpen(false);
     };
 
     const scan = () => {
@@ -86,6 +95,7 @@ export default function DioramaLab() {
             qty: 1,
         });
         setCart((c) => [...c, product]);
+        setIsOpen(true);
     };
 
     const pay = (items: Product[], n: number) => {
@@ -99,6 +109,7 @@ export default function DioramaLab() {
         pay(cart, counter);
         setCounter((n) => n + 1);
         setCart([]);
+        setIsOpen(false);
     };
 
     const cancelLast = () => {
@@ -129,6 +140,7 @@ export default function DioramaLab() {
 
         setCounter((n) => n + count);
         setCart([]);
+        setIsOpen(false);
     };
 
     const toggle = (key: keyof RenderOptions) =>
@@ -176,6 +188,13 @@ export default function DioramaLab() {
                         </Button>
                         <Button
                             variant="outline"
+                            onClick={runAway}
+                            disabled={!isOpen}
+                        >
+                            Kabur tanpa bayar
+                        </Button>
+                        <Button
+                            variant="outline"
                             onClick={() => feed.push('background', {})}
                         >
                             Pelanggan latar
@@ -196,10 +215,13 @@ export default function DioramaLab() {
                         </Button>
                     </div>
                     <p className="text-sm text-muted-foreground">
-                        "Pelanggan baru" saat transaksi sebelumnya belum dibayar
-                        dianggap keranjang lama dikosongkan: pelanggan lama
-                        pergi tanpa kantong. "7 pesanan sekaligus" menguji batas
-                        5 pelanggan, angka "+N", dan kejar ketinggalan.
+                        "Kabur tanpa bayar", atau "Pelanggan baru" saat
+                        transaksi sebelumnya belum dibayar: pelanggan yang sudah
+                        mengambil barang kabur ke pintu dan dikejar penjaga,
+                        lalu penjaga kembali ke meja. Yang belum mengambil
+                        apa-apa keluar biasa. Selama penjaga pergi, kasir tidak
+                        melayani. "7 pesanan sekaligus" menguji batas 5
+                        pelanggan, angka "+N", dan kejar ketinggalan.
                     </p>
                 </section>
 

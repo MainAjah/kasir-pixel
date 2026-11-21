@@ -276,6 +276,22 @@ describe('pelanggan latar', () => {
         }
     });
 
+    it('hanya melihat-lihat: tidak pernah membawa barang, jadi tidak pernah dikejar', () => {
+        const world = new DioramaWorld({ seed: 27 });
+        world.spawnBackground();
+        world.spawnBackground();
+
+        for (let t = 0; t < 60; t += DT) {
+            world.update(DT);
+
+            for (const c of world.customers) {
+                expect(c.carrying).toBe(0);
+            }
+
+            expect(world.cashier.atPost).toBe(true);
+        }
+    });
+
     it('yang muncul bersamaan masuk pintu bergiliran, tidak bertumpuk', () => {
         const world = new DioramaWorld({ seed: 19 });
         world.handle(opened);
@@ -340,6 +356,160 @@ describe('pelanggan latar', () => {
         expect(
             [...world.sales.values()].every((s) => s.customerId !== null),
         ).toBe(true);
+    });
+});
+
+describe('kabur tanpa membayar', () => {
+    const abandoned: DioramaEvent = { type: 'sale.abandoned' };
+
+    /** Pelanggan 1 sudah di kasir dengan barang yang dipindai, transaksi belum dibayar. */
+    function atCounter(seed: number): DioramaWorld {
+        const world = new DioramaWorld({ seed });
+        world.handle(opened);
+        world.handle(scanned());
+        runUntil(world, () => find(world, 1)?.state === 'dipindai');
+
+        return world;
+    }
+
+    it('pelanggan kabur ke pintu dan penjaga mengejar dari balik meja', () => {
+        const world = atCounter(20);
+        world.handle(abandoned);
+
+        expect(find(world, 1)?.state).toBe('kabur');
+        expect(world.sales.get(1)?.abandoned).toBe(true);
+        expect(world.queue.members).not.toContain(1);
+        world.update(DT);
+        expect(world.cashier.state).toBe('mengejar');
+        expect(world.cashier.atPost).toBe(false);
+    });
+
+    it('penjaga sampai di pintu setelah pelanggan keluar, berhenti sebentar, lalu kembali ke tempatnya', () => {
+        const world = atCounter(21);
+        world.handle(abandoned);
+
+        const order: string[] = [];
+        let customerGoneFirst = false;
+
+        for (let t = 0; t < 30; t += DT) {
+            world.update(DT);
+
+            if (order.at(-1) !== world.cashier.state) {
+                order.push(world.cashier.state);
+
+                if (world.cashier.state === 'di_pintu') {
+                    customerGoneFirst = find(world, 1) === undefined;
+                    expect(world.cashier.fx).toBe(world.scene.door.inside.gx);
+                    expect(world.cashier.fy).toBe(world.scene.door.inside.gy);
+                }
+            }
+        }
+
+        expect(order).toEqual(['mengejar', 'di_pintu', 'kembali', 'diam']);
+        expect(customerGoneFirst).toBe(true);
+        expect({ gx: world.cashier.fx, gy: world.cashier.fy }).toEqual({
+            gx: world.scene.guard.gx,
+            gy: world.scene.guard.gy,
+        });
+        expect(world.cashier.facing).toBe(world.scene.guard.facing);
+    });
+
+    it('penjaga hanya melewati tile bebas, kecuali tempatnya sendiri', () => {
+        const world = atCounter(22);
+        world.handle(abandoned);
+        const { guard } = world.scene;
+
+        for (let t = 0; t < 30; t += DT) {
+            world.update(DT);
+            const { fx, fy } = world.cashier;
+            const home = fx === guard.gx && fy === guard.gy;
+
+            if (Number.isInteger(fx) && Number.isInteger(fy) && !home) {
+                expect(world.grid.blocked.has(`${fx},${fy}`)).toBe(false);
+            }
+        }
+    });
+
+    it('selama penjaga pergi, pembeli berikutnya menunggu di titik dilayani', () => {
+        const world = atCounter(23);
+        world.handle(opened);
+        world.handle(scanned());
+        world.handle(completed('J-2'));
+        // Transaksi baru dibuka sebelum yang pertama dibayar: pelanggan 1 kabur.
+        expect(find(world, 1)?.state).toBe('kabur');
+
+        let servedWhileAway = false;
+        let servedAfter = false;
+
+        for (let t = 0; t < 60; t += DT) {
+            world.update(DT);
+            const second = find(world, 2);
+            const serving =
+                second &&
+                ['dilayani', 'dipindai', 'bayar'].includes(second.state);
+
+            if (serving && !world.cashier.atPost) {
+                servedWhileAway = true;
+            }
+
+            if (serving && world.cashier.atPost) {
+                servedAfter = true;
+            }
+        }
+
+        expect(servedWhileAway).toBe(false);
+        expect(servedAfter).toBe(true);
+    });
+
+    it('yang belum mengambil barang keluar biasa, tanpa dikejar', () => {
+        const world = new DioramaWorld({ seed: 24 });
+        world.handle(opened);
+        run(world, 0.5);
+        world.handle(abandoned);
+        world.update(DT);
+
+        expect(find(world, 1)?.state).toBe('keluar');
+        expect(world.cashier.atPost).toBe(true);
+    });
+
+    it('pelanggan kedua yang kabur saat penjaga belum kembali tidak memulai kejaran baru', () => {
+        const world = atCounter(25);
+        // Transaksi kedua dibuka: pelanggan 1 kabur, penjaga mengejar.
+        world.handle(opened);
+        world.handle(scanned());
+        runUntil(world, () => (find(world, 2)?.carrying ?? 0) > 0, 30);
+
+        // Prasyarat: penjaga masih pergi saat pelanggan 2 kabur.
+        expect(world.cashier.atPost).toBe(false);
+        world.handle(abandoned);
+        expect(find(world, 2)?.state).toBe('kabur');
+
+        const states: string[] = [world.cashier.state];
+
+        for (let t = 0; t < 40; t += DT) {
+            world.update(DT);
+
+            if (states.at(-1) !== world.cashier.state) {
+                states.push(world.cashier.state);
+            }
+        }
+
+        expect(states.slice(1)).not.toContain('mengejar');
+        expect(states.at(-1)).toBe('diam');
+    });
+
+    it('pembatalan penjualan yang belum dibayar tidak memicu kejaran', () => {
+        const world = new DioramaWorld({ seed: 26 });
+        world.handle(opened);
+        world.handle(completed('J-1'));
+        run(world, 1);
+        world.handle({ type: 'sale.voided', number: 'J-1', total: 10000 });
+        world.update(DT);
+
+        expect(find(world, 1)?.state).toBe('keluar');
+        expect(['mengejar', 'di_pintu', 'kembali']).not.toContain(
+            world.cashier.state,
+        );
     });
 });
 

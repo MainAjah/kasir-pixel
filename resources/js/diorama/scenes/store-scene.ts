@@ -54,6 +54,8 @@ export type StoreScene = {
     /** Tile terlarang tambahan di luar perabot (area di belakang meja kasir). */
     extraBlocked: Tile[];
     guard: Tile & { facing: Facing };
+    /** Tile bebas di sebelah tempat penjaga, jalan keluar-masuk dari balik meja. */
+    guardExit: Tile;
     pickPoints: PickPoint[];
     /** Slot antrean; indeks 0 adalah titik dilayani. */
     queueSlots: Tile[];
@@ -189,6 +191,7 @@ export const STORE_SCENE: StoreScene = {
         { gx: 11, gy: 2 },
     ],
     guard: { gx: 9, gy: 5, facing: 'sw' },
+    guardExit: { gx: 8, gy: 5 },
     pickPoints: [
         ...rackFront('rak-a', 3),
         ...rackFront('rak-b', 5),

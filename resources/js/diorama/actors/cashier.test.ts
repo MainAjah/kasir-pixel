@@ -1,5 +1,12 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { CASHIER_DURATION, CASHIER_MAX_STEPS, Cashier } from './cashier';
+import {
+    CASHIER_DURATION,
+    CASHIER_MAX_STEPS,
+    CHASE_SPEED,
+    Cashier,
+    DOOR_PAUSE,
+    RETURN_SPEED,
+} from './cashier';
 
 const run = (cashier: Cashier, seconds: number, dt = 1 / 30) => {
     const states: string[] = [];
@@ -60,6 +67,40 @@ describe('penjaga kasir', () => {
         cashier.cancel();
 
         expect(run(cashier, 0.6)).toEqual(['pindai', 'batal']);
+    });
+
+    it('mengejar sampai pintu, berhenti, lalu pulang ke tempat dan arah semula', () => {
+        const cashier = new Cashier({ gx: 2, gy: 0, facing: 'sw' });
+        const toDoor = [
+            { gx: 1, gy: 0 },
+            { gx: 0, gy: 0 },
+        ];
+        const back = [
+            { gx: 1, gy: 0 },
+            { gx: 2, gy: 0 },
+        ];
+
+        expect(cashier.chase(toDoor, back)).toBe(true);
+        expect(cashier.atPost).toBe(false);
+        expect(
+            run(cashier, 2 / CHASE_SPEED + DOOR_PAUSE + 2 / RETURN_SPEED + 0.5),
+        ).toEqual(['mengejar', 'di_pintu', 'kembali', 'diam']);
+        expect([cashier.fx, cashier.fy, cashier.facing]).toEqual([2, 0, 'sw']);
+        expect(cashier.atPost).toBe(true);
+    });
+
+    it('meja ditinggal: aksi yang belum diputar dibuang, kejaran kedua diabaikan', () => {
+        const cashier = new Cashier();
+        cashier.scan();
+        cashier.receiveCoin();
+
+        expect(cashier.chase([{ gx: 8, gy: 5 }], [{ gx: 9, gy: 5 }])).toBe(
+            true,
+        );
+        expect(cashier.pending).toBe(0);
+        expect(cashier.chase([{ gx: 8, gy: 5 }], [{ gx: 9, gy: 5 }])).toBe(
+            false,
+        );
     });
 
     it('antrean aksi dibatasi agar animasi tidak tertinggal', () => {

@@ -1,19 +1,25 @@
 /**
  * Penjaga kasir 1 (docs/diorama-rancangan.md bagian 4).
  *
- * Aksi diputar berurutan dari antrean kecil: menyapa, pindai lalu bungkus,
- * terima koin, batal. Kembali ke `diam` bila antrean kosong. Antrean dibatasi
- * agar animasi tidak tertinggal jauh dari kasir sungguhan.
+ * Di belakang meja, aksi diputar berurutan dari antrean kecil: menyapa, pindai
+ * lalu bungkus, terima koin, batal. Kembali ke `diam` bila antrean kosong.
+ * Antrean dibatasi agar animasi tidak tertinggal jauh dari kasir sungguhan.
+ *
+ * Pelanggan kabur tanpa membayar: penjaga meninggalkan meja (`mengejar`) sampai
+ * pintu, berhenti sebentar (`di_pintu`), lalu berjalan pulang (`kembali`) ke
+ * tempatnya dan menghadap pembeli lagi.
  */
-export type CashierState =
-    | 'diam'
-    | 'menyapa'
-    | 'pindai'
-    | 'bungkus'
-    | 'terima_koin'
-    | 'batal';
+import type { Facing, Tile } from '../engine/iso';
+import { moveAlong } from '../engine/movement';
+import type { Mover } from '../engine/movement';
+import { STORE_SCENE } from '../scenes/store-scene';
 
-export const CASHIER_DURATION: Record<Exclude<CashierState, 'diam'>, number> = {
+type ActionState = 'menyapa' | 'pindai' | 'bungkus' | 'terima_koin' | 'batal';
+type AwayState = 'mengejar' | 'di_pintu' | 'kembali';
+
+export type CashierState = 'diam' | ActionState | AwayState;
+
+export const CASHIER_DURATION: Record<ActionState, number> = {
     menyapa: 0.6,
     pindai: 0.45,
     bungkus: 0.25,
@@ -22,18 +28,41 @@ export const CASHIER_DURATION: Record<Exclude<CashierState, 'diam'>, number> = {
 };
 
 export const CASHIER_MAX_STEPS = 8;
+/** Tile per detik. Mengejar sedikit lebih lambat dari pelanggan yang kabur (5). */
+export const CHASE_SPEED = 4;
+export const RETURN_SPEED = 2;
+/** Lama berhenti di pintu sebelum pulang ke meja. */
+export const DOOR_PAUSE = 1.5;
 
-type Step = { state: Exclude<CashierState, 'diam'>; duration: number };
+const AWAY: readonly CashierState[] = ['mengejar', 'di_pintu', 'kembali'];
 
-export class Cashier {
+type Step = { state: ActionState; duration: number };
+
+export class Cashier implements Mover {
     state: CashierState = 'diam';
     /** Lama berada di state sekarang, untuk animasi. */
     stateTime = 0;
+    fx: number;
+    fy: number;
+    path: Tile[] = [];
+    facing: Facing;
     private timer = 0;
+    private returnPath: Tile[] = [];
     private readonly steps: Step[] = [];
+
+    constructor(readonly home: Tile & { facing: Facing } = STORE_SCENE.guard) {
+        this.fx = home.gx;
+        this.fy = home.gy;
+        this.facing = home.facing;
+    }
 
     get pending(): number {
         return this.steps.length;
+    }
+
+    /** Di belakang meja (tidak sedang mengejar atau berjalan pulang). */
+    get atPost(): boolean {
+        return !AWAY.includes(this.state);
     }
 
     greet(): void {
@@ -66,9 +95,61 @@ export class Cashier {
         }
     }
 
+    /**
+     * Mengejar pelanggan yang kabur: `toDoor` dari meja sampai pintu, `back` dari
+     * pintu pulang ke tempatnya. Diabaikan bila sedang mengejar (false).
+     */
+    chase(toDoor: Tile[], back: Tile[]): boolean {
+        if (!this.atPost) {
+            return false;
+        }
+
+        // Aksi kasir yang belum diputar dibuang: meja ditinggal.
+        this.steps.length = 0;
+        this.path = [...toDoor];
+        this.returnPath = [...back];
+        this.enterState('mengejar');
+
+        return true;
+    }
+
     update(dt: number): void {
         this.stateTime += dt;
 
+        switch (this.state) {
+            case 'mengejar':
+                if (moveAlong(this, CHASE_SPEED * dt)) {
+                    this.facing = 'nw';
+                    this.enterState('di_pintu', DOOR_PAUSE);
+                }
+
+                return;
+
+            case 'di_pintu':
+                this.timer -= dt;
+
+                if (this.timer <= 0) {
+                    this.path = this.returnPath;
+                    this.returnPath = [];
+                    this.enterState('kembali');
+                }
+
+                return;
+
+            case 'kembali':
+                if (moveAlong(this, RETURN_SPEED * dt)) {
+                    this.facing = this.home.facing;
+                    this.enterState('diam');
+                }
+
+                return;
+
+            default:
+                this.updateActions(dt);
+        }
+    }
+
+    private updateActions(dt: number): void {
         if (this.state !== 'diam') {
             this.timer -= dt;
 
@@ -80,16 +161,19 @@ export class Cashier {
         const next = this.steps.shift();
 
         if (next) {
-            this.state = next.state;
-            this.timer = next.duration;
-            this.stateTime = 0;
+            this.enterState(next.state, next.duration);
         } else if (this.state !== 'diam') {
-            this.state = 'diam';
-            this.stateTime = 0;
+            this.enterState('diam');
         }
     }
 
-    private enqueue(state: Step['state'], speed: number): void {
+    private enterState(state: CashierState, timer = 0): void {
+        this.state = state;
+        this.stateTime = 0;
+        this.timer = timer;
+    }
+
+    private enqueue(state: ActionState, speed: number): void {
         if (this.steps.length >= CASHIER_MAX_STEPS) {
             return;
         }
