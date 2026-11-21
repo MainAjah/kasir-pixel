@@ -1,6 +1,7 @@
 import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import DioramaCanvas from '@/components/diorama/diorama-canvas';
+import CounterLab from '@/components/diorama/counter-lab';
 import ReferenceLab from '@/components/diorama/reference-lab';
 import RoomLab from '@/components/diorama/room-lab';
 import SpriteLab from '@/components/diorama/sprite-lab';
@@ -158,6 +159,20 @@ export default function DioramaLab() {
                     title="Diorama lab"
                     description="Pratinjau mesin dan sprite diorama. Tombol uji hanya memutar peristiwa palsu di halaman ini: tidak ada data yang ditulis dan tidak ada yang dikirim ke server."
                 />
+
+                <section className="space-y-3 rounded-md border p-4">
+                    <h3 className="font-medium">
+                        Tahap 5C elemen 2: meja kasir, scanner, dan layar mini
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        Bentuk dari rancangan 5A. Di diorama di bawah, meja
+                        kasir sudah memakai sprite ini: coba "Pesanan lengkap"
+                        untuk melihat zombie memindai, layar mini menampilkan
+                        total belanja lalu total harian naik, dan "Batalkan"
+                        untuk melihat total harian turun.
+                    </p>
+                    <CounterLab />
+                </section>
 
                 <details className="rounded-md border p-4">
                     <summary className="cursor-pointer font-medium">

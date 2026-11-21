@@ -334,6 +334,58 @@ export const MOTIONS: Record<
     },
 };
 
+/** Aksi penjaga kasir yang punya gerak sendiri (di meja dan di pintu). */
+export type CashierMotionState =
+    | 'menyapa'
+    | 'pindai'
+    | 'bungkus'
+    | 'terima_koin'
+    | 'batal'
+    | 'di_pintu';
+
+/**
+ * Gerak penjaga zombie (cara 1), ditulis untuk tokoh yang menghadap pembeli di
+ * kiri-bawah: condong ke depan = lean negatif.
+ * - menyapa: membungkuk; pindai: condong ke scanner di depannya;
+ * - bungkus: menoleh ke kantong di kanan; terima koin: meraih ke depan;
+ * - batal dan di pintu: menggeleng (di pintu lebih pelan).
+ */
+export const CASHIER_MOTIONS: Record<
+    CashierMotionState,
+    { fps: number; frames: readonly Transform[] }
+> = {
+    menyapa: {
+        fps: 5,
+        frames: [T(0, -1, 0, -2), T(1, -2, 1, -3), T(0, -1, 0, -2)],
+    },
+    pindai: {
+        fps: 7,
+        frames: [T(0, 0, 0, -2), T(1, -1, 0, -3), T(1, -1, 0, -3)],
+    },
+    bungkus: { fps: 8, frames: [T(0, 0, 0, 1), T(0, -1, 1, 2)] },
+    terima_koin: {
+        fps: 4,
+        frames: [T(0, 1, 0, -1), T(-1, 1, 0, -2), T(0, 0, 0, -1)],
+    },
+    batal: { fps: 8, frames: [T(0, 0, 0, -2), T(0, 0, 0, 2)] },
+    di_pintu: { fps: 4, frames: [T(0, 0, 0, -1), T(0, 0, 0, 1)] },
+};
+
+/** Bingkai gerak penjaga untuk state itu, atau null bila state memakai diam/jalan/lari. */
+export function cashierMotion(
+    state: string,
+    stateTime: number,
+): { frame: number; transform: Transform } | null {
+    if (!(state in CASHIER_MOTIONS)) {
+        return null;
+    }
+
+    const { fps, frames } = CASHIER_MOTIONS[state as CashierMotionState];
+    const frame = Math.floor(stateTime * fps) % frames.length;
+
+    return { frame, transform: frames[frame] };
+}
+
 export function motionFrame(
     character: ReferenceCharacter,
     action: CustomerAction,

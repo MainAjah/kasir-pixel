@@ -36,6 +36,7 @@ import { RACK_CANVAS, drawRackSlice } from '../sprites/rack-sprite';
 import { referenceMatrix } from '../sprites/reference-loader';
 import {
     REFERENCE_CHARACTERS,
+    cashierMotion,
     motionFrame,
     referenceByKey,
     referenceFlip,
@@ -43,18 +44,15 @@ import {
     transformFrame,
 } from '../sprites/reference-sprite';
 import type { ReferenceCharacter } from '../sprites/reference-sprite';
+import {
+    drawCounterSlice,
+    drawStool,
+    formatDisplay,
+} from '../sprites/counter-sprite';
+import type { CounterLook } from '../sprites/counter-sprite';
 import { drawRoom } from '../sprites/room-sprite';
 import { SpriteCache } from '../sprites/sprite-cache';
-import {
-    drawText,
-    formatRupiah,
-    isoBox,
-    leftDot,
-    onTop,
-    rightDot,
-    textWidth,
-    topDot,
-} from './pixel';
+import { drawText, isoBox, leftDot, onTop, rightDot, textWidth } from './pixel';
 
 export type RenderOptions = {
     /** Tandai tile terlarang. */
@@ -79,6 +77,15 @@ const SHIRTS = [
 ];
 
 const fl = Math.floor;
+
+/** Kasir 2: komputer mati, layar bertuliskan TUTUP. */
+const CLOSED_COUNTER: CounterLook = {
+    on: false,
+    scan: null,
+    beep: false,
+    receipt: null,
+    display: { text: 'TUTUP', mode: 'harian' },
+};
 
 const CUSTOMER_REFERENCES = REFERENCE_CHARACTERS.filter(
     (c) => c.role === 'pelanggan',
@@ -158,6 +165,8 @@ export class PlaceholderRenderer {
     private background: HTMLCanvasElement | null = null;
     private readonly sprites = new SpriteCache();
     private readonly headings = new Map<number, Heading>();
+    private shownDaily: number | null = null;
+    private lastTime = 0;
 
     constructor(private readonly scene: StoreScene) {}
 
@@ -169,6 +178,8 @@ export class PlaceholderRenderer {
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = 1;
         ctx.drawImage(this.backgroundCanvas(), 0, 0);
+
+        this.stepDailyCounter(world);
 
         if (options.blocked) {
             this.drawBlocked(ctx, world);
@@ -366,22 +377,10 @@ export class PlaceholderRenderer {
 
                 break;
 
-            case 'bangku': {
-                const [ox, oy] = onTop(cx, ty, 0, 10, 10);
-                isoBox(
-                    ctx,
-                    ox,
-                    oy,
-                    12,
-                    12,
-                    item.height,
-                    item.color,
-                    shade(item.color, -0.2),
-                    shade(item.color, -0.35),
-                );
+            case 'bangku':
+                drawStool(ctx, cx, ty);
 
                 break;
-            }
 
             case 'tanaman': {
                 const [ox, oy] = onTop(cx, ty, 0, 10, 10);
@@ -414,6 +413,7 @@ export class PlaceholderRenderer {
         }
     }
 
+    /** Meja kasir (sprite 5C elemen 2): kasir 1 hidup mengikuti penjaga, kasir 2 tutup. */
     private drawCounterSlice(
         ctx: CanvasRenderingContext2D,
         world: DioramaWorld,
@@ -422,59 +422,52 @@ export class PlaceholderRenderer {
         ty: number,
         index: number,
     ): void {
-        const h = item.height;
-        isoBox(
+        drawCounterSlice(
             ctx,
             cx,
             ty,
-            32,
-            32,
-            h,
-            WHITE,
-            item.color,
-            shade(item.color, -0.2),
+            index === 0 ? 'kiri' : 'kanan',
+            item.active ? this.counterLook(world) : CLOSED_COUNTER,
         );
+    }
 
-        if (index === 0) {
-            // Monitor kasir dilihat dari belakang.
-            const [mx, my] = onTop(cx, ty, h, 8, 6);
-            isoBox(ctx, mx, my, 16, 4, 13, '#8f88a8', '#5b5470', '#4a4560');
+    /** Keadaan meja kasir 1 dari penjaga dan total harian. */
+    private counterLook(world: DioramaWorld): CounterLook {
+        const { state, progress } = world.cashier;
+        const paying = state === 'terima_koin' && world.display.total !== null;
 
-            if (item.active) {
-                // Scanner datar dengan garis laser yang berkedip saat memindai.
-                const [sx, sy] = onTop(cx, ty, h, 14, 18);
-                isoBox(ctx, sx, sy, 10, 8, 1, INK, null, null);
-                const scanning =
-                    world.cashier.state === 'pindai' &&
-                    fl(world.cashier.stateTime * 12) % 2 === 0;
+        return {
+            on: true,
+            scan: state === 'pindai' ? progress : null,
+            beep: state === 'bungkus',
+            receipt: state === 'terima_koin' ? progress : null,
+            display: paying
+                ? {
+                      text: formatDisplay(world.display.total ?? 0),
+                      mode: 'belanja',
+                  }
+                : {
+                      text: formatDisplay(this.shownDaily ?? world.dailyTotal),
+                      mode: 'harian',
+                  },
+        };
+    }
 
-                if (scanning) {
-                    for (let i = 0; i < 10; i++) {
-                        topDot(ctx, sx, sy, 1, i, 4, '#ff4d4d');
-                    }
-                }
-            }
+    /** Angka total harian di layar mini menghitung naik atau turun menuju total nyata. */
+    private stepDailyCounter(world: DioramaWorld): void {
+        const dt = Math.max(0, world.time - this.lastTime);
+        this.lastTime = world.time;
+        const target = world.dailyTotal;
+
+        if (this.shownDaily === null || dt > 1) {
+            this.shownDaily = target;
 
             return;
         }
 
-        // Layar pelanggan: total belanja saat membayar, atau TUTUP di kasir 2.
-        const [px, py] = onTop(cx, ty, h, 12, 22);
-        const label = item.active
-            ? world.display.total === null
-                ? '-'
-                : formatRupiah(world.display.total)
-            : 'TUTUP';
-        const width = Math.max(24, textWidth(label) + 6);
-        ctx.fillStyle = INK;
-        ctx.fillRect(px - fl(width / 2), py - 12, width, 10);
-        drawText(
-            ctx,
-            px - fl(textWidth(label) / 2),
-            py - 10,
-            label,
-            item.active ? '#a7d7a5' : '#8f88a8',
-        );
+        const next =
+            this.shownDaily + (target - this.shownDaily) * Math.min(1, dt * 4);
+        this.shownDaily = Math.abs(target - next) < 100 ? target : next;
     }
 
     // ---- Aktor --------------------------------------------------------------
@@ -659,7 +652,6 @@ export class PlaceholderRenderer {
         world: DioramaWorld,
         x: number,
         y: number,
-        shift: { dx: number; dy: number },
     ): boolean {
         const zombie = referenceByKey('zombie');
         const src = referenceMatrix('zombie');
@@ -669,22 +661,27 @@ export class PlaceholderRenderer {
         }
 
         const cashier = world.cashier;
+        const movingLeft = cashier.facing === 'sw' || cashier.facing === 'nw';
+        const flip = referenceFlip(zombie, movingLeft);
+        // Aksi di meja (sapa, pindai, bungkus, terima koin, batal) dan di pintu punya gerak sendiri.
+        const serving = cashierMotion(cashier.state, cashier.stateTime);
         const action: CustomerAction =
             cashier.state === 'mengejar'
                 ? 'lari'
                 : cashier.state === 'kembali'
                   ? 'jalan'
                   : 'diam';
-        const frame = frameAt(action, world.time);
-        const movingLeft = cashier.facing === 'sw' || cashier.facing === 'nw';
-        const flip = referenceFlip(zombie, movingLeft);
+        const frame = serving ? serving.frame : frameAt(action, world.time);
+        const key = serving ? cashier.state : action;
         const size = referenceFrameSize(src);
         const sprite = this.sprites.get(
-            `ref|zombie|${action}|${frame}|${flip ? 1 : 0}`,
+            `ref|zombie|${key}|${frame}|${flip ? 1 : 0}`,
             () => {
                 const m = transformFrame(
                     src,
-                    motionFrame(zombie, action, frame),
+                    serving
+                        ? serving.transform
+                        : motionFrame(zombie, action, frame),
                 );
 
                 return flip ? mirror(m) : m;
@@ -695,7 +692,7 @@ export class PlaceholderRenderer {
         ctx.globalAlpha = 0.25;
         isoBox(ctx, x, y - 6, 12, 12, 0, SHADOW, null, null);
         ctx.globalAlpha = 1;
-        ctx.drawImage(sprite, x - footX + shift.dx, y - size.footY + shift.dy);
+        ctx.drawImage(sprite, x - footX, y - size.footY);
 
         return true;
     }
@@ -724,7 +721,7 @@ export class PlaceholderRenderer {
             headShift.dy = 1;
         }
 
-        if (this.drawZombie(ctx, world, x, y, headShift)) {
+        if (this.drawZombie(ctx, world, x, y)) {
             return;
         }
 
@@ -857,11 +854,6 @@ export class PlaceholderRenderer {
             drawText(ctx, x - fl(w / 2) + 4, y - 56, label, INK, 2);
         }
 
-        // Total harian di pojok kiri atas (layar harian; di 5D diisi dari server).
-        const label = `HARI INI ${formatRupiah(world.dailyTotal)}`;
-        const w = textWidth(label) + 8;
-        ctx.fillStyle = INK;
-        ctx.fillRect(8, 8, w, 11);
-        drawText(ctx, 12, 11, label, '#a7d7a5');
+        // Total harian kini tampil di layar mini meja kasir 1 (sprite 5C).
     }
 }

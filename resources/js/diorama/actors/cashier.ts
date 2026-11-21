@@ -47,6 +47,7 @@ export class Cashier implements Mover {
     path: Tile[] = [];
     facing: Facing;
     private timer = 0;
+    private duration = 0;
     private returnPath: Tile[] = [];
     private readonly steps: Step[] = [];
 
@@ -167,10 +168,18 @@ export class Cashier implements Mover {
         }
     }
 
+    /** Kemajuan aksi yang sedang diputar, 0..1 (0 untuk diam dan berjalan). */
+    get progress(): number {
+        return this.duration > 0
+            ? Math.min(1, this.stateTime / this.duration)
+            : 0;
+    }
+
     private enterState(state: CashierState, timer = 0): void {
         this.state = state;
         this.stateTime = 0;
         this.timer = timer;
+        this.duration = timer;
     }
 
     private enqueue(state: ActionState, speed: number): void {

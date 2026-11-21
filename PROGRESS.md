@@ -56,6 +56,27 @@ Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab
 - **Diorama:** latar (lantai dan dinding) dirender sekali dari sprite ini. Lab menampilkan potongan 4× (sudut pintu; sudut depan dengan karpet dan alas).
 - **Tes:** 4 tes baru (`sprites/room.test.ts`); seluruhnya 106 tes Vitest lulus.
 
+### Elemen: meja kasir, scanner, dan layar mini (disetujui)
+
+- **Bentuk dari rancangan 5A** (`sprites/counter-sprite.ts`):
+  - **kasir 1:** monitor dari belakang, keyboard bertuts, scanner datar, scanner genggam, laci uang, printer struk, kantong terlipat, layar mini;
+  - **kasir 2:** tutup, layar "TUTUP"; bangku kosong.
+  - Hanya palet 24 warna (dites).
+- **Hidup mengikuti penjaga:**
+  - laser berkedip dan barang kecil meluncur di atas kaca saat memindai, dengan garis laser melintang di barang;
+  - LED scanner genggam berkedip lalu hijau ("bip");
+  - struk keluar saat membayar.
+- **Layar mini:**
+  - hijau = total harian, menghitung naik atau turun mengikuti total nyata; kuning = total belanja sesaat saat membayar;
+  - jutaan disingkat (1,2JT, 12,5JT, 125JT) agar paling banyak 7 karakter.
+- **Gerak zombie di meja (cara 1):** menyapa (membungkuk), pindai (condong ke scanner), bungkus (menoleh ke kantong), terima koin (meraih), batal dan di pintu (menggeleng). Penjaga kini punya penanda kemajuan aksi (`Cashier.progress`).
+- **Perubahan dari 5A:**
+  - scanner datar dipindah ke belakang meja di depan penjaga, karena di posisi lama tertutup layar mini;
+  - laser bata pastel dengan pendar merah muda (palet tidak punya merah terang);
+  - tulisan "HARI INI" di pojok diorama dihapus karena total harian kini di layar mini.
+- **Lab:** `components/diorama/counter-lab.tsx`, pratinjau 4×: siklus melayani, pembatalan, kasir tutup, contoh angka layar.
+- **Tes:** 9 tes baru (`sprites/counter.test.ts`); seluruhnya 115 tes Vitest lulus.
+
 ---
 
 ## Tahap 5B: Mesin diorama (21 Nov 2026)

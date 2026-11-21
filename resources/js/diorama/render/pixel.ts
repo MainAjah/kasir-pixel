@@ -148,6 +148,7 @@ const FONT: Record<string, string> = {
     '9': '111101111001111',
     '.': '000000000000010',
     '!': '010010010000010',
+    ',': '000000000010100',
     '+': '000010111010000',
     '-': '000000111000000',
     x: '000101010101000',
@@ -156,6 +157,7 @@ const FONT: Record<string, string> = {
     E: '111100111100111',
     H: '101101111101101',
     I: '111010010010111',
+    J: '001001001101111',
     K: '101101110101101',
     L: '100100100100111',
     M: '101111111101101',
@@ -169,12 +171,45 @@ const FONT: Record<string, string> = {
     ' ': '000000000000000',
 };
 
+/** Titik dan koma hanya selebar 2 piksel. */
+const narrow = (ch: string) => ch === '.' || ch === ',';
+
 export function textWidth(text: string, scale = 1): number {
     return (
         // Huruf layar hanya ASCII, jadi pemecahan per karakter aman.
-        text.split('').reduce((w, ch) => w + (ch === '.' ? 2 : 4), 0) * scale -
+        text.split('').reduce((w, ch) => w + (narrow(ch) ? 2 : 4), 0) * scale -
         scale
     );
+}
+
+/** Tulisan 3 × 5 pada sisi kiri balok, miring mengikuti sisi (layar di benda). */
+export function leftText(
+    ctx: CanvasRenderingContext2D,
+    ox: number,
+    oy: number,
+    b: number,
+    h: number,
+    i0: number,
+    d0: number,
+    text: string,
+    color: string,
+): void {
+    let i = i0;
+
+    for (const ch of text) {
+        const glyph = FONT[ch] ?? FONT[ch.toUpperCase()] ?? FONT[' '];
+        const shift = narrow(ch) ? -1 : 0;
+
+        for (let r = 0; r < 5; r++) {
+            for (let c = 0; c < 3; c++) {
+                if (glyph[r * 3 + c] === '1') {
+                    leftDot(ctx, ox, oy, b, h, i + c + shift, d0 + r, color);
+                }
+            }
+        }
+
+        i += narrow(ch) ? 2 : 4;
+    }
 }
 
 /** Tulisan datar 3 × 5 piksel, kiri-atas di (x, y). Huruf yang tidak ada menjadi spasi. */
@@ -191,7 +226,7 @@ export function drawText(
 
     for (const ch of text) {
         const glyph = FONT[ch] ?? FONT[ch.toUpperCase()] ?? FONT[' '];
-        const shift = ch === '.' ? -1 : 0;
+        const shift = narrow(ch) ? -1 : 0;
 
         for (let r = 0; r < 5; r++) {
             for (let c = 0; c < 3; c++) {
@@ -206,7 +241,7 @@ export function drawText(
             }
         }
 
-        cursor += (ch === '.' ? 2 : 4) * scale;
+        cursor += (narrow(ch) ? 2 : 4) * scale;
     }
 }
 
