@@ -9,6 +9,8 @@ type Entry = {
     id: number;
     number: string;
     supplier_name: string | null;
+    /** Tahap 6B: pemasok dari data master supplier. */
+    from_master: boolean;
     note: string | null;
     occurred_at: string;
     lines: number;
@@ -70,6 +72,11 @@ export default function PenerimaanIndex({
                                     </td>
                                     <td className="p-3">
                                         {e.supplier_name ?? '-'}
+                                        {e.from_master && (
+                                            <span className="ml-2 text-xs text-muted-foreground">
+                                                (supplier terdaftar)
+                                            </span>
+                                        )}
                                     </td>
                                     <td className="p-3 text-right">
                                         {e.lines}

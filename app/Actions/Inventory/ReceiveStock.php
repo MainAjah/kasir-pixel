@@ -8,12 +8,16 @@ use App\Exceptions\StockException;
 use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Models\StockEntry;
+use App\Models\Supplier;
 use Carbon\CarbonInterface;
 use Illuminate\Support\Facades\DB;
 
 /**
  * Catat penerimaan barang: satu dokumen StockEntry berisi satu mutasi `receipt` per baris.
  * Stok tetap hanya di ledger (lewat AdjustStock); dokumen ini tanpa saldo.
+ *
+ * Tahap 6B: supplier dari data master boleh dipilih (opsional). Namanya disalin ke
+ * `supplier_name`; bila tidak dipilih, nama pemasok teks bebas dipakai seperti biasa.
  */
 class ReceiveStock
 {
@@ -31,17 +35,31 @@ class ReceiveStock
         ?string $supplierName = null,
         ?string $note = null,
         ?CarbonInterface $occurredAt = null,
+        ?int $supplierId = null,
     ): StockEntry {
         if ($lines === []) {
             throw StockException::invalid('Penerimaan barang minimal satu baris.');
         }
 
-        return DB::transaction(function () use ($userId, $lines, $supplierName, $note, $occurredAt) {
+        $supplier = null;
+
+        if ($supplierId !== null) {
+            $supplier = Supplier::query()->whereKey($supplierId)->where('is_active', true)->first();
+
+            if ($supplier === null) {
+                throw StockException::invalid('Supplier tidak ditemukan atau sudah dinonaktifkan.');
+            }
+
+            $supplierName = $supplier->name;
+        }
+
+        return DB::transaction(function () use ($userId, $lines, $supplier, $supplierName, $note, $occurredAt) {
             // Simpan dalam zona waktu database (UTC), apa pun zona input.
             $occurredAt = ($occurredAt ?? now())->copy()->setTimezone(config('app.timezone'));
 
             $entry = StockEntry::create([
                 'number' => $this->nextNumber($occurredAt),
+                'supplier_id' => $supplier?->id,
                 'supplier_name' => $supplierName,
                 'note' => $note,
                 'occurred_at' => $occurredAt,

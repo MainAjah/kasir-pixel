@@ -1,8 +1,42 @@
 # PROGRESS
 
+## Tahap 6B: Kelola pengguna, hak akses, supplier (22 Nov 2026)
+
+Status: **selesai, disetujui pemilik, sudah di-commit (commit "Tahap 6B").** Tidak ada paket baru. Dua migration baru (migration lama tidak diubah), sudah dijalankan di database lokal `kasir` atas izin pemilik. Aturan uang, stok, dan simpanan tidak berubah: Barang masuk tetap lewat `AdjustStock`. Tidak ada peran yang ditambah atau dihapus.
+
+### Keputusan pemilik
+
+- Halaman Hak akses memakai **tabel dari kode** (`App\Support\AccessMap`), tanpa permission spatie baru; penjaga sungguhan tetap middleware peran dan Gate `open-post`.
+- Pengguna dengan shift kas terbuka **boleh** dinonaktifkan; shift-nya tetap terbuka.
+- Pemasok di Barang masuk: **pilihan supplier + teks bebas**.
+- Berkas `docs/referensi-karakter/olahan/9-penjaga-inventaris-pratinjau.png` **dihapus** (tidak berdampak ke aplikasi).
+
+### Yang sudah selesai
+
+- **Kelola pengguna** (`/pengguna`, `Admin\UserController`, Action `SaveUser`, `ChangeUserRole`, `SetUserActive`, `UserException`): daftar, tambah, ubah (nama, email, peran, kata sandi opsional), nonaktifkan dan aktifkan (tidak pernah dihapus). Aturan di server: admin tidak bisa menonaktifkan atau mengganti peran sendiri; admin aktif terakhir tidak bisa dinonaktifkan atau diturunkan; peran hanya salah satu dari tiga yang ada. Pengguna nonaktif ditolak saat masuk dan sesinya dikeluarkan (sudah ada: Fortify + `EnsureUserIsActive`). Dicatat di `activity_logs` (`user.*`).
+- **Hak akses** (`/hak-akses`, `Admin\AccessController`): kartu tiga peran dengan jumlah pengguna, tabel centang fitur × peran (hanya baca), dan penggantian peran per pengguna dengan aturan yang sama. Tes memastikan tabel sama persis dengan penjaga rute.
+- **Supplier** (`/supplier`, `Inventory\SupplierController`, Action `SaveSupplier`, `SetSupplierActive`): data master nama, kontak, alamat, catatan; tambah, ubah, nonaktifkan, aktifkan; jumlah penerimaan per supplier. Tabel `suppliers` (soft delete sesuai konvensi, tanpa tombol hapus).
+- **Hubungan ke Barang masuk:** kolom baru `stock_entries.supplier_id` (opsional). `ReceiveStock` menerima `supplierId` (harus aktif) dan menyalin namanya ke `supplier_name`; tanpa supplier, teks bebas dipakai seperti dulu. Form punya pilihan supplier dan isian "atau tulis nama pemasok"; daftar penerimaan menandai "(supplier terdaftar)".
+- **Beranda dan menu:** pilihan Supplier di pos Inventaris aktif (`App\Enums\Post`); menu ikon Beranda admin: Pengguna (aktif) dan Hak akses (ikon kunci baru, warna palet); sidebar halaman lain: Supplier, Pengguna, Hak akses. Tabel admin memakai bingkai pixel sederhana (`components/admin/pixel-table.tsx`); tema pixel lengkap di 5E.
+- **Tes:** Pest baru `Admin/UserManagementTest`, `Admin/AccessTest`, `Inventory/SupplierTest` (akses admin vs kasir dan bendahara, aturan diri sendiri dan admin terakhir, supplier terhubung ke stok masuk dan ledger tetap), Vitest `pixel-icons`; `DashboardPostTest` diperbarui. Seluruhnya 347 tes Pest dan 209 tes Vitest lulus; Pint, tsc, dan lint bersih.
+- **Dicoba di browser:** sebagai kasir, `/pengguna`, `/hak-akses`, `/supplier` 403 dan ikon admin tidak tampil; sebagai admin, halaman Pengguna, Hak akses, tambah supplier, Barang masuk dengan supplier, dan pos Inventaris → Supplier.
+
+### Batasan dan hal yang perlu diketahui
+
+- Data yang ditambahkan saat dicoba di database `kasir`: supplier contoh "CV Sumber Rejeki" dan penerimaan BM-20261122-0001 (1 sak Beras 5 kg dari supplier itu; stok beras menjadi 61).
+- **Cacat dari 5D-1, sudah diperbaiki atas izin pemilik:** setelah pukul 17.00, warna di sekeliling kanvas Beranda tetap warna siang walau diorama sudah senja atau malam. Penyebab: Beranda dirender lebih dulu di server (SSR) sebagai siang, dan React tidak memperbarui atribut yang berbeda saat hidrasi. Perbaikan di `use-time-of-day.ts`: server dan browser sama-sama mulai dari siang, lalu langsung diganti ke jam browser setelah halaman aktif. Dicek di browser pukul 19.00: latar ikut malam, tanpa peringatan hidrasi baru.
+- "Laporan penjualan" di pos Kasir masih "segera hadir" dan ikon Laporan di Beranda masih menuju riwayat penjualan; keduanya untuk 6C.
+- Server MariaDB, Vite, dan `php artisan serve --port=8010` (database `kasir`) masih berjalan dari sesi ini; browser pratinjau masuk sebagai admin.
+
+### Saran untuk tahap berikutnya
+
+**Tahap 6C** (laporan penjualan dan inventaris dengan filter tanggal dan ekspor CSV, ringkasan angka di dasbor): **Sonnet, upaya sedang**, sesuai tabel di `claude.md`. Hanya membaca data (penjualan tanpa yang dibatalkan, stok dari ledger), jadi cukup mulai dengan rencana singkat; plan mode disarankan untuk menyepakati isi laporan dan kolom CSV. Setelah halaman laporan ada, aktifkan "Laporan penjualan" di `App\Enums\Post`, arahkan ikon Laporan di Beranda ke halaman laporan, dan tambahkan baris laporan di `AccessMap`. Ekspor CSV bisa memakai fitur bawaan PHP/Laravel tanpa paket baru. Mulai sesi baru setelah mengganti model.
+
+---
+
 ## Tahap 5D-2: Tombol pos, karakter besar, akses per peran, suasana (22 Nov 2026)
 
-Status: **selesai, ketiga langkah dan revisi bunyi disetujui pemilik, sudah di-commit (commit "Tahap 5D-2").** Tidak ada paket baru, tidak ada migration atau seeder baru, dan tidak ada perubahan aturan uang, stok, atau simpanan. Semua yang baru di server hanya membaca.
+Status: **selesai, ketiga langkah dan revisi bunyi disetujui pemilik, sudah di-commit (9deb50d).** Tidak ada paket baru, tidak ada migration atau seeder baru, dan tidak ada perubahan aturan uang, stok, atau simpanan. Semua yang baru di server hanya membaca.
 
 ### Yang sudah selesai
 

@@ -12,7 +12,8 @@ export type PixelIconName =
     | 'pengguna'
     | 'kasir'
     | 'anggota'
-    | 'keluar';
+    | 'keluar'
+    | 'hak-akses';
 
 /** Kunci warna yang dipakai semua ikon. */
 export const ICON_COLORS: Record<string, string> = {
@@ -122,6 +123,21 @@ export const PIXEL_ICONS: Record<PixelIconName, readonly string[]> = {
         'kwbbbwkkkwwk',
         'kwwwwwwwwwwk',
         'kkkkkkkkkkkk',
+        '............',
+        '............',
+    ],
+    // Kunci emas (hak akses).
+    'hak-akses': [
+        '............',
+        '............',
+        '.kkkk.......',
+        'kKKKKk......',
+        'kKkkKkkkkkk.',
+        'kKkkKKKKKKKk',
+        'kKKKKkkkkKKk',
+        '.kkkk...kKk.',
+        '........kkk.',
+        '............',
         '............',
         '............',
     ],

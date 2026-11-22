@@ -65,7 +65,7 @@ enum Post: string
                 ['label' => 'Stok barang', 'route' => 'products.index'],
                 ['label' => 'Barang masuk', 'route' => 'stock-receipts.index'],
                 ['label' => 'Penyesuaian stok', 'route' => 'stock-adjustments.create'],
-                ['label' => 'Supplier', 'route' => null],
+                ['label' => 'Supplier', 'route' => 'suppliers.index'],
             ],
         };
     }

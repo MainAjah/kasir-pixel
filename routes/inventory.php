@@ -5,6 +5,7 @@ use App\Http\Controllers\Inventory\ProductController;
 use App\Http\Controllers\Inventory\StockAdjustmentController;
 use App\Http\Controllers\Inventory\StockCardController;
 use App\Http\Controllers\Inventory\StockReceiptController;
+use App\Http\Controllers\Inventory\SupplierController;
 use Illuminate\Support\Facades\Route;
 
 // Kasir boleh membaca daftar produk (Tahap 3); menulis dan halaman lain tetap admin.
@@ -26,6 +27,15 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
 
     Route::get('koreksi-stok', [StockAdjustmentController::class, 'create'])->name('stock-adjustments.create');
     Route::post('koreksi-stok', [StockAdjustmentController::class, 'store'])->name('stock-adjustments.store');
+
+    // Supplier (Tahap 6B): data master, dinonaktifkan bukan dihapus.
+    Route::get('supplier', [SupplierController::class, 'index'])->name('suppliers.index');
+    Route::get('supplier/baru', [SupplierController::class, 'create'])->name('suppliers.create');
+    Route::post('supplier', [SupplierController::class, 'store'])->name('suppliers.store');
+    Route::get('supplier/{supplier}/ubah', [SupplierController::class, 'edit'])->name('suppliers.edit');
+    Route::put('supplier/{supplier}', [SupplierController::class, 'update'])->name('suppliers.update');
+    Route::post('supplier/{supplier}/nonaktifkan', [SupplierController::class, 'deactivate'])->name('suppliers.deactivate');
+    Route::post('supplier/{supplier}/aktifkan', [SupplierController::class, 'activate'])->name('suppliers.activate');
 
     Route::get('kategori', [CategoryController::class, 'index'])->name('categories.index');
     Route::post('kategori', [CategoryController::class, 'store'])->name('categories.store');

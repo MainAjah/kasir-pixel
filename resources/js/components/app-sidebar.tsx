@@ -4,18 +4,24 @@ import {
     ClipboardPen,
     FolderGit2,
     History,
+    KeyRound,
     LayoutGrid,
     Package,
     PackagePlus,
     ShoppingCart,
     Sparkles,
     Tags,
+    Truck,
+    UserCog,
     Users,
 } from 'lucide-react';
+import AccessController from '@/actions/App/Http/Controllers/Admin/AccessController';
+import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
 import CategoryController from '@/actions/App/Http/Controllers/Inventory/CategoryController';
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
 import StockAdjustmentController from '@/actions/App/Http/Controllers/Inventory/StockAdjustmentController';
 import StockReceiptController from '@/actions/App/Http/Controllers/Inventory/StockReceiptController';
+import SupplierController from '@/actions/App/Http/Controllers/Inventory/SupplierController';
 import MemberController from '@/actions/App/Http/Controllers/Members/MemberController';
 import PosController from '@/actions/App/Http/Controllers/Pos/PosController';
 import SaleController from '@/actions/App/Http/Controllers/Pos/SaleController';
@@ -80,7 +86,14 @@ const inventoryNavItems: NavItem[] = [
         href: StockAdjustmentController.create(),
         icon: ClipboardPen,
     },
+    { title: 'Supplier', href: SupplierController.index(), icon: Truck },
     { title: 'Kategori', href: CategoryController.index(), icon: Tags },
+];
+
+// Tahap 6B: kelola pengguna dan hak akses, hanya admin.
+const adminNavItems: NavItem[] = [
+    { title: 'Pengguna', href: UserController.index(), icon: UserCog },
+    { title: 'Hak akses', href: AccessController.index(), icon: KeyRound },
 ];
 
 // Pratinjau mesin diorama (Tahap 5B), hanya admin.
@@ -114,6 +127,7 @@ export function AppSidebar() {
               ...posNavItems,
               ...inventoryNavItems,
               memberNavItem,
+              ...adminNavItems,
               dioramaLabNav,
           ]
         : isKasir

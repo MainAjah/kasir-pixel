@@ -14,11 +14,12 @@ use Illuminate\Support\Carbon;
  *
  * @property int $id
  * @property string $number
+ * @property int|null $supplier_id
  * @property string|null $supplier_name
  * @property string|null $note
  * @property Carbon $occurred_at
  */
-#[Fillable(['number', 'supplier_name', 'note', 'occurred_at', 'created_by'])]
+#[Fillable(['number', 'supplier_id', 'supplier_name', 'note', 'occurred_at', 'created_by'])]
 class StockEntry extends Model
 {
     use AppendOnly;
@@ -32,6 +33,12 @@ class StockEntry extends Model
     public function movements(): HasMany
     {
         return $this->hasMany(StockMovement::class);
+    }
+
+    /** Supplier dari data master (opsional, Tahap 6B). @return BelongsTo<Supplier, $this> */
+    public function supplier(): BelongsTo
+    {
+        return $this->belongsTo(Supplier::class)->withTrashed();
     }
 
     /** @return BelongsTo<User, $this> */

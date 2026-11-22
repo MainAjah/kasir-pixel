@@ -51,7 +51,7 @@ test('admin membuka kedua pos dan menerima pilihan fiturnya', function () {
                 ['label' => 'Stok barang', 'href' => '/produk'],
                 ['label' => 'Barang masuk', 'href' => '/penerimaan-barang'],
                 ['label' => 'Penyesuaian stok', 'href' => '/koreksi-stok'],
-                ['label' => 'Supplier', 'href' => null],
+                ['label' => 'Supplier', 'href' => '/supplier'],
             ],
         ]);
 });

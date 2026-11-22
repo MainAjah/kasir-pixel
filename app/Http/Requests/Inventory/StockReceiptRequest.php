@@ -18,6 +18,8 @@ class StockReceiptRequest extends FormRequest
     public function rules(): array
     {
         return [
+            // Tahap 6B: supplier dari data master (opsional, harus aktif), atau teks bebas.
+            'supplier_id' => ['nullable', 'integer', Rule::exists('suppliers', 'id')->where('is_active', true)->whereNull('deleted_at')],
             'supplier_name' => ['nullable', 'string', 'max:150'],
             'note' => ['nullable', 'string', 'max:500'],
             // Diisi dalam WIB (zona tampilan), jadi dibandingkan dengan "sekarang" di zona yang sama.
@@ -43,6 +45,8 @@ class StockReceiptRequest extends FormRequest
             'lines.*.qty' => 'jumlah',
             'lines.*.cost_total' => 'harga beli',
             'occurred_at' => 'tanggal terima',
+            'supplier_id' => 'supplier',
+            'supplier_name' => 'nama pemasok',
         ];
     }
 }

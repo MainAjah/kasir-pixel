@@ -22,12 +22,17 @@ const emptyLine = (): Line => ({
     cost_total: '',
 });
 
+type SupplierOption = { id: number; name: string };
+
 export default function PenerimaanCreate({
     products,
+    suppliers,
 }: {
     products: ProductOption[];
+    suppliers: SupplierOption[];
 }) {
     const form = useForm({
+        supplier_id: '',
         supplier_name: '',
         note: '',
         occurred_at: '',
@@ -59,6 +64,9 @@ export default function PenerimaanCreate({
         e.preventDefault();
         form.transform((data) => ({
             ...data,
+            // Supplier dipilih: nama teks bebas tidak dikirim (server menyalin nama supplier).
+            supplier_id: data.supplier_id === '' ? null : data.supplier_id,
+            supplier_name: data.supplier_id === '' ? data.supplier_name : null,
             occurred_at: data.occurred_at || null,
             lines: data.lines.map((l) => ({
                 ...l,
@@ -78,18 +86,47 @@ export default function PenerimaanCreate({
                     description="Jumlah diisi dalam satuan yang dipilih (misalnya 2 dus); sistem mengubahnya ke satuan dasar."
                 />
 
-                <div className="grid gap-4 sm:grid-cols-3">
+                <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
-                        <Label htmlFor="supplier">Pemasok</Label>
+                        <Label htmlFor="supplier_id">Supplier (opsional)</Label>
+                        <NativeSelect
+                            id="supplier_id"
+                            value={form.data.supplier_id}
+                            onChange={(e) =>
+                                form.setData('supplier_id', e.target.value)
+                            }
+                        >
+                            <option value="">Tanpa supplier terdaftar</option>
+                            {suppliers.map((s) => (
+                                <option key={s.id} value={String(s.id)}>
+                                    {s.name}
+                                </option>
+                            ))}
+                        </NativeSelect>
+                        <InputError message={form.errors.supplier_id} />
+                    </div>
+                    <div className="grid gap-2">
+                        <Label htmlFor="supplier">
+                            atau tulis nama pemasok
+                        </Label>
                         <Input
                             id="supplier"
                             value={form.data.supplier_name}
+                            disabled={form.data.supplier_id !== ''}
+                            placeholder={
+                                form.data.supplier_id !== ''
+                                    ? 'Memakai supplier yang dipilih'
+                                    : 'Misalnya: Toko Pak Budi'
+                            }
                             onChange={(e) =>
                                 form.setData('supplier_name', e.target.value)
                             }
                         />
                         <InputError message={form.errors.supplier_name} />
                     </div>
+                </div>
+
+                <div className="grid gap-4 sm:grid-cols-2">
                     <div className="grid gap-2">
                         <Label htmlFor="occurred_at">Tanggal terima</Label>
                         <Input

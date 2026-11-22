@@ -1,4 +1,6 @@
 import { Link, router, usePage } from '@inertiajs/react';
+import AccessController from '@/actions/App/Http/Controllers/Admin/AccessController';
+import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
 import MemberController from '@/actions/App/Http/Controllers/Members/MemberController';
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
 import StockReceiptController from '@/actions/App/Http/Controllers/Inventory/StockReceiptController';
@@ -25,7 +27,7 @@ type MenuItem = {
 };
 
 /**
- * Menu ikon Beranda. Empat yang diminta (Produk, Stok, Laporan, Pengguna), lalu
+ * Menu ikon Beranda. Produk, Stok, Laporan, Pengguna, dan Hak akses (6B), lalu
  * pintasan yang dibutuhkan tiap peran karena Beranda tidak punya sidebar.
  * Hanya menyembunyikan tautan; penjaga sebenarnya tetap middleware di server.
  */
@@ -50,8 +52,14 @@ const MAIN: MenuItem[] = [
     },
     {
         icon: 'pengguna',
-        label: 'Pengguna (menyusul di Tahap 6B)',
-        href: null,
+        label: 'Pengguna',
+        href: UserController.index(),
+        roles: ['admin'],
+    },
+    {
+        icon: 'hak-akses',
+        label: 'Hak akses',
+        href: AccessController.index(),
         roles: ['admin'],
     },
 ];

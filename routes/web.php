@@ -36,3 +36,4 @@ require __DIR__.'/settings.php';
 require __DIR__.'/inventory.php';
 require __DIR__.'/pos.php';
 require __DIR__.'/members.php';
+require __DIR__.'/admin.php';
