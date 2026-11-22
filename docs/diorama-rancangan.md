@@ -130,7 +130,7 @@ Selama `mengejar`, `di_pintu`, dan `kembali`, kasir tidak melayani: pembeli di t
 | Lantai | 64×32 | 2 varian (selang-seling) | **kotak mint dan krem** (dipilih pemilik): bergantian seperti papan catur, garis kilau terang di tepi belakang, nat. Di 5C memakai warna palet: krem `#f7f1e3` dan hijau daun `#a7d7a5`, nat `#efe2c4`; ditambah alas diorama 6 px di tepi depan lantai (hijau) |
 | Karpet antrean | 160×32 (5 tile) | 1 | terakota, pinggiran krem, motif zig-zag kunyit |
 | Dinding kiri / kanan per tile | 32×80 | 1 | diubah di 5C (pilihan pemilik): dinding kiri lavender `#c9b6e4`, dinding kanan biru langit `#9fd3e6`, list atas putih, plint hijau |
-| Pintu kaca | 64×80 (2 tile) | 1 | bingkai kayu, kaca dengan pantulan, gagang dorong, keset hijau bergaris |
+| Pintu kaca | 64×80 (2 tile) | 3 (siang, senja, malam) | bingkai kayu, kaca dengan pantulan, gagang dorong, keset hijau bergaris; di 5C kaca menampilkan pemandangan luar menurut waktu (langit, pepohonan, rumput, trotoar; malam berbintang dengan siluet pohon) |
 | Rak per tile | 64×64 (badan 32 px) | 1 | sisi kayu, **papan atas krem berbingkai kayu** (beda dari lantai), 3 tingkat papan, barang beraneka tinggi dan warna dengan kilau dan label, label harga; isi 4 tingkat menurut stok |
 | Vending machine per unit | 60×106 (badan 76 px) | 2 (lampu menyala, redup) | papan nama "MINUM", kaca dengan 5 baris **botol** (di 5C menggantikan kaleng; 0, 1, 3, atau 5 per baris menurut stok) dan pantulan, layar harga, tombol, lubang koin dan uang kertas, pintu ambil, garis warna di sisi; 3 warna badan; papan nama dan lampu kaca berkedip pelan (1,2 detik, fase berbeda tiap mesin) |
 | Meja kasir per tile | 64×60 (badan 28 px) | 1 | atas putih, panel depan oranye kunyit bergaris, plint gelap |
@@ -139,9 +139,10 @@ Selama `mengejar`, `di_pintu`, dan `kembali`, kasir tidak melayani: pembeli di t
 | Bangku kasir 2 | 32×32 | 1 | dudukan lavender, kaki logam |
 | Laser | 16×2 | 3 | |
 | Huruf layar | 3×5 | angka, titik, dan huruf T U P M I N R B K A S O | untuk layar pelanggan, papan nama, dan "+N"; miring mengikuti sisi benda; tanpa teks kanvas |
-| Tanaman | 28×40 | 1 | pot terakota, daun berlapis dua warna |
-| Jam, jendela | 12×12, 26×28 | 1 (jendela 2: siang/malam) | jendela: bingkai silang, langit, awan, pohon; malam: gelap berbintang |
-| Lukisan | 26×20, 26×18, 22×20, 18×22 | 1 | gunung dan sawah, laut senja, buah, bunga; bingkai kayu + list emas |
+| Tanaman | 28×40 | 1 | pot terakota berbibir kunyit, rumpun daun rimbun dua warna hijau dengan kilau |
+| Jam, jendela | 12×12, 26×28 | jam 1 (jarum menurut waktu), jendela 3 | di 5C jam bundar berbingkai kayu dengan tanda 12-3-6-9; jendela: bingkai silang, siang (langit, awan, pohon), senja (langit lavender ke kunyit, matahari terbenam), malam (biru malam, bulan sabit, bintang, siluet pohon) |
+| Lukisan | 26×20, 26×18, 22×20, 18×22 | 1 | gunung dan sawah, laut senja, buah, bunga; bingkai kayu + list emas; di 5C tiga warna di luar palet diganti warna palet |
+| Lampu dinding | 7×9 | 2 (mati, menyala) | baru di 5C: satu di tiap dinding; menyala saat senja dan malam dengan lingkaran cahaya hangat miring mengikuti dinding |
 | Pelanggan referensi | 20–46 × 45–56 | 1 pose + cermin | 5 karakter dari gambar pemilik, warna asli (lihat bagian 6) |
 | Pelanggan buatan sendiri | ±32×48 | diam 2 + jalan 4 + ambil 2, × 2 hadap | disusun dari lapisan badan, rambut, kostum; digambar ulang detail di 5C |
 | Penjaga kasir | 27×41 | 1 pose + cermin | **zombie dari gambar pemilik**; animasi pindai, angguk, dan geleng memakai ayunan atau miring karena hanya satu pose |
@@ -213,8 +214,8 @@ Dipakai untuk toko, perabot, dan karakter buatan sendiri. Karakter referensi mem
    - Aktor bergerak memakai kedalaman pecahan.
    - Seri: furnitur dulu, lalu aktor, lalu `gx` kecil dulu.
    - Efek memakai kedalaman pemiliknya + 0,1.
-4. **Lapisan malam**.
-5. **Lapisan menyala**: layar komputer, kaca vending machine, jendela.
+4. **Lapisan malam**. Di 5C: latar diredupkan sekali per waktu, lalu kaca jendela dan pintu serta lampu dinding digambar ulang terang di latar; objek dan aktor digambar di lapisan terpisah yang diredupkan dengan biru yang sama, jadi tetap menutupi kaca yang terang.
+5. **Lapisan menyala**: layar komputer, papan nama vending machine, pendar di lantai.
 6. **Antarmuka** ("+N"). Tombol mute dan hemat daya ada di HTML, di luar kanvas.
 
 ## 9. Hubungan ke data

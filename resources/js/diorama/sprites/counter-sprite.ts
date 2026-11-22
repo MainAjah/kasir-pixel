@@ -222,6 +222,21 @@ function drawRightPart(
     isoBox(ctx, ox, oy, 4, 4, 4, C(3), C(2), C(1));
     [ox, oy] = at(1, 25);
     isoBox(ctx, ox, oy - 4, 30, 3, 12, C(2), C(1), C(1));
+    drawCounterScreen(ctx, cx, ty, look);
+}
+
+/**
+ * Muka layar mini di potongan kanan (puncak tile cx, ty): total harian (hijau),
+ * total belanja (kuning), atau TUTUP. Juga digambar ulang di atas lapisan malam
+ * karena layar menyala.
+ */
+export function drawCounterScreen(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    ty: number,
+    look: CounterLook,
+): void {
+    const [ox, oy] = onTop(cx, ty, COUNTER_HEIGHT, 1, 25);
 
     if (!look.on) {
         leftDot(ctx, ox, oy - 4, 3, 12, 1, 1, C(2), 28, 10);

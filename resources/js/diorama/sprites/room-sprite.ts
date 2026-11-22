@@ -13,6 +13,8 @@
 import { HALF_H, HALF_W, ORIGIN, WALL_H, tileTop } from '../engine/iso';
 import { isoBox, topDot } from '../render/pixel';
 import type { StoreScene } from '../scenes/store-scene';
+import { DOOR_GLASS_H, doorViewColor } from './decor-sprite';
+import type { TimeOfDay } from './decor-sprite';
 import { C } from './palette';
 
 export type RoomScheme = {
@@ -131,11 +133,81 @@ function drawDoormat(
     }
 }
 
+/** Dua baris dinding kiri yang menjadi pintu kaca. */
+export function doorRowsOf(scene: StoreScene): [number, number] {
+    return [scene.door.inside.gy - 1, scene.door.inside.gy];
+}
+
+/**
+ * Kaca pintu: pemandangan luar menurut waktu (siang, senja, malam), pantulan
+ * kaca, dan gagang dorong. Tiang, ambang, dan kusen tengah tidak ikut digambar,
+ * jadi di malam hari kaca bisa digambar ulang terang tanpa mencerahkan kayunya.
+ */
+export function drawDoorGlass(
+    ctx: CanvasRenderingContext2D,
+    scene: StoreScene,
+    time: TimeOfDay,
+    scheme: RoomScheme = ROOM_SCHEME,
+): void {
+    const [doorTop, doorBottom] = doorRowsOf(scene);
+
+    for (let gy = doorTop; gy <= doorBottom; gy++) {
+        const { x: cx, y: ty } = tileTop(0, gy);
+
+        for (let i = 0; i < HALF_W; i++) {
+            const post =
+                (gy === doorBottom && i < 3) ||
+                (gy === doorTop && i > HALF_W - 4);
+
+            if (post || i % 16 === 0) {
+                continue;
+            }
+
+            const x = cx - HALF_W + i;
+            const top = ty + HALF_H - fl(i / 2) - WALL_H + 10;
+            // Kolom dari kiri pintu: baris pintu bawah (gy besar) ada di kiri layar.
+            const u = (doorBottom - gy) * HALF_W + i;
+            let run = 0;
+
+            // Gabungkan baris berwarna sama menjadi satu fillRect.
+            for (let v = 1; v <= DOOR_GLASS_H; v++) {
+                const color = doorViewColor(u, run, time);
+
+                if (v === DOOR_GLASS_H || doorViewColor(u, v, time) !== color) {
+                    ctx.fillStyle = color;
+                    ctx.fillRect(x, top + run, 1, v - run);
+                    run = v;
+                }
+            }
+
+            if ((i + gy * 3) % 9 === 0) {
+                // Pantulan kaca: terang di siang dan senja, redup di malam hari.
+                ctx.fillStyle = time === 'malam' ? C(3) : scheme.door.shine;
+                ctx.fillRect(
+                    x,
+                    top + 6 + (i % 5),
+                    1,
+                    time === 'malam' ? 6 : 12,
+                );
+            }
+        }
+    }
+
+    // Gagang dorong di pintu.
+    const { x: cx, y: ty } = tileTop(0, doorBottom);
+    ctx.fillStyle = scheme.door.handle;
+
+    for (let i = 6; i < 26; i++) {
+        ctx.fillRect(cx + i, ty + HALF_H - fl((i + T) / 2) - 44, 1, 2);
+    }
+}
+
 function drawWalls(
     ctx: CanvasRenderingContext2D,
     scene: StoreScene,
     scheme: RoomScheme,
     doorRows: readonly number[],
+    time: TimeOfDay,
 ): void {
     const [doorTop, doorBottom] = [
         Math.min(...doorRows),
@@ -152,22 +224,15 @@ function drawWalls(
             const base = ty + HALF_H - fl(i / 2);
 
             if (isDoor) {
-                // Tiang pintu di kedua ujung, kaca di tengah, ambang atas kayu.
+                // Ambang atas kayu; tiang di kedua ujung dan kusen tengah kayu.
+                // Kaca (pemandangan luar) digambar di drawDoorGlass.
                 const post =
                     (gy === doorBottom && i < 3) ||
                     (gy === doorTop && i > HALF_W - 4);
-                ctx.fillStyle = post ? scheme.door.frame : scheme.door.glass;
-                ctx.fillRect(x, base - WALL_H + 10, 1, WALL_H - 10);
                 ctx.fillStyle = scheme.door.frame;
                 ctx.fillRect(x, base - WALL_H, 1, 10);
 
-                if (!post && (i + gy * 3) % 9 === 0) {
-                    ctx.fillStyle = scheme.door.shine; // pantulan kaca
-                    ctx.fillRect(x, base - WALL_H + 16 + (i % 5), 1, 12);
-                }
-
-                if (!post && i % 16 === 0) {
-                    ctx.fillStyle = scheme.door.frame; // kusen tengah
+                if (post || i % 16 === 0) {
                     ctx.fillRect(x, base - WALL_H + 10, 1, WALL_H - 10);
                 }
 
@@ -185,15 +250,7 @@ function drawWalls(
         }
     }
 
-    // Gagang dorong di pintu.
-    {
-        const { x: cx, y: ty } = tileTop(0, doorBottom);
-        ctx.fillStyle = scheme.door.handle;
-
-        for (let i = 6; i < 26; i++) {
-            ctx.fillRect(cx + i, ty + HALF_H - fl((i + T) / 2) - 44, 1, 2);
-        }
-    }
+    drawDoorGlass(ctx, scene, time, scheme);
 
     // Dinding kanan (sepanjang gx, di atas baris gy = 0).
     for (let gx = 0; gx < scene.width; gx++) {
@@ -214,15 +271,19 @@ function drawWalls(
     }
 }
 
-/** Seluruh ruangan statis: latar, lantai, karpet, keset, dinding, pintu. Dirender sekali. */
+/**
+ * Seluruh ruangan statis: latar, lantai, karpet, keset, dinding, pintu (kaca
+ * menampilkan pemandangan luar menurut waktu). Dirender sekali per waktu.
+ */
 export function drawRoom(
     ctx: CanvasRenderingContext2D,
     scene: StoreScene,
     width: number,
     height: number,
     scheme: RoomScheme = ROOM_SCHEME,
+    time: TimeOfDay = 'siang',
 ): void {
-    const doorRows = [scene.door.inside.gy - 1, scene.door.inside.gy];
+    const doorRows = doorRowsOf(scene);
 
     ctx.fillStyle = scheme.background;
     ctx.fillRect(0, 0, width, height);
@@ -248,5 +309,5 @@ export function drawRoom(
 
     drawRug(ctx, scene);
     drawDoormat(ctx, doorRows);
-    drawWalls(ctx, scene, scheme, doorRows);
+    drawWalls(ctx, scene, scheme, doorRows, time);
 }

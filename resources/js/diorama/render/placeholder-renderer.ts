@@ -48,10 +48,13 @@ import type { ReferenceCharacter } from '../sprites/reference-sprite';
 import {
     counterBagPoint,
     counterDrawerPoint,
+    drawCounterScreen,
     drawCounterSlice,
     drawStool,
     formatDisplay,
 } from '../sprites/counter-sprite';
+import { NIGHT_STRENGTH, drawPlant } from '../sprites/decor-sprite';
+import type { TimeOfDay } from '../sprites/decor-sprite';
 import type { CounterLook } from '../sprites/counter-sprite';
 import {
     COIN_FRAMES,
@@ -65,15 +68,23 @@ import {
 } from '../sprites/goods-sprite';
 import type { GoodsColors, Point } from '../sprites/goods-sprite';
 import { C } from '../sprites/palette';
-import { drawRoom } from '../sprites/room-sprite';
+import { ROOM_SCHEME, drawDoorGlass, drawRoom } from '../sprites/room-sprite';
 import {
     VENDING_CANVAS,
     drawVending,
+    drawVendingLights,
     vendingLightOn,
 } from '../sprites/vending-sprite';
 import type { VendingColor } from '../sprites/vending-sprite';
 import { SpriteCache } from '../sprites/sprite-cache';
-import { drawText, isoBox, leftDot, onTop, rightDot, textWidth } from './pixel';
+import {
+    drawLitWall,
+    drawNightOverlay,
+    drawScreenGlow,
+    drawVendingGlow,
+    drawWallDecor,
+} from './lighting';
+import { drawText, isoBox, leftDot, rightDot, textWidth } from './pixel';
 
 export type RenderOptions = {
     /** Tandai tile terlarang. */
@@ -82,6 +93,8 @@ export type RenderOptions = {
     paths?: boolean;
     /** Nomor pelanggan di atas kepala. */
     ids?: boolean;
+    /** Siang, senja, atau malam (bawaan siang; jam browser menyusul di 5D). */
+    timeOfDay?: TimeOfDay;
 };
 
 const INK = '#2b2a33';
@@ -190,7 +203,8 @@ function shade(hex: string, amount: number): string {
 }
 
 export class PlaceholderRenderer {
-    private background: HTMLCanvasElement | null = null;
+    private readonly backgrounds = new Map<TimeOfDay, HTMLCanvasElement>();
+    private layer: CanvasRenderingContext2D | null = null;
     private readonly sprites = new SpriteCache();
     private readonly headings = new Map<number, Heading>();
     private shownDaily: number | null = null;
@@ -203,9 +217,10 @@ export class PlaceholderRenderer {
         world: DioramaWorld,
         options: RenderOptions = {},
     ): void {
+        const time = options.timeOfDay ?? 'siang';
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = 1;
-        ctx.drawImage(this.backgroundCanvas(), 0, 0);
+        ctx.drawImage(this.backgroundCanvas(time), 0, 0);
 
         this.stepDailyCounter(world);
 
@@ -295,11 +310,22 @@ export class PlaceholderRenderer {
             }
         }
 
+        // Senja dan malam: benda dan aktor di lapisan terpisah, diredupkan, lalu
+        // ditempel ke latar (yang sudah redup dengan jendela dan pintu tetap terang).
+        const layer = NIGHT_STRENGTH[time] > 0 ? this.itemsLayer() : null;
+        const target = layer ?? ctx;
+
         for (const item of sortDrawItems(items)) {
-            item.draw(ctx);
+            item.draw(target);
         }
 
-        ctx.globalAlpha = 1;
+        target.globalAlpha = 1;
+
+        if (layer) {
+            drawNightOverlay(layer, time, CANVAS_W, CANVAS_H, true);
+            ctx.drawImage(layer.canvas, 0, 0);
+            this.drawNightLights(ctx, world, time);
+        }
 
         if (options.paths) {
             this.drawPaths(ctx, world);
@@ -308,11 +334,13 @@ export class PlaceholderRenderer {
         this.drawInterface(ctx, world);
     }
 
-    // ---- Latar: lantai, karpet, keset, dinding, pintu (sprite 5C), dirender sekali ---
+    // ---- Latar: lantai, dinding, pintu, dan hiasan dinding; dirender sekali per waktu ---
 
-    private backgroundCanvas(): HTMLCanvasElement {
-        if (this.background) {
-            return this.background;
+    private backgroundCanvas(time: TimeOfDay): HTMLCanvasElement {
+        const cached = this.backgrounds.get(time);
+
+        if (cached) {
+            return cached;
         }
 
         const canvas = document.createElement('canvas');
@@ -321,12 +349,80 @@ export class PlaceholderRenderer {
         const ctx = canvas.getContext('2d');
 
         if (ctx) {
-            drawRoom(ctx, this.scene, CANVAS_W, CANVAS_H);
+            drawRoom(ctx, this.scene, CANVAS_W, CANVAS_H, ROOM_SCHEME, time);
+            drawWallDecor(ctx, time);
+
+            // Senja dan malam: ruangan redup, kaca jendela dan pintu tetap terang,
+            // lampu dinding menyala. Siang tidak menggambar apa pun di sini.
+            drawNightOverlay(ctx, time, CANVAS_W, CANVAS_H);
+
+            if (NIGHT_STRENGTH[time] > 0) {
+                drawLitWall(ctx, time);
+                drawDoorGlass(ctx, this.scene, time);
+            }
         }
 
-        this.background = canvas;
+        this.backgrounds.set(time, canvas);
 
         return canvas;
+    }
+
+    /** Kanvas cadangan transparan untuk benda dan aktor saat senja dan malam. */
+    private itemsLayer(): CanvasRenderingContext2D | null {
+        if (!this.layer) {
+            const canvas = document.createElement('canvas');
+            canvas.width = CANVAS_W;
+            canvas.height = CANVAS_H;
+            this.layer = canvas.getContext('2d');
+        }
+
+        const layer = this.layer;
+
+        if (!layer) {
+            return null;
+        }
+
+        layer.globalAlpha = 1;
+        layer.globalCompositeOperation = 'source-over';
+        layer.imageSmoothingEnabled = false;
+        layer.clearRect(0, 0, CANVAS_W, CANVAS_H);
+
+        return layer;
+    }
+
+    /**
+     * Senja dan malam, di atas benda yang sudah diredupkan: papan nama vending
+     * dan layar mini kasir 1 yang menyala digambar ulang terang, dengan pendar
+     * hangat di lantai depan vending dan di sekitar layar.
+     */
+    private drawNightLights(
+        ctx: CanvasRenderingContext2D,
+        world: DioramaWorld,
+        time: TimeOfDay,
+    ): void {
+        for (const item of this.scene.furniture) {
+            if (item.kind === 'vending') {
+                const color = VENDING_COLORS[item.id] ?? 0;
+                drawVendingGlow(ctx, item.gx, item.gy, time);
+
+                if (vendingLightOn(world.time, color)) {
+                    const { x, y } = tileTop(item.gx, item.gy);
+                    drawVendingLights(ctx, x, y, color, true);
+                }
+            } else if (item.kind === 'meja_kasir' && item.active) {
+                const gx = item.gx + item.w - 1;
+                const { x, y } = tileTop(gx, item.gy);
+                const look = this.counterLook(world);
+                drawCounterScreen(ctx, x, y, look);
+                drawScreenGlow(
+                    ctx,
+                    gx,
+                    item.gy,
+                    look.display.mode === 'belanja',
+                    time,
+                );
+            }
+        }
     }
 
     private drawBlocked(
@@ -419,34 +515,10 @@ export class PlaceholderRenderer {
 
                 break;
 
-            case 'tanaman': {
-                const [ox, oy] = onTop(cx, ty, 0, 10, 10);
-                isoBox(
-                    ctx,
-                    ox,
-                    oy,
-                    12,
-                    12,
-                    10,
-                    '#c2675a',
-                    '#e8907e',
-                    '#c2675a',
-                );
-                const [lx, ly] = onTop(cx, ty, 10, 8, 8);
-                isoBox(
-                    ctx,
-                    lx,
-                    ly,
-                    16,
-                    16,
-                    14,
-                    '#a7d7a5',
-                    '#6fae7b',
-                    '#5a9466',
-                );
+            case 'tanaman':
+                drawPlant(ctx, cx, ty);
 
                 break;
-            }
         }
     }
 

@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import DioramaCanvas from '@/components/diorama/diorama-canvas';
 import CounterLab from '@/components/diorama/counter-lab';
+import DecorLab, { TimePicker } from '@/components/diorama/decor-lab';
 import GoodsLab from '@/components/diorama/goods-lab';
 import ReferenceLab from '@/components/diorama/reference-lab';
 import RoomLab from '@/components/diorama/room-lab';
@@ -13,6 +14,7 @@ import { Button } from '@/components/ui/button';
 import type { DioramaItem } from '@/diorama/engine/feed';
 import { formatRupiah } from '@/diorama/render/pixel';
 import type { RenderOptions } from '@/diorama/render/placeholder-renderer';
+import type { TimeOfDay } from '@/diorama/sprites/decor-sprite';
 import { lab } from '@/routes/diorama';
 
 // Barang palsu untuk tombol uji; tidak ada hubungannya dengan data produk.
@@ -63,7 +65,11 @@ export default function DioramaLab() {
         paths: false,
         blocked: false,
         ids: true,
+        timeOfDay: 'siang',
     });
+    const timeOfDay = options.timeOfDay ?? 'siang';
+    const setTimeOfDay = (t: TimeOfDay) =>
+        setOptions((o) => ({ ...o, timeOfDay: t }));
     const [snapshot, setSnapshot] = useState<Snapshot>(() => world.snapshot());
 
     useEffect(() => {
@@ -164,25 +170,28 @@ export default function DioramaLab() {
 
                 <section className="space-y-3 rounded-md border p-4">
                     <h3 className="font-medium">
-                        Tahap 5C elemen 4: barang bawaan, kantong, dan koin
+                        Tahap 5C elemen 5: hiasan (tanaman pot, jam dinding,
+                        jendela, empat lukisan, lampu dinding)
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                        Di diorama di bawah, gerakannya sudah dipasang: coba
-                        "Pelanggan baru" lalu "Pindai barang" dua kali untuk
-                        melihat barang diambil dari rak dan meluncur di scanner,
-                        lalu "Bayar" untuk melihat koin terbang dan kantong
-                        berpindah ke tangan.
+                        Pilih waktu untuk diorama di bawah dan potongan
+                        perbesaran 4× di sini. Jendela dan pintu kaca berganti
+                        pemandangan luar (siang, senja, malam berbintang). Senja
+                        dan malam: lampu dinding menyala, papan nama vending dan
+                        layar mini tetap terang.
                     </p>
-                    <GoodsLab />
+                    <TimePicker value={timeOfDay} onChange={setTimeOfDay} />
+                    <DecorLab time={timeOfDay} />
                 </section>
 
                 <details className="rounded-md border p-4">
                     <summary className="cursor-pointer font-medium">
                         Tahap 5C yang sudah disetujui: pelanggan, rak, karakter
                         dari gambar Anda, lantai, dinding, pintu, meja kasir,
-                        dan vending machine
+                        vending machine, serta barang, kantong, dan koin
                     </summary>
                     <div className="mt-4 space-y-8">
+                        <GoodsLab />
                         <VendingLab />
                         <CounterLab />
                         <RoomLab />
@@ -190,6 +199,11 @@ export default function DioramaLab() {
                         <SpriteLab />
                     </div>
                 </details>
+
+                <section className="flex flex-wrap items-center gap-3">
+                    <h3 className="text-sm font-medium">Waktu diorama</h3>
+                    <TimePicker value={timeOfDay} onChange={setTimeOfDay} />
+                </section>
 
                 <DioramaCanvas
                     world={world}

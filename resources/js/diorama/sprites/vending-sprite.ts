@@ -53,6 +53,29 @@ export function bottlesPerRow(fill: RackFill): number {
     return BOTTLES_PER_ROW[fill];
 }
 
+/**
+ * Papan nama "MINUM" yang menyala (kuning lampu) atau redup (krem), dan lampu
+ * di atas kaca. Juga digambar ulang di atas lapisan malam saat menyala.
+ */
+export function drawVendingLights(
+    ctx: CanvasRenderingContext2D,
+    cx: number,
+    ty: number,
+    color: VendingColor,
+    lightOn: boolean,
+): void {
+    const [front] = BODY[color];
+    const ox = cx + 1;
+    const L = (i: number, d: number, col: string, w = 1, hh = 1) =>
+        leftDot(ctx, ox, ty, B, VENDING_HEIGHT, i, d, col, w, hh);
+
+    L(1, 3, lightOn ? C(11) : C(4), A - 2, 9);
+    L(3, 5, front, A - 6, 1);
+    L(3, 9, front, A - 6, 1);
+    leftText(ctx, ox, ty, B, VENDING_HEIGHT, 6, 5, 'MINUM', C(1));
+    L(3, 16, lightOn ? C(11) : C(4), 17, 1);
+}
+
 /** Satu vending machine dengan puncak tile di (cx, ty). */
 export function drawVending(
     ctx: CanvasRenderingContext2D,
@@ -73,20 +96,13 @@ export function drawVending(
         L(i, 0, C(1));
     }
 
-    // Papan nama yang menyala (kuning lampu) atau redup (krem).
-    L(1, 3, lightOn ? C(11) : C(4), A - 2, 9);
-    L(3, 5, front, A - 6, 1);
-    L(3, 9, front, A - 6, 1);
-    leftText(ctx, ox, ty, B, VENDING_HEIGHT, 6, 5, 'MINUM', C(1));
-
     // Bingkai dan kaca.
     L(2, 15, C(1), 19, 1);
     L(2, 56, C(1), 19, 1);
     L(2, 15, C(1), 1, 42);
     L(20, 15, C(1), 1, 42);
     L(3, 16, C(18), 17, 40);
-    // Lampu di atas kaca.
-    L(3, 16, lightOn ? C(11) : C(4), 17, 1);
+    drawVendingLights(ctx, cx, ty, color, lightOn);
 
     // Lima baris rak dalam berisi botol: tutup terang, badan berwarna, sisi gelap.
     const perRow = BOTTLES_PER_ROW[fill];

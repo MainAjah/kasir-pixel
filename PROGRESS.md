@@ -1,8 +1,8 @@
 # PROGRESS
 
-## Tahap 5C: Sprite dan animasi (21 Nov 2026, berjalan)
+## Tahap 5C: Sprite dan animasi (21–22 Nov 2026, selesai)
 
-Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab` dengan perbesaran 4× dan menunggu persetujuan pemilik. Elemen yang belum disetujui masih kotak pengganti dari 5B.
+Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab` dengan perbesaran 4× dan disetujui pemilik. Tidak ada lagi kotak pengganti dari 5B di diorama.
 
 ### Langkah 1: pelanggan dan potongan rak (disetujui)
 
@@ -100,6 +100,31 @@ Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab
 - Hanya palet 24 warna (dites).
 - **Lab:** `components/diorama/goods-lab.tsx`, pratinjau 4×: warna per produk, mengambil dari rak, meluncur di scanner, kantong ke tangan, koin terbang, bingkai putaran koin.
 - **Tes:** 8 tes baru (`sprites/goods.test.ts`); seluruhnya 127 tes Vitest lulus.
+
+### Elemen: hiasan, jendela dan pintu siang-senja-malam (disetujui)
+
+- **Hiasan** (`sprites/decor-sprite.ts`), letaknya dari rancangan 5A:
+  - **jendela** di dinding kanan, kusen kayu bersilang: siang (langit biru, awan, pepohonan), senja (langit lavender ke kunyit, matahari terbenam), malam (langit biru malam, bulan sabit, bintang, siluet pohon);
+  - **jam dinding bundar** berbingkai kayu dengan tanda 12-3-6-9; jarum menunjuk 10.10 (siang), 17.40 (senja), 21.00 (malam);
+  - **empat lukisan:** gunung dan sawah, laut senja (dinding kanan), buah, bunga (dinding kiri); tiga warna 5A di luar palet diganti warna palet;
+  - **dua lampu dinding** (baru di 5C): mati saat siang, menyala saat senja dan malam dengan lingkaran cahaya hangat yang miring mengikuti dinding;
+  - **tanaman pot** (dua buah): pot terakota berbibir kunyit, rumpun daun rimbun dua warna hijau.
+- **Pintu kaca** (`sprites/room-sprite.ts`, permintaan pemilik): kaca menampilkan pemandangan luar menurut waktu seperti jendela: langit, pepohonan, rumput, dan trotoar berpaving. Bingkai, kusen, dan gagang tetap; pantulan kaca meredup di malam hari.
+- **Lapisan malam** (`render/lighting.ts`, rancangan bagian 8):
+  - lapisan biru malam `#3a3d6b` tembus pandang 42% saat malam, setengahnya saat senja;
+  - latar (ruangan, hiasan, lapisan biru, kaca jendela dan pintu yang tetap terang, lampu dinding menyala) dirender sekali per waktu;
+  - benda dan aktor digambar di lapisan terpisah, diredupkan dengan biru yang sama, lalu ditempel ke latar, jadi pelanggan yang lewat tetap menutupi kaca pintu;
+  - papan nama vending (tetap berkedip) dan layar mini kasir 1 digambar ulang terang, dengan pendar kuning di lantai depan vending dan di sekitar layar.
+- **Waktu dipilih manual** (`RenderOptions.timeOfDay`, bawaan siang): tombol Siang, Senja, Malam di lab. Jam browser menyusul di 5D.
+- Papan nama vending dan muka layar mini dipisah menjadi fungsi sendiri (`drawVendingLights`, `drawCounterScreen`) supaya bisa digambar ulang terang; tampilan siang tidak berubah.
+- Hanya palet 24 warna (dites).
+- **Lab:** `components/diorama/decor-lab.tsx`, pratinjau 4×: jendela dan pintu dalam tiga waktu, jam, lampu mati dan menyala, empat lukisan, tanaman siang dan malam, potongan diorama sungguhan (pojok jendela dalam tiga waktu; dinding kiri, dinding kanan, dan meja kasir pada waktu terpilih).
+- **Saran yang belum dipakai:** malam lebih biru gelap dengan campuran *multiply*, senja dengan rona kunyit. Nilai 5A tetap dipakai sampai pemilik memutuskan.
+- **Tes:** 19 tes baru (`sprites/decor.test.ts`); seluruhnya 146 tes Vitest lulus.
+
+### Saran untuk tahap berikutnya
+
+Semua elemen 5C sudah disetujui. Tahap berikutnya **5D** (suasana dan hubungan data: siang dan malam dari jam browser, bunyi, rak dan vending machine terisi sesuai stok nyata). Model **Sonnet**, upaya **tinggi**.
 
 ---
 
