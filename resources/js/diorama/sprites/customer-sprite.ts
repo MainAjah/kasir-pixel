@@ -414,6 +414,13 @@ export function buildCustomerFrame(
     return m;
 }
 
+/** Naik-turun badan pada bingkai ini (negatif = naik), untuk barang di tangan. */
+export function customerBob(action: CustomerAction, frame: number): number {
+    const poses = POSES[action];
+
+    return poses[((frame % poses.length) + poses.length) % poses.length].bob;
+}
+
 /** Arah hadap isometrik → sisi gambar dan apakah dicermin. */
 export function sideForFacing(facing: Facing): {
     side: SpriteSide;

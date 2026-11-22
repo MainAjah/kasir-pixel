@@ -26,6 +26,7 @@ import {
     FOOT_Y,
     FRAME_W,
     buildCustomerFrame,
+    customerBob,
     frameAt,
     variantForLook,
     variantKey,
@@ -45,11 +46,25 @@ import {
 } from '../sprites/reference-sprite';
 import type { ReferenceCharacter } from '../sprites/reference-sprite';
 import {
+    counterBagPoint,
+    counterDrawerPoint,
     drawCounterSlice,
     drawStool,
     formatDisplay,
 } from '../sprites/counter-sprite';
 import type { CounterLook } from '../sprites/counter-sprite';
+import {
+    COIN_FRAMES,
+    COIN_SPIN,
+    arcPoint,
+    bagMatrix,
+    coinMatrix,
+    drawItemBox,
+    handOffset,
+    productColor,
+} from '../sprites/goods-sprite';
+import type { GoodsColors, Point } from '../sprites/goods-sprite';
+import { C } from '../sprites/palette';
 import { drawRoom } from '../sprites/room-sprite';
 import {
     VENDING_CANVAS,
@@ -275,7 +290,7 @@ export class PlaceholderRenderer {
                     depth: effectDepth(depth),
                     layer: LAYER.effect,
                     gx: customer.fx,
-                    draw: (c) => this.drawCoin(c, customer),
+                    draw: (c) => this.drawCoin(c, world, customer),
                 });
             }
         }
@@ -458,9 +473,21 @@ export class PlaceholderRenderer {
         const { state, progress } = world.cashier;
         const paying = state === 'terima_koin' && world.display.total !== null;
 
+        // Warna barang yang sedang dipindai = warna produknya.
+        const served = world.customers.find((c) => c.state === 'dipindai');
+        const played = served ? (world.saleOf(served)?.scansPlayed ?? 0) : 0;
+        const scanColors = served
+            ? this.goodsColor(
+                  this.goodsNames(world, served),
+                  served,
+                  Math.max(0, played - 1),
+              )
+            : undefined;
+
         return {
             on: true,
             scan: state === 'pindai' ? progress : null,
+            scanColors,
             beep: state === 'bungkus',
             receipt: state === 'terima_koin' ? progress : null,
             display: paying
@@ -622,33 +649,7 @@ export class PlaceholderRenderer {
             ctx.drawImage(sprite, x - footX, y - FOOT_Y);
         }
 
-        if (customer.hasBag) {
-            isoBox(
-                ctx,
-                x + 8,
-                y - 10 - lift,
-                7,
-                7,
-                9,
-                '#e6d0a7',
-                '#c98e6a',
-                '#a8763f',
-            );
-        } else if (customer.carrying > 0) {
-            for (let k = 0; k < Math.min(customer.carrying, 3); k++) {
-                isoBox(
-                    ctx,
-                    x + 8,
-                    y - 14 - lift - k * 5,
-                    5,
-                    5,
-                    4,
-                    '#ffe9a8',
-                    '#f6c56b',
-                    '#e89b4f',
-                );
-            }
-        }
+        this.drawGoods(ctx, world, customer);
 
         if (ids) {
             const label = String(customer.id);
@@ -807,35 +808,160 @@ export class PlaceholderRenderer {
         drawText(ctx, bx + 2, by + 2, text, '#c2675a', 1);
     }
 
-    private drawCoin(ctx: CanvasRenderingContext2D, customer: Customer): void {
-        const from = tileCenter(customer.fx, customer.fy);
+    // ---- Barang, kantong, koin (sprite 5C elemen 4) --------------------------
+
+    /** Letak tangan pelanggan saat ini, mengikuti naik-turun badan. */
+    private handPoint(world: DioramaWorld, customer: Customer): Point {
+        const { x, y } = tileCenter(customer.fx, customer.fy);
+        const heading = this.headings.get(customer.id) ?? headingOf(customer);
+        const action = customerAction(customer);
+        const frame = frameAt(action, world.time, customer.id * 0.37);
+        const character = customerCharacter(customer);
+        const src = character ? referenceMatrix(character.key) : null;
+
+        if (character && src) {
+            const hand = handOffset(src, heading.left);
+            const bob = motionFrame(character, action, frame, heading.left).dy;
+
+            return { x: x + hand.x, y: y + hand.y + bob - character.hover };
+        }
+
+        const hand = handOffset(null, heading.left);
+
+        return { x: x + hand.x, y: y + hand.y + customerBob(action, frame) };
+    }
+
+    /** Puncak tile kanan meja kasir 1 (laci, tumpukan kantong). */
+    private activeCounterRight(): Point | null {
         const counter = this.scene.furniture.find(
             (f) => f.kind === 'meja_kasir' && f.active,
         );
 
-        if (!counter) {
+        return counter ? tileTop(counter.gx + counter.w - 1, counter.gy) : null;
+    }
+
+    /** Nama barang penjualan ini, urut pindai (atau rincian bila belum ada pindai). */
+    private goodsNames(world: DioramaWorld, customer: Customer): string[] {
+        const sale = world.saleOf(customer);
+
+        if (!sale) {
+            return [];
+        }
+
+        return (sale.scanned.length > 0 ? sale.scanned : sale.items).map(
+            (item) => item.name,
+        );
+    }
+
+    private goodsColor(
+        names: string[],
+        customer: Customer,
+        k: number,
+    ): GoodsColors {
+        return productColor(names[k] ?? `${customer.id}:${k}`);
+    }
+
+    /**
+     * Barang di tangan (bertumpuk), barang melayang dari rak saat diambil,
+     * kantong dari meja ke tangan, lalu kantong dibawa pulang.
+     */
+    private drawGoods(
+        ctx: CanvasRenderingContext2D,
+        world: DioramaWorld,
+        customer: Customer,
+    ): void {
+        const hand = this.handPoint(world, customer);
+        const names = this.goodsNames(world, customer);
+        const played = world.saleOf(customer)?.scansPlayed ?? 0;
+        const state = customer.state;
+
+        // Kantong: terbang dari tumpukan di meja ke tangan, lalu dibawa.
+        if (state === 'ambil_kantong') {
+            const right = this.activeCounterRight();
+
+            if (right) {
+                const from = counterBagPoint(right.x, right.y);
+                const t = customer.stateTime / DURATION.ambil_kantong;
+                const p = arcPoint(from, hand, t, 8);
+                ctx.drawImage(this.bagCanvas(), p.x - 4, p.y - 1);
+            }
+
             return;
         }
 
-        const drawer = tileCenter(counter.gx + counter.w - 1, counter.gy);
-        const progress = Math.min(
-            1,
-            customer.stateTime / (DURATION.bayar * 0.7),
-        );
-        const arc = Math.sin(progress * Math.PI) * 10;
-        const x = Math.round(from.x + 6 + (drawer.x - from.x - 6) * progress);
-        const y = Math.round(
-            from.y -
-                22 +
-                (drawer.y - counter.height - 4 - from.y + 22) * progress -
-                arc,
-        );
+        if (customer.hasBag) {
+            ctx.drawImage(this.bagCanvas(), hand.x - 4, hand.y - 1);
 
-        if (progress < 1) {
-            ctx.fillStyle = '#c2675a';
-            ctx.fillRect(x - 2, y - 2, 5, 5);
-            ctx.fillStyle = '#ffe9a8';
-            ctx.fillRect(x - 1, y - 1, 3, 3);
+            return;
+        }
+
+        // Barang dibawa: berkurang satu per satu saat dipindai, habis saat membayar.
+        const atCounter = state === 'dilayani' || state === 'dipindai';
+        const offset = atCounter ? played : 0;
+        const shown =
+            state === 'bayar' ? 0 : Math.max(0, customer.carrying - offset);
+
+        for (let k = 0; k < Math.min(shown, 3); k++) {
+            drawItemBox(
+                ctx,
+                hand.x,
+                hand.y - k * 6,
+                this.goodsColor(names, customer, offset + k),
+            );
+        }
+
+        // Mengambil: barang melayang dari papan rak (atau pintu vending) ke tangan.
+        if (state === 'ambil' && customer.pick) {
+            const vending = customer.pick.source.startsWith('vending');
+            const shelf = tileCenter(customer.pick.gx, customer.pick.gy - 0.6);
+            const from = { x: shelf.x, y: shelf.y - (vending ? 10 : 18) };
+            const to = { x: hand.x, y: hand.y - Math.min(shown, 3) * 6 };
+            const t = customer.stateTime / (DURATION.ambil / customer.speed);
+            const p = arcPoint(from, to, t, 6);
+            drawItemBox(
+                ctx,
+                p.x,
+                p.y,
+                this.goodsColor(names, customer, customer.carrying),
+            );
+        }
+    }
+
+    private bagCanvas(): HTMLCanvasElement {
+        return this.sprites.get('kantong', bagMatrix);
+    }
+
+    /** Koin berputar terbang dari tangan ke laci uang, lalu berkilau sesaat. */
+    private drawCoin(
+        ctx: CanvasRenderingContext2D,
+        world: DioramaWorld,
+        customer: Customer,
+    ): void {
+        const right = this.activeCounterRight();
+
+        if (!right) {
+            return;
+        }
+
+        const flight = DURATION.bayar * 0.7;
+        const drawer = counterDrawerPoint(right.x, right.y);
+        const t = customer.stateTime / flight;
+
+        if (t < 1) {
+            const p = arcPoint(this.handPoint(world, customer), drawer, t, 14);
+            const frame = Math.floor(world.time * COIN_SPIN) % COIN_FRAMES;
+            const coin = this.sprites.get(`koin|${frame}`, () =>
+                coinMatrix(frame),
+            );
+            ctx.drawImage(coin, p.x - fl(coin.width / 2), p.y - 2);
+        } else if (customer.stateTime < flight + 0.2) {
+            // Kilau kecil saat koin masuk laci.
+            ctx.fillStyle = C(4);
+            ctx.fillRect(drawer.x, drawer.y - 4, 1, 3);
+            ctx.fillRect(drawer.x - 1, drawer.y - 3, 3, 1);
+            ctx.fillStyle = C(11);
+            ctx.fillRect(drawer.x - 3, drawer.y - 6, 1, 1);
+            ctx.fillRect(drawer.x + 3, drawer.y - 5, 1, 1);
         }
     }
 

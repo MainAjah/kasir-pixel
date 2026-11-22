@@ -22,6 +22,7 @@ import {
     topDot,
 } from '../render/pixel';
 import { formatRupiah } from '../render/pixel';
+import type { GoodsColors } from './goods-sprite';
 import { C } from './palette';
 
 export const COUNTER_HEIGHT = 28;
@@ -32,6 +33,8 @@ export type CounterLook = {
     on: boolean;
     /** Sedang memindai: 0..1 kemajuan satu pindai, null bila tidak. */
     scan: number | null;
+    /** Warna barang yang sedang dipindai (sesuai produk); bawaan kuning. */
+    scanColors?: GoodsColors;
     /** LED scanner genggam menyala hijau ("bip" berhasil). */
     beep: boolean;
     /** Struk keluar dari printer: 0..1 panjangnya, null bila tidak. */
@@ -147,7 +150,21 @@ function drawLeftPart(
         if (scanning) {
             const v = Math.round((look.scan ?? 0) * 9);
             const [bx, by] = onTop(ox, oy, 0, 2, v);
-            isoBox(ctx, bx, by, 4, 3, 3, C(11), C(12), C(13));
+            if (look.scanColors) {
+                isoBox(
+                    ctx,
+                    bx,
+                    by,
+                    4,
+                    3,
+                    3,
+                    C(4),
+                    look.scanColors[0],
+                    look.scanColors[1],
+                );
+            } else {
+                isoBox(ctx, bx, by, 4, 3, 3, C(11), C(12), C(13));
+            }
 
             if (bright) {
                 leftDot(ctx, bx, by, 3, 3, 0, 1, C(14), 4, 1);
@@ -235,6 +252,26 @@ function drawRightPart(
         look.display.text,
         C(1),
     );
+}
+
+/** Puncak tumpukan kantong di potongan kanan (puncak tile cx, ty): kantong diambil dari sini. */
+export function counterBagPoint(
+    cx: number,
+    ty: number,
+): { x: number; y: number } {
+    const [x, y] = onTop(cx, ty, COUNTER_HEIGHT + 4, 27, 9);
+
+    return { x, y };
+}
+
+/** Laci uang di potongan kanan: koin mendarat di sini. */
+export function counterDrawerPoint(
+    cx: number,
+    ty: number,
+): { x: number; y: number } {
+    const [x, y] = onTop(cx, ty, COUNTER_HEIGHT + 5, 14, 10);
+
+    return { x, y };
 }
 
 /** Satu potongan meja kasir (kiri atau kanan) di puncak tile (cx, ty). */

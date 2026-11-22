@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import DioramaCanvas from '@/components/diorama/diorama-canvas';
 import CounterLab from '@/components/diorama/counter-lab';
+import GoodsLab from '@/components/diorama/goods-lab';
 import ReferenceLab from '@/components/diorama/reference-lab';
 import RoomLab from '@/components/diorama/room-lab';
 import VendingLab from '@/components/diorama/vending-lab';
@@ -163,23 +164,26 @@ export default function DioramaLab() {
 
                 <section className="space-y-3 rounded-md border p-4">
                     <h3 className="font-medium">
-                        Tahap 5C elemen 3: vending machine
+                        Tahap 5C elemen 4: barang bawaan, kantong, dan koin
                     </h3>
                     <p className="text-sm text-muted-foreground">
-                        Bentuk dari rancangan 5A, dengan botol empat tingkat isi
-                        dan lampu yang berkedip pelan. Di diorama di bawah,
-                        ketiga vending machine di dinding belakang sudah memakai
-                        sprite ini.
+                        Di diorama di bawah, gerakannya sudah dipasang: coba
+                        "Pelanggan baru" lalu "Pindai barang" dua kali untuk
+                        melihat barang diambil dari rak dan meluncur di scanner,
+                        lalu "Bayar" untuk melihat koin terbang dan kantong
+                        berpindah ke tangan.
                     </p>
-                    <VendingLab />
+                    <GoodsLab />
                 </section>
 
                 <details className="rounded-md border p-4">
                     <summary className="cursor-pointer font-medium">
                         Tahap 5C yang sudah disetujui: pelanggan, rak, karakter
-                        dari gambar Anda, lantai, dinding, pintu, dan meja kasir
+                        dari gambar Anda, lantai, dinding, pintu, meja kasir,
+                        dan vending machine
                     </summary>
                     <div className="mt-4 space-y-8">
+                        <VendingLab />
                         <CounterLab />
                         <RoomLab />
                         <ReferenceLab />

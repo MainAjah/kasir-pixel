@@ -145,7 +145,7 @@ Selama `mengejar`, `di_pintu`, dan `kembali`, kasir tidak melayani: pembeli di t
 | Pelanggan referensi | 20–46 × 45–56 | 1 pose + cermin | 5 karakter dari gambar pemilik, warna asli (lihat bagian 6) |
 | Pelanggan buatan sendiri | ±32×48 | diam 2 + jalan 4 + ambil 2, × 2 hadap | disusun dari lapisan badan, rambut, kostum; digambar ulang detail di 5C |
 | Penjaga kasir | 27×41 | 1 pose + cermin | **zombie dari gambar pemilik**; animasi pindai, angguk, dan geleng memakai ayunan atau miring karena hanya satu pose |
-| Kotak barang, kantong, koin | 12×12, 16×16, 12×12 | 1, 1, 3 | |
+| Kotak barang, kantong, koin | 9×9, 9×11, 5×5 | 1, 1, 4 | di 5C: kotak bertutup terang berwarna sesuai produk (dari nama produk), melayang dari rak ke tangan dan meluncur di scanner; kantong kertas bertali dengan logo daun, melayang dari meja ke tangan; koin berputar 4 bingkai sambil terbang ke laci, berkilau saat mendarat |
 | Gelembung "×" dan "+N" | 24×20 | 1 | |
 
 Perabot, toko, dan karakter buatan sendiri disimpan sebagai **grid indeks palet** di berkas TypeScript, lalu dirender sekali ke kanvas cadangan. Karakter referensi disimpan sebagai PNG kecil hasil olahan (bagian 6). Di 5C, kerja dimulai dari satu karakter dan satu rak dulu (visi).

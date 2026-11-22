@@ -88,6 +88,19 @@ Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab
 - **Lab:** `components/diorama/vending-lab.tsx`, pratinjau 4× dengan latar dinding biru langit: tiga mesin berjajar dan empat tingkat isi.
 - **Tes:** 4 tes baru (`sprites/vending.test.ts`); seluruhnya 119 tes Vitest lulus.
 
+### Elemen: barang bawaan, kantong, dan koin (disetujui)
+
+- **Barang bawaan** (`sprites/goods-sprite.ts`):
+  - kotak kecil bertutup terang; warnanya dari nama produk (FNV-1a dengan pengaduk akhir), jadi produk yang sama selalu berwarna sama;
+  - melayang dari papan rak (atau pintu ambil vending machine) ke tangan saat diambil, lalu bertumpuk di tangan dan ikut naik-turun badan;
+  - berkurang satu per satu saat dipindai; barang di scanner berwarna sesuai produk yang sedang dipindai.
+- **Kantong belanja:** kertas cokelat muda dengan tali dan logo daun hijau. Setelah membayar, kantong melayang dari tumpukan di meja ke tangan, lalu dibawa pulang.
+- **Koin:** berputar 4 bingkai (muka, miring, tepi, miring) sambil melengkung terbang dari tangan ke laci uang; berkilau saat mendarat.
+- **Tangan:** letak tangan ke arah hadap, setinggi pinggang; untuk karakter dari gambar pemilik mengikuti ukuran gambarnya.
+- Hanya palet 24 warna (dites).
+- **Lab:** `components/diorama/goods-lab.tsx`, pratinjau 4×: warna per produk, mengambil dari rak, meluncur di scanner, kantong ke tangan, koin terbang, bingkai putaran koin.
+- **Tes:** 8 tes baru (`sprites/goods.test.ts`); seluruhnya 127 tes Vitest lulus.
+
 ---
 
 ## Tahap 5B: Mesin diorama (21 Nov 2026)
