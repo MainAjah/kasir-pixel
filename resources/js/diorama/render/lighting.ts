@@ -37,6 +37,27 @@ export const NIGHT_ALPHA = 0.42;
 
 const LAMP_SIZE = { width: 7, height: 9 } as const;
 
+/**
+ * Warna latar di luar ruangan setelah lapisan malam (sama dengan piksel pojok
+ * kanvas). Dipakai untuk mengisi layar di sekeliling kanvas di Beranda supaya
+ * kanvas menyatu dengan layar.
+ */
+export function backdropColor(time: TimeOfDay, base: string = C(4)): string {
+    const a = NIGHT_ALPHA * NIGHT_STRENGTH[time];
+    const mix = (from: string, to: string, shift: number) => {
+        const f = (parseInt(from.slice(1), 16) >> shift) & 255;
+        const t = (parseInt(to.slice(1), 16) >> shift) & 255;
+
+        return Math.round(f + (t - f) * a);
+    };
+    const night = C(24);
+    const hex = [16, 8, 0]
+        .map((s) => mix(base, night, s).toString(16).padStart(2, '0'))
+        .join('');
+
+    return `#${hex}`;
+}
+
 /** Gambar hiasan dinding untuk waktu ini (null = bukan hiasan dinding). */
 export function decorMatrix(key: string, time: TimeOfDay): PixelMatrix | null {
     if (key.startsWith('lukisan-')) {

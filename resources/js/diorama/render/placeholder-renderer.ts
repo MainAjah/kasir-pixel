@@ -33,7 +33,10 @@ import {
 } from '../sprites/customer-sprite';
 import type { CustomerAction } from '../sprites/customer-sprite';
 import { mirror } from '../sprites/pixels';
+import { fillKey } from '../engine/shelves';
+import type { ShelfFills } from '../engine/shelves';
 import { RACK_CANVAS, drawRackSlice } from '../sprites/rack-sprite';
+import type { RackFill } from '../sprites/rack-sprite';
 import { referenceMatrix } from '../sprites/reference-loader';
 import {
     REFERENCE_CHARACTERS,
@@ -95,6 +98,11 @@ export type RenderOptions = {
     ids?: boolean;
     /** Siang, senja, atau malam (bawaan siang; jam browser menyusul di 5D). */
     timeOfDay?: TimeOfDay;
+    /**
+     * Isi tiap potongan rak dan mesin vending menurut stok nyata (shelfFills,
+     * Tahap 5D-1). Potongan yang tidak disebut digambar penuh (halaman lab).
+     */
+    fills?: ShelfFills;
 };
 
 const INK = '#2b2a33';
@@ -245,6 +253,8 @@ export class PlaceholderRenderer {
                             slice.gx,
                             slice.gy,
                             slice.index,
+                            options.fills?.[fillKey(item.id, slice.index)] ??
+                                'penuh',
                         ),
                 });
             }
@@ -449,15 +459,16 @@ export class PlaceholderRenderer {
         gx: number,
         gy: number,
         index: number,
+        fill: RackFill,
     ): void {
         const { x: cx, y: ty } = tileTop(gx, gy);
 
         switch (item.kind) {
             case 'rak': {
-                // Sprite 5C. Isi rak menurut stok menyusul di 5D; sementara penuh.
+                // Sprite 5C; isi menurut stok nyata (5D-1), bawaan penuh.
                 const seed = (item.id === 'rak-a' ? 0 : 10) + index + 1;
                 const sprite = this.sprites.getDrawn(
-                    `rak|penuh|${seed}`,
+                    `rak|${fill}|${seed}`,
                     RACK_CANVAS.width,
                     RACK_CANVAS.height,
                     (c) =>
@@ -465,7 +476,7 @@ export class PlaceholderRenderer {
                             c,
                             RACK_CANVAS.originX,
                             RACK_CANVAS.originY,
-                            'penuh',
+                            fill,
                             seed,
                         ),
                 );
@@ -479,11 +490,11 @@ export class PlaceholderRenderer {
             }
 
             case 'vending': {
-                // Sprite 5C. Isi menurut stok menyusul di 5D; sementara penuh.
+                // Sprite 5C; isi menurut stok nyata (5D-1), bawaan penuh.
                 const color = VENDING_COLORS[item.id] ?? 0;
                 const on = vendingLightOn(world.time, color);
                 const sprite = this.sprites.getDrawn(
-                    `vending|${color}|penuh|${on ? 1 : 0}`,
+                    `vending|${color}|${fill}|${on ? 1 : 0}`,
                     VENDING_CANVAS.width,
                     VENDING_CANVAS.height,
                     (c) =>
@@ -492,7 +503,7 @@ export class PlaceholderRenderer {
                             VENDING_CANVAS.originX,
                             VENDING_CANVAS.originY,
                             color,
-                            'penuh',
+                            fill,
                             on,
                         ),
                 );

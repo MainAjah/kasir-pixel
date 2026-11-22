@@ -1,12 +1,20 @@
 <?php
 
+use App\Http\Controllers\DashboardController;
+use App\Http\Controllers\DashboardFeedController;
 use App\Http\Controllers\Diorama\SimulateSaleController;
 use Illuminate\Support\Facades\Route;
 
 Route::inertia('/', 'welcome')->name('home');
 
+// Beranda (Tahap 5D-1): semua peran.
 Route::middleware(['auth'])->group(function () {
-    Route::inertia('dashboard', 'dashboard')->name('dashboard');
+    Route::get('dashboard', DashboardController::class)->name('dashboard');
+
+    // Polling Beranda tiap 5 detik: penjualan baru, angka Hari Ini, isi rak. Hanya membaca.
+    Route::get('beranda/peristiwa', DashboardFeedController::class)
+        ->middleware('throttle:120,1')
+        ->name('dashboard.feed');
 });
 
 // Pratinjau mesin diorama (Tahap 5B): hanya admin, tidak membaca atau menulis data.

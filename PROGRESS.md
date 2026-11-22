@@ -1,5 +1,43 @@
 # PROGRESS
 
+## Tahap 5D-1: Beranda dengan diorama data nyata (22 Nov 2026)
+
+Status: **selesai, keempat langkah disetujui pemilik. Belum di-commit.** Tidak ada paket baru, tidak ada migration, dan tidak ada perubahan aturan uang, stok, atau simpanan. Semua yang baru di server hanya membaca. Halaman awal publik (5F) dicoret, jadi komponen diorama cukup satu mode: data nyata.
+
+### Yang sudah selesai
+
+- **Langkah 1, Beranda layar penuh** (`/dashboard`, semua peran, tanpa sidebar, bar atas, atau bar bawah):
+  - diorama memenuhi layar (`DioramaCanvas fit="screen"`): sebesar mungkin yang muat, kelipatan bulat piksel layar bila masih mengisi ≥ 90%, sekelilingnya diwarnai sama dengan latar kanvas (`backdropColor`, ikut gelap saat senja dan malam);
+  - kartu "Hari Ini" di kiri atas (`TodaySummary`): penjualan dan jumlah transaksi hari ini menurut zona tampilan (tanpa yang dibatalkan), stok menipis (produk aktif dengan stok ≤ minimum, termasuk kosong). Bingkai pixel, judul dan angka memakai huruf pixel 3 × 5 milik diorama;
+  - menu ikon kiri dengan ikon 12 × 12 buatan sendiri (warna palet): Produk, Stok (penerimaan barang), Laporan (sementara riwayat penjualan), Pengguna (redup, menyusul 6B). Tambahan yang disetujui bersama langkah 1: Kasir, Anggota, Keluar. Tiap ikon hanya tampil untuk peran yang berhak (penjaga tetap middleware);
+  - label sidebar halaman lain "Dashboard" menjadi "Beranda"; pratinjau 4× ikon dan kartu di `/diorama-lab`.
+- **Langkah 2, rak dan vending sesuai stok nyata** (batas disetujui pemilik):
+  - `ShelfStock` (server): kosong 0; sedikit 1 sampai stok minimum (sama dengan "stok menipis"); setengah sampai 3× minimum; penuh di atasnya; minimum 0 memakai patokan 5; produk nonaktif tidak ikut. Kategori "Minuman" ke vending (urut nama), lainnya ke rak (urut kategori lalu nama);
+  - `shelfFills` (diorama): dibagi rata ke 10 potongan rak (Rak A lalu Rak B) dan 3 vending; potongan berisi beberapa produk memakai rata-rata dibulatkan ke bawah. `/diorama-lab` tetap penuh;
+  - **perbaikan karakter:** saat server Vite berjalan, gambar karakter pemilik disajikan dari asal lain sehingga kanvas "tercemar" dan diorama memakai sosok cadangan. `reference-loader` kini memakai `crossOrigin = 'anonymous'` dan tetap selesai bila satu gambar gagal. Karakter pelanggan dan zombie penjaga kasir adalah karakter wajib (keputusan pemilik);
+  - **peristiwa acak** (diminta pemilik): saat sepi muncul rombongan 3 sampai 5 pembeli, pembeli yang kabur setelah pindaian pertama lalu dikejar penjaga, atau pembeli tunggal (`world.stagePretend`, `ambient`). Hanya animasi: tidak menulis data, tidak mengubah total harian, layar mini, atau "+N"; penjualan sungguhan selalu didahulukan. Di lab ada tombol "Rombongan (acak)", "Kabur dikejar (acak)", dan centang "Peristiwa acak saat sepi".
+- **Langkah 3, polling 5 detik** (baca-saja):
+  - `GET /beranda/peristiwa?sale=&void=` (`dashboard.feed`, semua peran login, throttle 120/menit, `DashboardFeed`): penjualan dan pembatalan setelah kursor (paling banyak 10 penjualan terbaru), angka Hari Ini, isi rak, kursor baru. Kursor awal dibawa Beranda, jadi penjualan lama tidak diputar ulang;
+  - `useDashboardFeed`: penjualan baru diputar sebagai `sale.completed`, pembatalan sebagai `sale.voided` (yang ganda dibuang adaptor); kartu, total layar mini, dan rak ikut diperbarui; berhenti saat tab tersembunyi dan menyusul saat tampil lagi. Sudah dicoba dengan satu "Simulasi pesanan" sungguhan (INV-20261122-0002) dari tab lain.
+- **Langkah 4, siang, senja, malam dari jam browser** (`timeOfDayAt`, diperiksa tiap 30 detik): siang 06.00–16.59, senja 17.00–18.59 dan fajar 05.00–05.59, malam 19.00–04.59, memakai lapisan malam 5C. `/dashboard?waktu=senja|malam|siang` memaksa waktu untuk demo dan presentasi.
+- **Tes:** Pest baru `BerandaTest` (7), `ShelfStockTest` (21), `DashboardFeedTest` (11), dan Vitest baru `fit`, `shelves`, `ambient`, `poll`, `clock` (semua di `kasir_test` atau murni). Seluruhnya 303 tes Pest dan 185 tes Vitest lulus; Pint, tsc, lint, dan build bersih.
+
+### Batasan dan hal yang perlu diketahui
+
+- Zona waktu: browser pemilik memakai WITA, server menghitung "Hari Ini" dengan WIB (`APP_DISPLAY_TIMEZONE` bawaan `Asia/Jakarta`). Bila koperasinya di WITA, isi `APP_DISPLAY_TIMEZONE=Asia/Makassar` di `.env` (belum diubah).
+- Huruf pixel 3 × 5 membuat "N" mirip "W" di judul "HARI INI"; font pixel yang lebih baik bisa di 5E.
+- Pembeli dari peristiwa acak terlihat seperti pembeli biasa (membayar dengan koin) walau tidak ada penjualan di belakangnya; angka di layar tetap nyata. Saat klik pelanggan dibuat di 5D-2, pembeli pura-pura perlu ditandai (`sale.pretend`).
+- Pembeli yang kabur di Beranda hanya dari peristiwa acak; layar kasir belum memancarkan `sale.abandoned`.
+- Tombol "Simulasi pesanan" masih hanya di `/diorama-lab`, belum di Beranda (catatan Tahap 6 menyebut perlu dijangkau dari dasbor; bisa masuk bubble atau tombol admin di 5D-2 bila pemilik setuju).
+- Ikon Pengguna redup sampai halaman kelola pengguna ada (6B); Laporan sementara menuju riwayat penjualan sampai 6C.
+- Server Vite (`npm run dev`) dan `php artisan serve --port=8010` (database `kasir`) masih berjalan dari sesi ini.
+
+### Saran untuk tahap berikutnya
+
+**Tahap 5D-2** (bubble di atas karakter Kasir dan Inventaris, karakter besar dari potret yang sama diperbesar tanpa ekspresi tambahan, akses per peran dijaga di server, cadangan tombol keyboard, bunyi 8-bit dengan tombol senyap (mati bawaan), mode hemat daya, klik pelanggan): **Sonnet, upaya tinggi**, sesuai tabel di `claude.md`. Pindah ke Opus (upaya tinggi) hanya bila tampilan karakter besar atau bubble sulit dibuat rapi. Karakter pelanggan dan penjaga kasir tetap karakter dari gambar pemilik. Mulai sesi baru setelah mengganti model.
+
+---
+
 ## Tahap 6: Data contoh dan tombol "Simulasi pesanan" (22 Nov 2026)
 
 Status: **selesai, disetujui pemilik, sudah di-commit (db3b072).** Pemilik sudah mencoba tombolnya dan berfungsi. Tidak ada paket baru, tidak ada migration baru, dan tidak ada perubahan aturan uang, stok, atau simpanan (semua tulisan lewat Action yang sudah ada).

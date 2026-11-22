@@ -41,16 +41,41 @@ export type SaleRecord = SaleProgress & {
     scanned: DioramaItem[];
     voided: boolean;
     abandoned: boolean;
+    /**
+     * Pembeli pura-pura dari peristiwa acak (Beranda): hanya animasi, tidak ada
+     * penjualan di belakangnya. Tidak mengubah total harian, layar pelanggan,
+     * atau angka "+N".
+     */
+    pretend: boolean;
+    /** Pembeli pura-pura yang kabur saat mulai dipindai. */
+    runAway: boolean;
 };
+
+/** Jenis peristiwa acak: pembeli tunggal, rombongan, atau kabur lalu dikejar. */
+export type PretendKind = 'pembeli' | 'rombongan' | 'kabur';
 
 export type WorldOptions = {
     scene?: StoreScene;
     seed?: number;
     /** Pelanggan latar muncul sendiri saat sepi. */
     autoBackground?: boolean;
+    /** Peristiwa acak pura-pura saat sepi (rombongan, kabur, pembeli tunggal). */
+    ambient?: boolean;
     /** Total penjualan hari ini saat diorama dimuat (dari server di 5D). */
     dailyTotal?: number;
 };
+
+/** Jeda peristiwa acak: pertama sejak dimuat, lalu sejak toko kembali sepi (detik). */
+export const AMBIENT_FIRST: readonly [number, number] = [4, 8];
+export const AMBIENT_GAP: readonly [number, number] = [12, 30];
+/** Besar rombongan (dibatasi tempat yang tersisa). */
+export const CROWD: readonly [number, number] = [3, 5];
+/** Peluang tiap jenis peristiwa acak. */
+const AMBIENT_WEIGHTS: readonly [PretendKind, number][] = [
+    ['rombongan', 0.4],
+    ['kabur', 0.3],
+    ['pembeli', 0.3],
+];
 
 /** Paling banyak 5 pelanggan tampil; pembeli selebihnya menjadi "+N". */
 export const MAX_VISIBLE = 5;
@@ -76,6 +101,7 @@ export class DioramaWorld implements CustomerContext {
         number: null,
     };
     autoBackground: boolean;
+    ambient: boolean;
     time = 0;
 
     private readonly rng: Rng;
@@ -84,6 +110,7 @@ export class DioramaWorld implements CustomerContext {
     private nextSaleId = 1;
     private spawnCooldown = 0;
     private backgroundTimer: number;
+    private ambientTimer: number;
 
     constructor(options: WorldOptions = {}) {
         this.scene = options.scene ?? STORE_SCENE;
@@ -92,17 +119,19 @@ export class DioramaWorld implements CustomerContext {
         this.cashier = new Cashier(this.scene.guard);
         this.rng = createRng(options.seed ?? Date.now());
         this.autoBackground = options.autoBackground ?? false;
+        this.ambient = options.ambient ?? false;
         this.dailyTotal = options.dailyTotal ?? 0;
         this.backgroundTimer = between(this.rng, 2, 5);
+        this.ambientTimer = between(this.rng, ...AMBIENT_FIRST);
     }
 
     get doorInside(): Tile {
         return this.scene.door.inside;
     }
 
-    /** Angka "+N": pembeli yang menunggu giliran tampil. */
+    /** Angka "+N": pembeli sungguhan yang menunggu giliran tampil (tanpa pura-pura). */
     get waitingCount(): number {
-        return this.pending.length;
+        return this.pending.filter((id) => !this.sales.get(id)?.pretend).length;
     }
 
     get visibleCount(): number {
@@ -192,6 +221,9 @@ export class DioramaWorld implements CustomerContext {
             stepCustomer(customer, dt, this);
         }
 
+        this.progressPretend();
+        this.scheduleAmbient(dt);
+
         for (const gone of this.customers.filter((c) => c.state === 'hilang')) {
             this.releasePick(gone);
             this.leaveQueue(gone);
@@ -216,12 +248,40 @@ export class DioramaWorld implements CustomerContext {
         return true;
     }
 
+    /**
+     * Peristiwa acak pura-pura (hanya animasi, tanpa data): satu pembeli, rombongan
+     * 3 sampai 5 pembeli (dibatasi tempat yang tersisa), atau satu pembeli yang
+     * kabur saat mulai dipindai lalu dikejar penjaga. Mengembalikan jumlah pembeli.
+     */
+    stagePretend(kind: PretendKind, count?: number): number {
+        const buyers = this.customers.filter((c) => c.kind === 'pembeli');
+        const room = Math.max(1, MAX_VISIBLE - buyers.length);
+        const size =
+            kind === 'rombongan'
+                ? Math.min(
+                      room,
+                      count ??
+                          CROWD[0] +
+                              Math.floor(
+                                  this.rng() * (CROWD[1] - CROWD[0] + 1),
+                              ),
+                  )
+                : 1;
+
+        for (let k = 0; k < size; k++) {
+            const sale = this.newSale(true);
+            sale.runAway = kind === 'kabur';
+        }
+
+        return size;
+    }
+
     /** Keadaan ringkas untuk panel debug dan tes. */
     snapshot() {
         return {
             time: this.time,
             dailyTotal: this.dailyTotal,
-            waiting: this.pending.length,
+            waiting: this.waitingCount,
             queue: [...this.queue.members],
             cashier: this.cashier.state,
             display: { ...this.display },
@@ -241,6 +301,7 @@ export class DioramaWorld implements CustomerContext {
                               completed: sale.completed,
                               voided: sale.voided,
                               abandoned: sale.abandoned,
+                              pretend: sale.pretend,
                           }
                         : null,
                 };
@@ -344,6 +405,12 @@ export class DioramaWorld implements CustomerContext {
     onPay(customer: Customer): void {
         const sale = this.saleOf(customer);
         this.cashier.receiveCoin();
+
+        // Pembeli pura-pura: layar tetap menampilkan total harian yang nyata.
+        if (sale?.pretend) {
+            return;
+        }
+
         this.display = {
             total: sale?.total ?? 0,
             number: sale?.number ?? null,
@@ -364,7 +431,7 @@ export class DioramaWorld implements CustomerContext {
         return sale;
     }
 
-    private newSale(): SaleRecord {
+    private newSale(pretend = false): SaleRecord {
         const sale: SaleRecord = {
             id: this.nextSaleId++,
             customerId: null,
@@ -378,13 +445,92 @@ export class DioramaWorld implements CustomerContext {
             completed: false,
             voided: false,
             abandoned: false,
+            pretend,
+            runAway: false,
         };
 
         this.sales.set(sale.id, sale);
-        this.pending.push(sale.id);
+
+        // Penjualan sungguhan mendahului pembeli pura-pura yang belum masuk.
+        const firstPretend = pretend
+            ? -1
+            : this.pending.findIndex((id) => this.sales.get(id)?.pretend);
+
+        if (firstPretend === -1) {
+            this.pending.push(sale.id);
+        } else {
+            this.pending.splice(firstPretend, 0, sale.id);
+        }
+
         this.pruneSales();
 
         return sale;
+    }
+
+    /**
+     * Memajukan pembeli pura-pura di meja kasir: jumlah pindaian = barang yang
+     * dibawa; yang biasa lalu "membayar" (tanpa angka), yang kabur lari setelah
+     * pindaian pertama dan dikejar penjaga.
+     */
+    private progressPretend(): void {
+        for (const customer of this.customers) {
+            const sale = this.saleOf(customer);
+
+            if (!sale?.pretend || sale.abandoned || sale.completed) {
+                continue;
+            }
+
+            if (customer.state === 'dilayani' && sale.scansReceived === 0) {
+                sale.scansReceived = Math.max(1, customer.carrying);
+
+                if (!sale.runAway) {
+                    sale.itemLines = sale.scansReceived;
+                    sale.completed = true;
+                }
+            }
+
+            if (
+                sale.runAway &&
+                customer.state === 'dipindai' &&
+                sale.scansPlayed >= 1
+            ) {
+                sale.abandoned = true;
+                this.dropSale(sale, true);
+            }
+        }
+    }
+
+    /** Peristiwa acak hanya saat sepi: tanpa pembeli, tanpa antrean, penjaga di tempat. */
+    private scheduleAmbient(dt: number): void {
+        const busy =
+            this.customers.some((c) => c.kind === 'pembeli') ||
+            this.pending.length > 0 ||
+            !this.cashier.atPost;
+
+        if (!this.ambient || busy) {
+            return;
+        }
+
+        this.ambientTimer -= dt;
+
+        if (this.ambientTimer > 0) {
+            return;
+        }
+
+        let roll = this.rng();
+        let kind: PretendKind = 'pembeli';
+
+        for (const [candidate, weight] of AMBIENT_WEIGHTS) {
+            if (roll < weight) {
+                kind = candidate;
+                break;
+            }
+
+            roll -= weight;
+        }
+
+        this.stagePretend(kind);
+        this.ambientTimer = between(this.rng, ...AMBIENT_GAP);
     }
 
     /**

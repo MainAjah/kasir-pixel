@@ -1,5 +1,6 @@
 import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
+import BerandaLab from '@/components/diorama/beranda-lab';
 import DioramaCanvas from '@/components/diorama/diorama-canvas';
 import CounterLab from '@/components/diorama/counter-lab';
 import DecorLab, { TimePicker } from '@/components/diorama/decor-lab';
@@ -62,6 +63,7 @@ export default function DioramaLab() {
     const [counter, setCounter] = useState(1);
     const [simulating, setSimulating] = useState(false);
     const [autoBackground, setAutoBackground] = useState(false);
+    const [ambient, setAmbient] = useState(false);
     const [options, setOptions] = useState<RenderOptions>({
         paths: false,
         blocked: false,
@@ -85,6 +87,10 @@ export default function DioramaLab() {
     useEffect(() => {
         world.autoBackground = autoBackground;
     }, [world, autoBackground]);
+
+    useEffect(() => {
+        world.ambient = ambient;
+    }, [world, ambient]);
 
     // Peristiwa palsu langsung ke adaptor diorama: tidak lewat emitStoreEvent,
     // jadi tidak ada yang dikirim ke server dan tidak ada data yang ditulis.
@@ -171,6 +177,19 @@ export default function DioramaLab() {
 
                 <section className="space-y-3 rounded-md border p-4">
                     <h3 className="font-medium">
+                        Tahap 5D-1: ikon menu dan kartu "Hari Ini" Beranda (4×)
+                    </h3>
+                    <p className="text-sm text-muted-foreground">
+                        Ikon 12 × 12 digambar sendiri dengan warna palet; angka
+                        dan judul memakai huruf pixel 3 × 5 milik diorama.
+                        Contoh angka di sini palsu; di Beranda angkanya dari
+                        database.
+                    </p>
+                    <BerandaLab />
+                </section>
+
+                <section className="space-y-3 rounded-md border p-4">
+                    <h3 className="font-medium">
                         Tahap 5C elemen 5: hiasan (tanaman pot, jam dinding,
                         jendela, empat lukisan, lampu dinding)
                     </h3>
@@ -249,6 +268,18 @@ export default function DioramaLab() {
                         >
                             Pelanggan latar
                         </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => world.stagePretend('rombongan')}
+                        >
+                            Rombongan (acak)
+                        </Button>
+                        <Button
+                            variant="outline"
+                            onClick={() => world.stagePretend('kabur')}
+                        >
+                            Kabur dikejar (acak)
+                        </Button>
                     </div>
                     <div className="flex flex-wrap items-center gap-2">
                         <Button
@@ -306,6 +337,14 @@ export default function DioramaLab() {
                             onChange={() => setAutoBackground((v) => !v)}
                         />
                         Latar otomatis saat sepi
+                    </label>
+                    <label className="flex items-center gap-2">
+                        <input
+                            type="checkbox"
+                            checked={ambient}
+                            onChange={() => setAmbient((v) => !v)}
+                        />
+                        Peristiwa acak saat sepi (seperti Beranda)
                     </label>
                     <label className="flex items-center gap-2">
                         <input

@@ -18,24 +18,32 @@ let loading: Promise<void> | null = null;
 function loadOne(key: string, url: string): Promise<void> {
     return new Promise((resolve) => {
         const image = new Image();
+        // Saat pengembangan gambar disajikan server Vite (asal berbeda dari
+        // halaman); tanpa ini kanvas "tercemar" dan pikselnya tidak boleh dibaca,
+        // sehingga karakter pemilik tidak tampil dan diganti sosok cadangan.
+        image.crossOrigin = 'anonymous';
         image.onload = () => {
-            const canvas = document.createElement('canvas');
-            canvas.width = image.naturalWidth;
-            canvas.height = image.naturalHeight;
-            const ctx = canvas.getContext('2d');
+            try {
+                const canvas = document.createElement('canvas');
+                canvas.width = image.naturalWidth;
+                canvas.height = image.naturalHeight;
+                const ctx = canvas.getContext('2d');
 
-            if (ctx) {
-                ctx.drawImage(image, 0, 0);
-                const { data } = ctx.getImageData(
-                    0,
-                    0,
-                    canvas.width,
-                    canvas.height,
-                );
-                matrices.set(
-                    key,
-                    matrixFromRgba(data, canvas.width, canvas.height),
-                );
+                if (ctx) {
+                    ctx.drawImage(image, 0, 0);
+                    const { data } = ctx.getImageData(
+                        0,
+                        0,
+                        canvas.width,
+                        canvas.height,
+                    );
+                    matrices.set(
+                        key,
+                        matrixFromRgba(data, canvas.width, canvas.height),
+                    );
+                }
+            } catch (error) {
+                console.warn(`Gambar karakter ${key} gagal dibaca`, error);
             }
 
             resolve();
