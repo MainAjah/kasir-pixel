@@ -7,8 +7,13 @@ import type { PostKey } from '@/diorama/scenes/store-scene';
 
 export type PostOption = {
     label: string;
-    /** null = halaman belum ada: nonaktif, "segera hadir". */
+    /** null = pilihan nonaktif (lihat `note`). */
     href: string | null;
+    /**
+     * Keterangan pilihan nonaktif dari server (Tahap 6C): "segera hadir" bila
+     * halamannya belum ada, "khusus admin" bila hanya untuk admin.
+     */
+    note?: string | null;
 };
 
 export type PostAccess =

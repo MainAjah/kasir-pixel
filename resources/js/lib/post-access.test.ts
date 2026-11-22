@@ -2,8 +2,8 @@ import { describe, expect, it } from 'vite-plus/test';
 import { MESSAGES, readPostAccess } from './post-access';
 
 const options = [
-    { label: 'Transaksi', href: '/kasir' },
-    { label: 'Laporan penjualan', href: null },
+    { label: 'Transaksi', href: '/kasir', note: null },
+    { label: 'Laporan penjualan', href: null, note: 'khusus admin' },
 ];
 
 describe('akses pos dari jawaban server (5D-2)', () => {

@@ -1,8 +1,43 @@
 # PROGRESS
 
+## Tahap 6C: Laporan penjualan dan inventaris, ringkasan di Beranda (22 Nov 2026)
+
+Status: **selesai, disetujui pemilik, sudah di-commit (commit "Tahap 6C").** Tidak ada migration, tidak ada perintah yang mengubah database, dan tidak ada paket baru. Laporan hanya membaca; ledger, aturan stok, dan data penjualan tidak diubah.
+
+### Keputusan pemilik
+
+- Nilai stok memakai **harga jual** (stok × harga jual satuan dasar).
+- "Laporan penjualan" di pos Kasir: **nonaktif dengan keterangan "khusus admin"** untuk selain admin.
+- CSV: pemisah **titik koma (;)** dan penanda UTF-8.
+- Tambahan saat persetujuan rencana: sel teks CSV yang diawali `=`, `+`, `-`, `@` diberi awalan `'`; saldo periode harus memakai urutan yang sama dengan `Product::withStock` dan tepat untuk mutasi berwaktu sama.
+
+### Yang sudah selesai
+
+- **Periode** (`App\Support\ReportPeriod`): hari ini, 7 hari, bulan ini, rentang bebas (maks. 366 hari, tidak di masa depan, "sampai" ≥ "dari"); tanggal dalam zona tampilan (WIB), kueri dalam UTC.
+- **Laporan penjualan** (`/laporan/penjualan`, `App\Actions\Reports\SalesReport`): total, jumlah transaksi, rata-rata (dibulatkan ke rupiah terdekat), penjualan per hari (hari tanpa penjualan tetap tampil), 10 produk terlaris (menurut `base_qty`), per kasir, filter kasir. **Penjualan sah = tanpa baris `sale_voids`**; yang dibatalkan tidak dihitung di angka mana pun dan tampil terpisah (nomor, waktu, kasir, total, alasan, pembatal).
+- **Laporan inventaris** (`/laporan/inventaris`, `App\Actions\Reports\InventoryReport`): produk aktif; stok = `Product::withStock` (mutasi `id` terbesar); status kosong ≤ 0, menipis ≤ minimum, aman di atasnya; nilai stok; daftar "Perlu diisi"; mutasi per periode: masuk = opening + receipt, keluar = sale + sale_void (bersih), penyesuaian = adjustment. Saldo awal/akhir periode = **jumlah qty** sebelum awal / sampai akhir periode (tidak bergantung urutan; Barang masuk boleh bertanggal mundur), dengan identitas saldo awal + mutasi = saldo akhir.
+- **Satu sumber dengan Beranda:** `TodaySummary` kini hanya memanggil `SalesReport::summary(ReportPeriod::today())` dan `InventoryReport::lowStockCount()`; polling Beranda ikut otomatis.
+- **CSV** (`/laporan/penjualan/csv`, `/laporan/inventaris/csv`, `App\Support\CsvWriter`): satu baris per penjualan (Selesai/Dibatalkan) dan satu baris per produk; pengaman rumus pada teks, angka tetap angka.
+- **Menu dan pos:** ikon Laporan di Beranda (admin) menuju laporan penjualan; sidebar admin: Laporan penjualan dan Laporan inventaris; pos Kasir "Laporan penjualan" aktif untuk admin, "khusus admin" untuk lainnya (server mengirim `note` per pilihan, `PostPanel` menampilkannya); `AccessMap` mendapat dua baris laporan.
+- **Tes:** Pest baru `Reports/SalesReportTest` dan `Reports/InventoryReportTest` (total dicocokkan langsung dengan tabel `sales`, void terpisah, rata-rata, per hari dan per kasir = total, terlaris, filter kasir, batas zona waktu, validasi rentang, isi CSV dan pengaman rumus, status di batas, nilai stok, mutasi per jenis, mutasi berwaktu sama dan bertanggal mundur, identitas saldo, Beranda = laporan, kasir dan bendahara 403 di keempat rute, tamu diminta masuk); `DashboardPostTest`, `SupplierTest`, dan tes Vitest `post-access` diperbarui. Seluruhnya 375 tes Pest dan 209 tes Vitest lulus; Pint, tsc, dan lint bersih.
+- **Dicoba di browser:** sebagai admin, laporan penjualan Hari ini, 7 hari, dan Bulan ini (Rp 24.500, 2 transaksi, sama dengan Beranda), CSV (2 baris, total Selesai Rp 24.500), laporan inventaris (stok menipis 8 = Beranda, Beras 61 sesuai ledger), pos Kasir → Laporan penjualan; sebagai kasir, keempat rute laporan 403, ikon Laporan tidak tampil, pilihan "khusus admin".
+
+### Batasan dan hal yang perlu diketahui
+
+- Penjualan dihitung menurut tanggal penjualan; penjualan yang dibatalkan dianggap batal walau pembatalannya di hari lain.
+- Laporan inventaris hanya produk aktif; filter periode hanya memengaruhi tabel mutasi (stok dan status selalu saat ini).
+- Kasir kini tidak punya ikon Laporan di Beranda; riwayat penjualan tetap lewat ikon Kasir dan pos Kasir.
+- Server MariaDB, Vite, dan `php artisan serve --port=8010` (database `kasir`) berjalan dari sesi ini; browser pratinjau masuk sebagai admin.
+
+### Saran untuk tahap berikutnya
+
+**Tahap 5E-1** (tema pixel bagian 1: kerangka semua halaman dengan menu samping dan header, halaman kasir, layar Transaksi Berhasil, riwayat transaksi, dengan potret kasir; mengikuti foto referensi di `claude.md`): **Sonnet, upaya tinggi**, memakai skill desain (frontend-design). Sesuai aturan persetujuan visual, tampilkan satu halaman contoh (halaman kasir) dengan tema pixel lebih dulu sebelum diterapkan ke halaman lain. Yang perlu diingat: hanya 24 warna palet; font pixel 3 × 5 yang ada belum punya huruf D, G, V (perlu diputuskan: lengkapi huruf sendiri atau pakai font pixel lain dengan izin bila berupa paket/berkas luar); karakter penjaga wajib (zombie, gurita) dipakai apa adanya; komponen tabel admin sementara ada di `components/admin/pixel-table.tsx` dan `components/reports/period-filter.tsx`. Tahap 5E-2 (inventaris, barang masuk, supplier, laporan, pengguna, hak akses) menyusul di sesi terpisah. Mulai sesi baru setelah mengganti model.
+
+---
+
 ## Tahap 6B: Kelola pengguna, hak akses, supplier (22 Nov 2026)
 
-Status: **selesai, disetujui pemilik, sudah di-commit (commit "Tahap 6B").** Tidak ada paket baru. Dua migration baru (migration lama tidak diubah), sudah dijalankan di database lokal `kasir` atas izin pemilik. Aturan uang, stok, dan simpanan tidak berubah: Barang masuk tetap lewat `AdjustStock`. Tidak ada peran yang ditambah atau dihapus.
+Status: **selesai, disetujui pemilik, sudah di-commit (b907ab9).** Tidak ada paket baru. Dua migration baru (migration lama tidak diubah), sudah dijalankan di database lokal `kasir` atas izin pemilik. Aturan uang, stok, dan simpanan tidak berubah: Barang masuk tetap lewat `AdjustStock`. Tidak ada peran yang ditambah atau dihapus.
 
 ### Keputusan pemilik
 

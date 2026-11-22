@@ -39,6 +39,8 @@ class AccessMap
             self::row('anggota', 'Anggota dan simpanan', [Role::Admin, Role::Bendahara], 'members.index'),
             self::row('pengguna', 'Kelola pengguna', $admin, 'users.index'),
             self::row('hak-akses', 'Hak akses', $admin, 'access.index'),
+            self::row('laporan-penjualan', 'Laporan penjualan', $admin, 'reports.sales'),
+            self::row('laporan-inventaris', 'Laporan inventaris', $admin, 'reports.inventory'),
             self::row('lab', 'Diorama lab dan simulasi pesanan', $admin, 'diorama.lab'),
         ];
     }

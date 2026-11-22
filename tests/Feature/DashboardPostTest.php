@@ -1,6 +1,7 @@
 <?php
 
 use App\Enums\Post;
+use App\Enums\Role;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\Gate;
@@ -38,7 +39,7 @@ test('admin membuka kedua pos dan menerima pilihan fiturnya', function () {
             'options' => [
                 ['label' => 'Transaksi', 'href' => '/kasir'],
                 ['label' => 'Riwayat transaksi', 'href' => '/kasir/penjualan'],
-                ['label' => 'Laporan penjualan', 'href' => null],
+                ['label' => 'Laporan penjualan', 'href' => '/laporan/penjualan', 'note' => null],
             ],
         ]);
 
@@ -59,7 +60,12 @@ test('admin membuka kedua pos dan menerima pilihan fiturnya', function () {
 test('kasir membuka pos Kasir, pos Inventaris ditolak di server dengan pesan singkat', function () {
     $kasir = penggunaPeran('kasir');
 
-    $this->actingAs($kasir)->getJson(route('dashboard.post', 'kasir'))->assertOk();
+    // Tahap 6C: kasir melihat "Laporan penjualan" nonaktif "khusus admin".
+    $this->actingAs($kasir)
+        ->getJson(route('dashboard.post', 'kasir'))
+        ->assertOk()
+        ->assertJsonPath('options.0.href', '/kasir')
+        ->assertJsonPath('options.2', ['label' => 'Laporan penjualan', 'href' => null, 'note' => 'khusus admin']);
 
     $this->actingAs($kasir)
         ->getJson(route('dashboard.post', 'inventaris'))
@@ -95,11 +101,16 @@ test('setiap pilihan aktif bisa dibuka oleh semua peran yang boleh membuka posny
             $user = penggunaPeran($role->value);
 
             foreach ($post->options() as $option) {
-                if ($option['route'] !== null) {
-                    $this->actingAs($user)
-                        ->get(route($option['route']))
-                        ->assertOk();
+                if ($option['route'] === null) {
+                    continue;
                 }
+
+                // Pilihan khusus admin (6C): aktif untuk admin, 403 di server untuk peran lain.
+                $adminOnly = ($option['admin_only'] ?? false) && $role !== Role::Admin;
+
+                $this->actingAs($user)
+                    ->get(route($option['route']))
+                    ->assertStatus($adminOnly ? 403 : 200);
             }
         }
     }

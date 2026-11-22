@@ -49,9 +49,11 @@ enum Post: string
 
     /**
      * Pilihan fitur: label dan nama rute tujuan. null = halamannya belum ada
-     * (tampil nonaktif, "segera hadir").
+     * (tampil nonaktif, "segera hadir"). `admin_only` (Tahap 6C): selain admin
+     * melihat pilihan itu nonaktif dengan keterangan "khusus admin"; rutenya
+     * sendiri tetap dijaga `role:admin` di server.
      *
-     * @return list<array{label: string, route: string|null}>
+     * @return list<array{label: string, route: string|null, admin_only?: bool}>
      */
     public function options(): array
     {
@@ -59,7 +61,7 @@ enum Post: string
             self::Kasir => [
                 ['label' => 'Transaksi', 'route' => 'pos.index'],
                 ['label' => 'Riwayat transaksi', 'route' => 'pos.sales.index'],
-                ['label' => 'Laporan penjualan', 'route' => null],
+                ['label' => 'Laporan penjualan', 'route' => 'reports.sales', 'admin_only' => true],
             ],
             self::Inventaris => [
                 ['label' => 'Stok barang', 'route' => 'products.index'],

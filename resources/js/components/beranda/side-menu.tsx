@@ -5,7 +5,7 @@ import MemberController from '@/actions/App/Http/Controllers/Members/MemberContr
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
 import StockReceiptController from '@/actions/App/Http/Controllers/Inventory/StockReceiptController';
 import PosController from '@/actions/App/Http/Controllers/Pos/PosController';
-import SaleController from '@/actions/App/Http/Controllers/Pos/SaleController';
+import SalesReportController from '@/actions/App/Http/Controllers/Reports/SalesReportController';
 import {
     Tooltip,
     TooltipContent,
@@ -46,9 +46,10 @@ const MAIN: MenuItem[] = [
     },
     {
         icon: 'laporan',
-        label: 'Laporan (sementara: riwayat penjualan)',
-        href: SaleController.index(),
-        roles: ['admin', 'kasir'],
+        // Tahap 6C: laporan penjualan dan inventaris, hanya admin.
+        label: 'Laporan',
+        href: SalesReportController.index(),
+        roles: ['admin'],
     },
     {
         icon: 'pengguna',

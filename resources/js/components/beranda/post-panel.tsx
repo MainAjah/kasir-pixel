@@ -130,7 +130,8 @@ export default function PostPanel({ open, onClose }: Props) {
                                             >
                                                 <span>{option.label}</span>
                                                 <span className="text-xs font-normal">
-                                                    segera hadir
+                                                    {option.note ??
+                                                        'segera hadir'}
                                                 </span>
                                             </button>
                                         )}

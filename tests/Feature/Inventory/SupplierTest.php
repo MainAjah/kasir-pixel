@@ -182,5 +182,5 @@ test('ledger sama persis dengan atau tanpa supplier', function () {
 test('pilihan Supplier di pos Inventaris kini tertaut ke halaman supplier', function () {
     $this->actingAs($this->admin)
         ->getJson(route('dashboard.post', 'inventaris'))
-        ->assertJsonPath('options.3', ['label' => 'Supplier', 'href' => '/supplier']);
+        ->assertJsonPath('options.3', ['label' => 'Supplier', 'href' => '/supplier', 'note' => null]);
 });

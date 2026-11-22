@@ -1,6 +1,8 @@
 import { Link, usePage } from '@inertiajs/react';
 import {
     BookOpen,
+    ChartColumn,
+    ClipboardList,
     ClipboardPen,
     FolderGit2,
     History,
@@ -17,6 +19,8 @@ import {
 } from 'lucide-react';
 import AccessController from '@/actions/App/Http/Controllers/Admin/AccessController';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
+import InventoryReportController from '@/actions/App/Http/Controllers/Reports/InventoryReportController';
+import SalesReportController from '@/actions/App/Http/Controllers/Reports/SalesReportController';
 import CategoryController from '@/actions/App/Http/Controllers/Inventory/CategoryController';
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
 import StockAdjustmentController from '@/actions/App/Http/Controllers/Inventory/StockAdjustmentController';
@@ -92,6 +96,17 @@ const inventoryNavItems: NavItem[] = [
 
 // Tahap 6B: kelola pengguna dan hak akses, hanya admin.
 const adminNavItems: NavItem[] = [
+    // Tahap 6C: laporan, hanya admin.
+    {
+        title: 'Laporan penjualan',
+        href: SalesReportController.index(),
+        icon: ChartColumn,
+    },
+    {
+        title: 'Laporan inventaris',
+        href: InventoryReportController.index(),
+        icon: ClipboardList,
+    },
     { title: 'Pengguna', href: UserController.index(), icon: UserCog },
     { title: 'Hak akses', href: AccessController.index(), icon: KeyRound },
 ];
