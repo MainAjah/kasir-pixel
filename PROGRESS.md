@@ -1,5 +1,45 @@
 # PROGRESS
 
+## Tahap 6: Data contoh dan tombol "Simulasi pesanan" (22 Nov 2026)
+
+Status: **selesai, menunggu persetujuan pemilik.** Belum di-commit. Tidak ada paket baru, tidak ada migration baru, dan tidak ada perubahan aturan uang, stok, atau simpanan (semua tulisan lewat Action yang sudah ada).
+
+### Yang sudah selesai
+
+- **Seeder data contoh** (`database/seeders/DemoDataSeeder.php`):
+  - 4 kategori (Sembako, **Minuman**, Makanan ringan, Kebutuhan rumah) dan 22 produk lewat `SaveProduct`; tiap produk punya satuan dasar, harga, dan barcode 13 digit unik; 3 produk punya satuan dus (isi 12, 24, 40);
+  - stok awal lewat `AdjustStock` (saldo awal), `min_stock` 10, dengan campuran: **kosong** 0 (produk tanpa mutasi), **sedikit** 6, **setengah** 25, **penuh** 60 (`DemoDataSeeder::LEVELS`). Batas tingkat isi untuk rak di 5D tetap keputusan 5D;
+  - 5 anggota lewat `CreateMember`, dengan simpanan pokok, wajib, dan sukarela lewat `PostSaving`;
+  - satu shift demo terbuka untuk kasir contoh (kas awal Rp 200.000) lewat `OpenShift`.
+- **Hanya lingkungan lokal:** seeder tidak melakukan apa-apa bila `APP_ENV` bukan `local` (menampilkan peringatan), dan `DatabaseSeeder` hanya memanggilnya di lokal. Aman dijalankan ulang: SKU dan nama anggota yang sudah ada dilewati.
+- **Tombol "Simulasi pesanan"** (hanya admin, di `/diorama-lab`):
+  - `Actions/Pos/SimulateSale`: memilih 1 sampai 3 produk aktif yang punya stok, satuan (dasar, kadang dus) dan jumlah (1 sampai 3) dibatasi sisa stok dalam satuan dasar, lalu menjual lewat `CompleteSale` atas nama `kasir@kasir.test` dengan shift demo-nya (dibuka bila belum ada). Stok tidak pernah dipaksa minus; bila tidak ada stok, muncul pesan dan tidak ada penjualan;
+  - rute `POST /diorama-lab/simulasi` (`diorama.simulate`, admin, throttle 60/menit), `Diorama/SimulateSaleController`;
+  - peristiwa `sale.completed` dititipkan lewat flash seperti layar kasir, jadi diorama di halaman yang sama langsung memutar pesanan itu. Berbeda dengan tombol uji lain, ini penjualan sungguhan (tercatat, stok berkurang).
+- **Tes:** 14 tes Pest baru (`tests/Feature/Demo/DemoDataTest.php`): seeder tidak berjalan di luar lokal dan tidak mengubah database tes, isi dan campuran stok, ledger konsisten, idempotensi; simulasi (shift demo, stok tidak pernah minus lewat 150 pesanan, hanya produk aktif berstok, pesan bila kosong), tombol (admin saja, flash peristiwa). Seluruhnya 264 tes Pest dan 146 tes Vitest lulus; Pint, tsc, lint, dan build bersih.
+
+### Cara memakai di lokal
+
+Tes memakai database `kasir_test` dan tidak menyentuh data demo. Untuk mengisi database lokal `kasir` (setelah migrasi dan akun demo ada):
+
+```text
+php artisan db:seed --class=DemoDataSeeder
+```
+
+Tidak saya jalankan di sesi ini karena mengubah data; jalankan sendiri atau beri izin.
+
+### Batasan dan hal yang perlu diketahui
+
+- Tombol simulasi tidak dibatasi ke lingkungan lokal (sesuai permintaan: hanya admin). Bila dijalankan di database nyata, ia membuat penjualan sungguhan atas nama kasir contoh.
+- Penjualan simulasi masuk shift demo yang terbuka terus; tutup shift itu lewat layar kasir bila perlu.
+- Berkas `claude.md` berubah di working tree (bagian halaman awal publik, arti koperasi, tahap 5F/6B/6C); itu bukan dari tahap ini.
+
+### Saran untuk tahap berikutnya
+
+Menurut `claude.md` yang diperbarui, Tahap 6 dikerjakan sebelum 5D. Berikutnya **5D** (jam browser untuk siang dan malam, bunyi, rak dan vending terisi dari stok nyata dengan data contoh ini): Sonnet, upaya tinggi.
+
+---
+
 ## Tahap 5C: Sprite dan animasi (21–22 Nov 2026, selesai)
 
 Dikerjakan satu elemen per langkah, masing-masing diperlihatkan di `/diorama-lab` dengan perbesaran 4× dan disetujui pemilik. Tidak ada lagi kotak pengganti dari 5B di diorama.

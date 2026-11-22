@@ -26,5 +26,10 @@ class DatabaseSeeder extends Seeder
                 ->create($attributes)
                 ->assignRole($role);
         }
+
+        // Data contoh (produk, stok, anggota, shift demo) hanya untuk lingkungan lokal.
+        if (app()->environment('local')) {
+            $this->call(DemoDataSeeder::class);
+        }
     }
 }

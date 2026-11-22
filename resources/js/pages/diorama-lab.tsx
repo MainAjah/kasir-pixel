@@ -1,4 +1,4 @@
-import { Head } from '@inertiajs/react';
+import { Head, router } from '@inertiajs/react';
 import { useEffect, useState } from 'react';
 import DioramaCanvas from '@/components/diorama/diorama-canvas';
 import CounterLab from '@/components/diorama/counter-lab';
@@ -15,7 +15,7 @@ import type { DioramaItem } from '@/diorama/engine/feed';
 import { formatRupiah } from '@/diorama/render/pixel';
 import type { RenderOptions } from '@/diorama/render/placeholder-renderer';
 import type { TimeOfDay } from '@/diorama/sprites/decor-sprite';
-import { lab } from '@/routes/diorama';
+import { lab, simulate } from '@/routes/diorama';
 
 // Barang palsu untuk tombol uji; tidak ada hubungannya dengan data produk.
 const PRODUCTS = [
@@ -60,6 +60,7 @@ export default function DioramaLab() {
         total: number;
     } | null>(null);
     const [counter, setCounter] = useState(1);
+    const [simulating, setSimulating] = useState(false);
     const [autoBackground, setAutoBackground] = useState(false);
     const [options, setOptions] = useState<RenderOptions>({
         paths: false,
@@ -165,7 +166,7 @@ export default function DioramaLab() {
             <div className="space-y-6 p-4">
                 <Heading
                     title="Diorama lab"
-                    description="Pratinjau mesin dan sprite diorama. Tombol uji hanya memutar peristiwa palsu di halaman ini: tidak ada data yang ditulis dan tidak ada yang dikirim ke server."
+                    description="Pratinjau mesin dan sprite diorama. Tombol uji memutar peristiwa palsu di halaman ini: tidak ada data yang ditulis. Satu-satunya yang menulis data adalah tombol Simulasi pesanan."
                 />
 
                 <section className="space-y-3 rounded-md border p-4">
@@ -248,6 +249,29 @@ export default function DioramaLab() {
                         >
                             Pelanggan latar
                         </Button>
+                    </div>
+                    <div className="flex flex-wrap items-center gap-2">
+                        <Button
+                            disabled={simulating}
+                            onClick={() =>
+                                router.post(
+                                    simulate.url(),
+                                    {},
+                                    {
+                                        preserveScroll: true,
+                                        onStart: () => setSimulating(true),
+                                        onFinish: () => setSimulating(false),
+                                    },
+                                )
+                            }
+                        >
+                            Simulasi pesanan
+                        </Button>
+                        <span className="text-sm text-muted-foreground">
+                            Penjualan sungguhan (tercatat, stok berkurang) atas
+                            nama kasir contoh; sisanya di baris ini hanya
+                            peristiwa palsu.
+                        </span>
                     </div>
                     <div className="flex flex-wrap gap-2">
                         <Button
