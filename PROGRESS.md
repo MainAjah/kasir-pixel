@@ -2,7 +2,7 @@
 
 ## Tahap 6: Data contoh dan tombol "Simulasi pesanan" (22 Nov 2026)
 
-Status: **selesai, menunggu persetujuan pemilik.** Belum di-commit. Tidak ada paket baru, tidak ada migration baru, dan tidak ada perubahan aturan uang, stok, atau simpanan (semua tulisan lewat Action yang sudah ada).
+Status: **selesai, disetujui pemilik, sudah di-commit (db3b072).** Pemilik sudah mencoba tombolnya dan berfungsi. Tidak ada paket baru, tidak ada migration baru, dan tidak ada perubahan aturan uang, stok, atau simpanan (semua tulisan lewat Action yang sudah ada).
 
 ### Yang sudah selesai
 
@@ -26,7 +26,7 @@ Tes memakai database `kasir_test` dan tidak menyentuh data demo. Untuk mengisi d
 php artisan db:seed --class=DemoDataSeeder
 ```
 
-Tidak saya jalankan di sesi ini karena mengubah data; jalankan sendiri atau beri izin.
+Database lokal `kasir` sudah berisi data contoh. Akun demo: `admin@kasir.test`, `kasir@kasir.test`, `bendahara@kasir.test` (kata sandi `password`). Jangan menjalankan server pengembangan dengan `DB_DATABASE=kasir_test`: database itu dikosongkan oleh tes.
 
 ### Batasan dan hal yang perlu diketahui
 
@@ -34,9 +34,18 @@ Tidak saya jalankan di sesi ini karena mengubah data; jalankan sendiri atau beri
 - Penjualan simulasi masuk shift demo yang terbuka terus; tutup shift itu lewat layar kasir bila perlu.
 - Berkas `claude.md` berubah di working tree (bagian halaman awal publik, arti koperasi, tahap 5F/6B/6C); itu bukan dari tahap ini.
 
-### Saran untuk tahap berikutnya
+### Urutan berikutnya (diubah pemilik)
 
-Menurut `claude.md` yang diperbarui, Tahap 6 dikerjakan sebelum 5D. Berikutnya **5D** (jam browser untuk siang dan malam, bunyi, rak dan vending terisi dari stok nyata dengan data contoh ini): Sonnet, upaya tinggi.
+1. **Tahap 5D lebih dulu** (Sonnet, upaya tinggi): jam browser untuk siang/senja/malam, bunyi 8-bit (mute, mati bawaan), rak dan vending terisi sesuai stok nyata (memakai data contoh ini), komponen diorama dengan dua mode (data nyata dan pertunjukan), mode hemat daya.
+2. **Tahap 6B** (Sonnet, sedang): kelola pengguna, hak akses, supplier.
+3. **Tahap 6C** (Sonnet, sedang): laporan penjualan dan inventaris, ringkasan di dasbor.
+4. Setelahnya sesuai `claude.md`: 5E, 5F, lalu 7 sampai 9.
+
+### Wajib dicatat: diorama harus tampil di dasbor
+
+Diorama saat ini hanya ada di `/diorama-lab` (halaman uji admin). Pada 5D, diorama **harus dipasang di dasbor (`/dashboard`) sebagai header besar** di bagian atas halaman, memakai data nyata, bukan hanya di `/diorama-lab`. `/diorama-lab` tetap sebagai halaman pratinjau. Tombol "Simulasi pesanan" tetap berguna untuk demo dan perlu bisa dijangkau dari dasbor (admin saja).
+
+Disarankan memulai sesi baru untuk 5D setelah mengganti model dan upaya.
 
 ---
 
