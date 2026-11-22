@@ -57,6 +57,10 @@ import {
     formatDisplay,
 } from '../sprites/counter-sprite';
 import { NIGHT_STRENGTH, drawPlant } from '../sprites/decor-sprite';
+import {
+    POST_GUARD_KEYS,
+    inventoryPlaceholderFrame,
+} from '../sprites/post-guard';
 import type { TimeOfDay } from '../sprites/decor-sprite';
 import type { CounterLook } from '../sprites/counter-sprite';
 import {
@@ -127,13 +131,22 @@ const VENDING_COLORS: Record<string, VendingColor> = {
     'vending-hijau': 2,
 };
 
-/** Kasir 2: komputer mati, layar bertuliskan TUTUP. */
+/** Meja tanpa pos: komputer mati, layar bertuliskan TUTUP. */
 const CLOSED_COUNTER: CounterLook = {
     on: false,
     scan: null,
     beep: false,
     receipt: null,
     display: { text: 'TUTUP', mode: 'harian' },
+};
+
+/** Meja pos Inventaris (dulu Kasir 2, sejak 5D-2): komputer menyala, layar STOK. */
+const INVENTORY_COUNTER: CounterLook = {
+    on: true,
+    scan: null,
+    beep: false,
+    receipt: null,
+    display: { text: 'STOK', mode: 'harian' },
 };
 
 const CUSTOMER_REFERENCES = REFERENCE_CHARACTERS.filter(
@@ -269,6 +282,16 @@ export class PlaceholderRenderer {
             layer: LAYER.actor,
             gx: cashier.fx,
             draw: (c) => this.drawGuard(c, world),
+        });
+
+        // Penjaga pos Inventaris (5D-2): berdiri di belakang mejanya.
+        const keeper = this.scene.posts.inventaris.guard;
+        items.push({
+            id: 'penjaga-inventaris',
+            depth: actorDepth(keeper.gx, keeper.gy),
+            layer: LAYER.actor,
+            gx: keeper.gx,
+            draw: (c) => this.drawInventoryGuard(c, world),
         });
 
         const bubble =
@@ -419,10 +442,15 @@ export class PlaceholderRenderer {
                     const { x, y } = tileTop(item.gx, item.gy);
                     drawVendingLights(ctx, x, y, color, true);
                 }
-            } else if (item.kind === 'meja_kasir' && item.active) {
+            } else if (
+                item.kind === 'meja_kasir' &&
+                (item.active || item.id === this.scene.posts.inventaris.desk)
+            ) {
                 const gx = item.gx + item.w - 1;
                 const { x, y } = tileTop(gx, item.gy);
-                const look = this.counterLook(world);
+                const look = item.active
+                    ? this.counterLook(world)
+                    : INVENTORY_COUNTER;
                 drawCounterScreen(ctx, x, y, look);
                 drawScreenGlow(
                     ctx,
@@ -547,8 +575,57 @@ export class PlaceholderRenderer {
             cx,
             ty,
             index === 0 ? 'kiri' : 'kanan',
-            item.active ? this.counterLook(world) : CLOSED_COUNTER,
+            item.active
+                ? this.counterLook(world)
+                : item.id === this.scene.posts.inventaris.desk
+                  ? INVENTORY_COUNTER
+                  : CLOSED_COUNTER,
         );
+    }
+
+    /**
+     * Penjaga pos Inventaris: gambar pemilik bila sudah ada (diam, bernapas
+     * pelan seperti zombie), selain itu sosok pengganti sementara buatan kode.
+     */
+    private drawInventoryGuard(
+        ctx: CanvasRenderingContext2D,
+        world: DioramaWorld,
+    ): void {
+        const keeper = this.scene.posts.inventaris.guard;
+        const { x, y } = tileCenter(keeper.gx, keeper.gy);
+        const key = POST_GUARD_KEYS.inventaris;
+        const character = referenceByKey(key);
+        const src = referenceMatrix(key);
+        const frame = frameAt('diam', world.time, 0.5);
+
+        ctx.globalAlpha = 0.25;
+        isoBox(ctx, x, y - 6, 12, 12, 0, SHADOW, null, null);
+        ctx.globalAlpha = 1;
+
+        if (character && src) {
+            const flip = referenceFlip(character, keeper.facing === 'sw');
+            const size = referenceFrameSize(src);
+            const sprite = this.sprites.get(
+                `ref|${key}|diam|${frame}|${flip ? 1 : 0}`,
+                () => {
+                    const m = transformFrame(
+                        src,
+                        motionFrame(character, 'diam', frame),
+                    );
+
+                    return flip ? mirror(m) : m;
+                },
+            );
+            const footX = flip ? size.width - 1 - size.footX : size.footX;
+            ctx.drawImage(sprite, x - footX, y - size.footY);
+
+            return;
+        }
+
+        const sprite = this.sprites.get(`inventaris|pengganti|${frame}`, () =>
+            inventoryPlaceholderFrame(frame),
+        );
+        ctx.drawImage(sprite, x - FOOT_X, y - FOOT_Y);
     }
 
     /** Keadaan meja kasir 1 dari penjaga dan total harian. */

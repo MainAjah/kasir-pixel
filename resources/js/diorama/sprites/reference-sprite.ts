@@ -133,6 +133,18 @@ export const REFERENCE_CHARACTERS: readonly ReferenceCharacter[] = [
         size: [27, 41],
         approach: 1,
     },
+    {
+        // Tahap 5D-2: penjaga pos Inventaris, gambar dari pemilik.
+        key: 'inventaris',
+        file: '9-penjaga-inventaris.png',
+        title: 'Gurita biru (penjaga inventaris)',
+        role: 'penjaga',
+        motion: 'langkah',
+        natural: 'depan',
+        hover: 0,
+        size: [19, 46],
+        approach: 1,
+    },
 ];
 
 export function referenceByKey(key: string): ReferenceCharacter | undefined {

@@ -4,13 +4,16 @@
  *  gy\gx 0  1  2  3  4  5  6  7  8  9 10 11
  *    0   Tn .  .  .  .  .  .  Vm Vm Vm .  .
  *    1   .  .  .  .  .  .  .  .  .  .  .  .
- *    2   .  .  RA RA RA RA RA .  .  K2s .  .
+ *    2   .  .  RA RA RA RA RA .  .  K2s I  .
  *    3   .  .  .  .  .  .  .  .  .  K2 K2 .
  *    4   .  .  RB RB RB RB RB .  .  .  .  .
  *    5   .  .  .  .  .  .  .  .  .  P  .  Tn
  *    6   Pi .  .  .  .  .  .  .  .  K1 K1 .
  *    7   Pi .  .  .  .  A4 A3 A2 A1 L  .  .
  *    8   .  .  .  .  .  .  .  .  .  .  .  .
+ *
+ * Pos (Tahap 5D-2): Kasir di meja K1 dijaga zombie (P), Inventaris di meja K2
+ * (dulu Kasir 2 yang tutup) dijaga penjaga Inventaris (I).
  */
 import type { Grid } from '../engine/grid';
 import { tileKey } from '../engine/iso';
@@ -40,6 +43,16 @@ export type Furniture = {
     color: string;
 };
 
+/** Pos di Beranda yang bisa dibuka lewat tombol berlabel (Tahap 5D-2). */
+export type PostKey = 'kasir' | 'inventaris';
+
+export type Post = {
+    /** Meja pos; tombol berlabel diletakkan di depan meja ini. */
+    desk: string;
+    /** Tempat berdiri penjaga pos, di belakang meja. */
+    guard: Tile & { facing: Facing };
+};
+
 export type PickPoint = Tile & {
     /** Benda yang diambil barangnya dari titik ini. */
     source: string;
@@ -61,6 +74,7 @@ export type StoreScene = {
     queueSlots: Tile[];
     door: { outside: Tile; inside: Tile };
     exitLaneGy: number;
+    posts: Record<PostKey, Post>;
 };
 
 const rackFront = (source: string, gy: number): PickPoint[] =>
@@ -137,9 +151,10 @@ export const STORE_SCENE: StoreScene = {
             color: '#c9b6e4',
         },
         {
+            // Dulu Kasir 2 yang tutup; sejak 5D-2 menjadi meja pos Inventaris.
             id: 'kasir-2',
             kind: 'meja_kasir',
-            label: 'Kasir 2',
+            label: 'Meja Inventaris',
             gx: 9,
             gy: 3,
             w: 2,
@@ -208,6 +223,10 @@ export const STORE_SCENE: StoreScene = {
     ],
     door: { outside: { gx: -1, gy: 7 }, inside: { gx: 0, gy: 7 } },
     exitLaneGy: 8,
+    posts: {
+        kasir: { desk: 'kasir-1', guard: { gx: 9, gy: 5, facing: 'sw' } },
+        inventaris: { desk: 'kasir-2', guard: { gx: 10, gy: 2, facing: 'sw' } },
+    },
 };
 
 /** Grid jalan dari denah: semua tapak perabot dan area penjaga terlarang. */

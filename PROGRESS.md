@@ -1,8 +1,45 @@
 # PROGRESS
 
+## Tahap 5D-2: Tombol pos, karakter besar, akses per peran, suasana (22 Nov 2026)
+
+Status: **selesai, ketiga langkah dan revisi bunyi disetujui pemilik, sudah di-commit (commit "Tahap 5D-2").** Tidak ada paket baru, tidak ada migration atau seeder baru, dan tidak ada perubahan aturan uang, stok, atau simpanan. Semua yang baru di server hanya membaca.
+
+### Yang sudah selesai
+
+- **Langkah 1, tombol pos dan panel karakter besar** (tanpa balon "..."):
+  - pos Kasir di meja Kasir 1 dijaga zombie; pos Inventaris di meja Kasir 2 (keputusan pemilik: usulan A), yang kini menyala dengan layar "STOK" (ikut berpendar saat malam) dan dijaga **gurita biru** dari gambar pemilik (`9-penjaga-inventaris.png`, 19 × 46, latar putih dibuang lewat `docs/referensi-karakter/alat/extract.js`, sel 12 px). Gurita didaftarkan sebagai penjaga (`role: 'penjaga'`), tidak masuk giliran pelanggan;
+  - tombol berlabel di depan meja ("KASIR · Penjualan dan Transaksi", "INVENTARIS · Stok dan Barang masuk"), tombol HTML biasa di atas kanvas (`postAnchor`), ikut bergeser dan membesar; di layar sempit hanya judulnya;
+  - panel karakter besar (`PostPanel`, Radix Dialog yang sudah ada): diorama diredupkan, penjaga diperbesar skala bulat (dicermin bila perlu supaya menghadap dialog), kotak dialog kecil (lebar 320 px) dengan nama petugas, sapaan, dan pilihan fitur; pilihan tanpa halaman ("Laporan penjualan", "Supplier") nonaktif dengan "segera hadir". Fokus mulai di pilihan pertama, panah atas dan bawah memindah pilihan, Esc menutup;
+  - ukuran potret (revisi pemilik): disamakan menurut luas, bukan tinggi (`portraitScale`), supaya gurita yang kurus tampak sebesar zombie; di 1366 × 768 zombie 9× (243 × 369 px) dan gurita 10× (190 × 460 px), keduanya lebih tinggi dari kotak dialog.
+- **Langkah 2, akses per peran dijaga di server:**
+  - `App\Enums\Post` adalah satu-satunya sumber aturan: Kasir untuk admin dan kasir, Inventaris hanya admin, bendahara belum punya pos (Koperasi ditunda); sama dengan penjaga rute halaman tujuannya. Gate `open-post` (AppServiceProvider) memakainya;
+  - `GET /beranda/pos/{pos}` (`dashboard.post`) mengirim pilihan fitur hanya bila diizinkan, selain itu 403 dengan pesan ("Pos Inventaris hanya untuk Admin."); pilihan dan tautannya kini hanya ada di server;
+  - di diorama, penolakan tampil sebagai papan kecil di atas tombol pos selama 3,5 detik (`role="status"`), panel tidak dibuka. Dicoba di browser sebagai admin dan sebagai kasir.
+- **Langkah 3, suasana:**
+  - bunyi 8-bit dari kode (Web Audio, tanpa berkas suara): bip pindai, koin dan laci, dengung batal, alarm kejar, lonceng pintu (`soundCues` murni, `ChipSound`, `useSceneSound`). **Revisi pemilik: selalu menyala, tanpa tombol senyap.** Karena browser hanya mengizinkan suara setelah ada interaksi, suara terbuka pada klik, sentuhan, atau tombol keyboard pertama di halaman (diperiksa di browser: konteks audio "running" setelah klik pertama);
+  - **revisi pemilik: mode hemat daya dibuang seluruhnya** (tidak ada tombol, gambar diam, maupun ikon antrean). Ini menyimpang dari `claude.md` (tombol mute, mati bawaan, dan hemat daya untuk HP lemah) atas keputusan pemilik; animasi tetap dibatasi 30 FPS dan berhenti saat tab tersembunyi seperti sebelumnya;
+  - klik pelanggan: kartu di atas kepala berisi nama karakter dan barang yang dibeli (nomor faktur, barang, total); pembeli dari peristiwa acak ditandai "bukan transaksi nyata", figuran "Hanya melihat-lihat"; kursor tangan di atas pelanggan.
+- **Tes:** Pest baru `DashboardPostTest` (9: aturan tiap peran, isi jawaban, penolakan dengan pesan, tamu, pos tak dikenal, semua pilihan aktif bisa dibuka peran yang berhak, halaman inventaris tetap 403 untuk kasir). Vitest baru `posts`, `post-access`, `mood` (bunyi dan klik pelanggan), dan pembaruan `reference` (9 karakter). Seluruhnya 312 tes Pest dan 207 tes Vitest lulus; Pint, tsc, dan lint bersih.
+
+### Batasan dan hal yang perlu diketahui
+
+- Bunyi tidak bisa saya dengar sendiri; yang dites adalah kapan berbunyi dan bahwa konteks audio menyala setelah klik pertama. Mohon dicoba langsung: klik sekali di mana saja di Beranda, lalu tunggu pelanggan masuk atau dilayani.
+- Tanpa tombol senyap, bunyi hanya bisa dimatikan lewat pengaturan suara perangkat atau tab browser.
+- Pelanggan hanya bisa diklik dengan mouse atau sentuh, belum lewat keyboard.
+- Kasir tetap bisa membaca daftar Produk lewat menu ikon kiri (diizinkan sejak Tahap 3); yang dibatasi adalah pos Inventaris dan halaman tulis inventaris.
+- Gambar gurita mirip tokoh kartun terkenal; seperti karakter lain (lihat README referensi), aman untuk tugas kuliah dan demo, jangan dipublikasikan atau dikomersialkan tanpa izin.
+- `docs/referensi-karakter/olahan/9-penjaga-inventaris-pratinjau.png` adalah pratinjau yang dibuat alat ekstraksi; karakter lain tidak menyimpan berkas pratinjau, jadi berkas itu tidak ikut di-commit (masih ada di folder, belum dihapus).
+- Browser pratinjau terakhir masuk sebagai `kasir@kasir.test`. Server `php artisan serve --port=8010` (database `kasir`) dan server Vite masih berjalan.
+
+### Saran untuk tahap berikutnya
+
+**Tahap 6B** (peran koperasi/admin: kelola pengguna dan hak akses, supplier sebagai data master yang dihubungkan ke stok masuk): **Sonnet, upaya sedang**, sesuai tabel di `claude.md`. Mulai di plan mode karena menyentuh skema (tabel supplier, kolom supplier di penerimaan barang) dan hak akses. Catatan untuk 6B: aturan pos ada di `App\Enums\Post`; bila hak akses dibuat bisa diatur admin, Gate `open-post` cukup diganti membaca hak akses itu. Setelah halaman Pengguna dan Supplier ada, ikon Pengguna di menu kiri dan pilihan "Supplier" di pos Inventaris tinggal diaktifkan. Mulai sesi baru setelah mengganti model.
+
+---
+
 ## Tahap 5D-1: Beranda dengan diorama data nyata (22 Nov 2026)
 
-Status: **selesai, keempat langkah disetujui pemilik. Belum di-commit.** Tidak ada paket baru, tidak ada migration, dan tidak ada perubahan aturan uang, stok, atau simpanan. Semua yang baru di server hanya membaca. Halaman awal publik (5F) dicoret, jadi komponen diorama cukup satu mode: data nyata.
+Status: **selesai, keempat langkah disetujui pemilik, sudah di-commit (074eb58).** Tidak ada paket baru, tidak ada migration, dan tidak ada perubahan aturan uang, stok, atau simpanan. Semua yang baru di server hanya membaca. Halaman awal publik (5F) dicoret, jadi komponen diorama cukup satu mode: data nyata.
 
 ### Yang sudah selesai
 

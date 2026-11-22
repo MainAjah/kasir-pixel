@@ -160,13 +160,13 @@ describe('profil gerak cara 1', () => {
 });
 
 describe('daftar karakter', () => {
-    it('delapan karakter, zombie satu-satunya penjaga, semua gambarnya ada', () => {
-        expect(REFERENCE_CHARACTERS).toHaveLength(8);
+    it('sembilan karakter, penjaganya zombie (kasir) dan gurita (inventaris), semua gambarnya ada', () => {
+        expect(REFERENCE_CHARACTERS).toHaveLength(9);
         expect(
             REFERENCE_CHARACTERS.filter((c) => c.role === 'penjaga').map(
                 (c) => c.key,
             ),
-        ).toEqual(['zombie']);
+        ).toEqual(['zombie', 'inventaris']);
 
         for (const c of REFERENCE_CHARACTERS) {
             const path = fileURLToPath(
@@ -196,6 +196,7 @@ describe('arah hadap', () => {
             bintang_laut: 'kiri',
             ikan: 'kiri',
             zombie: 'kiri',
+            inventaris: 'depan',
         });
     });
 
@@ -308,6 +309,7 @@ describe('karakter pelanggan di diorama', () => {
         ]);
         expect(keys.slice(8)).toEqual(keys.slice(0, 8));
         expect(keys).not.toContain('zombie');
+        expect(keys).not.toContain('inventaris');
     });
 });
 

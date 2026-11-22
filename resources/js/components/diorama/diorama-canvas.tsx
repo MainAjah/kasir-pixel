@@ -1,6 +1,8 @@
 import { useEffect, useRef, useState } from 'react';
+import type { MouseEvent, ReactNode } from 'react';
 import { screenScale } from '@/diorama/engine/fit';
 import { CANVAS_H, CANVAS_W } from '@/diorama/engine/iso';
+import type { Point } from '@/diorama/engine/iso';
 import { startLoop } from '@/diorama/engine/loop';
 import type { DioramaWorld } from '@/diorama/engine/world';
 import { backdropColor } from '@/diorama/render/lighting';
@@ -18,7 +20,28 @@ type Props = {
      * tengah, dengan sekelilingnya diwarnai sama dengan latar kanvas.
      */
     fit?: 'width' | 'screen';
+    /**
+     * Mode "screen": lapisan di atas kanvas seukuran kanvas, untuk tombol yang
+     * menempel di diorama. Menerima skala tampilan (px layar per px kanvas dasar).
+     */
+    overlay?: (scale: number) => ReactNode;
+    /** Dipanggil tiap bingkai setelah dunia maju (misalnya untuk bunyi). */
+    onFrame?: (world: DioramaWorld) => void;
+    /** Mode "screen": klik di kanvas, dalam koordinat kanvas dasar. */
+    onCanvasClick?: (point: Point) => void;
+    /** Mode "screen": apakah titik ini bisa diklik (kursor tangan). */
+    isClickable?: (point: Point) => boolean;
 };
+
+/** Titik layar → titik kanvas dasar. */
+function canvasPoint(event: MouseEvent<HTMLCanvasElement>): Point {
+    const rect = event.currentTarget.getBoundingClientRect();
+
+    return {
+        x: ((event.clientX - rect.left) / rect.width) * CANVAS_W,
+        y: ((event.clientY - rect.top) / rect.height) * CANVAS_H,
+    };
+}
 
 /**
  * Kanvas diorama 768 × 432 dengan `image-rendering: pixelated`. Mode "width":
@@ -31,15 +54,25 @@ export default function DioramaCanvas({
     options,
     className,
     fit = 'width',
+    overlay,
+    onFrame,
+    onCanvasClick,
+    isClickable,
 }: Props) {
     const wrapRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
     const optionsRef = useRef<RenderOptions | undefined>(options);
+    const onFrameRef = useRef(onFrame);
     const [scale, setScale] = useState(fit === 'screen' ? 0 : 1);
+    const [pointer, setPointer] = useState(false);
 
     useEffect(() => {
         optionsRef.current = options;
     }, [options]);
+
+    useEffect(() => {
+        onFrameRef.current = onFrame;
+    }, [onFrame]);
 
     useEffect(() => {
         const wrap = wrapRef.current;
@@ -77,9 +110,11 @@ export default function DioramaCanvas({
         }
 
         const renderer = new PlaceholderRenderer(world.scene);
+
         const loop = startLoop((dt) => {
             world.update(dt);
             renderer.render(ctx, world, optionsRef.current);
+            onFrameRef.current?.(world);
         });
 
         return () => loop.stop();
@@ -96,17 +131,43 @@ export default function DioramaCanvas({
                     ),
                 }}
             >
-                <canvas
-                    ref={canvasRef}
-                    width={CANVAS_W}
-                    height={CANVAS_H}
-                    className="block shrink-0"
+                <div
+                    className="relative shrink-0"
                     style={{
                         width: CANVAS_W * scale,
                         height: CANVAS_H * scale,
-                        imageRendering: 'pixelated',
                     }}
-                />
+                >
+                    <canvas
+                        ref={canvasRef}
+                        width={CANVAS_W}
+                        height={CANVAS_H}
+                        className="block size-full"
+                        style={{
+                            imageRendering: 'pixelated',
+                            cursor: pointer ? 'pointer' : undefined,
+                        }}
+                        onClick={
+                            onCanvasClick
+                                ? (event) => onCanvasClick(canvasPoint(event))
+                                : undefined
+                        }
+                        onMouseMove={
+                            isClickable
+                                ? (event) =>
+                                      setPointer(
+                                          isClickable(canvasPoint(event)),
+                                      )
+                                : undefined
+                        }
+                        onMouseLeave={() => setPointer(false)}
+                    />
+                    {overlay && scale > 0 && (
+                        <div className="pointer-events-none absolute inset-0">
+                            {overlay(scale)}
+                        </div>
+                    )}
+                </div>
             </div>
         );
     }

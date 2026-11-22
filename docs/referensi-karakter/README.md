@@ -12,6 +12,7 @@ Gambar karakter dari pemilik proyek, dipakai di diorama (keputusan revisi 3 dan 
 | 6 | `6-bintang-laut` | pelanggan | 34 × 45 | sumber WebP (dikonversi lewat codec Windows); pola kristik: garis kisi, latar, dan tulisan watermark dibuang di tingkat sel |
 | 7 | `7-ikan-oranye` | pelanggan | 28 × 26 | sel 23 px, latar putih dibuang |
 | 8 | `8-zombie` | **penjaga kasir** | 27 × 41 | sel 23 px, latar putih dibuang; helai rambut dipertahankan (sambungan 8 arah); sisa latar putih yang terkurung dibersihkan (`alat/fixzombie.js`) |
+| 9 | `9-penjaga-inventaris` | **penjaga inventaris** (Tahap 5D-2) | 19 × 46 | sel 12 px (dipaksa; deteksi otomatis memilih 6 px karena tepi agak buram), latar putih dibuang |
 
 - `asli/`: gambar sumber apa adanya.
 - `olahan/`: karakter saja (latar transparan), satu piksel = satu piksel seni, warna asli.

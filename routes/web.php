@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\DashboardController;
 use App\Http\Controllers\DashboardFeedController;
+use App\Http\Controllers\DashboardPostController;
 use App\Http\Controllers\Diorama\SimulateSaleController;
 use Illuminate\Support\Facades\Route;
 
@@ -15,6 +16,10 @@ Route::middleware(['auth'])->group(function () {
     Route::get('beranda/peristiwa', DashboardFeedController::class)
         ->middleware('throttle:120,1')
         ->name('dashboard.feed');
+
+    // Tahap 5D-2: membuka pos di Beranda; akses dijaga Gate `open-post` (App\Enums\Post).
+    Route::get('beranda/pos/{post}', DashboardPostController::class)
+        ->name('dashboard.post');
 });
 
 // Pratinjau mesin diorama (Tahap 5B): hanya admin, tidak membaca atau menulis data.
