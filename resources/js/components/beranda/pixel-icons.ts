@@ -13,7 +13,9 @@ export type PixelIconName =
     | 'kasir'
     | 'anggota'
     | 'keluar'
-    | 'hak-akses';
+    | 'hak-akses'
+    | 'beranda'
+    | 'toko';
 
 /** Kunci warna yang dipakai semua ikon. */
 export const ICON_COLORS: Record<string, string> = {
@@ -124,6 +126,36 @@ export const PIXEL_ICONS: Record<PixelIconName, readonly string[]> = {
         'kwwwwwwwwwwk',
         'kkkkkkkkkkkk',
         '............',
+        '............',
+    ],
+    // Rumah beratap bata (Beranda, menu samping 5E-1).
+    beranda: [
+        '.....kk.....',
+        '....kRRk....',
+        '...kRRRRk...',
+        '..kRRRRRRk..',
+        '.kRRRRRRRRk.',
+        'kkkkkkkkkkkk',
+        '.kwwwwwwwwk.',
+        '.kwkkwwkkwk.',
+        '.kwkBkwkhwk.',
+        '.kwkkwwkhwk.',
+        '.kwwwwwkhwk.',
+        '.kkkkkkkkkk.',
+    ],
+    // Toko berkanopi garis (logo kerangka 5E-1).
+    toko: [
+        '............',
+        'kkkkkkkkkkkk',
+        'kRwRwRwRwRwk',
+        'kRwRwRwRwRwk',
+        '.kkkkkkkkkk.',
+        '.kOOOOOOOOk.',
+        '.kOkkkOkkOk.',
+        '.kOkBkOkhOk.',
+        '.kOkkkOkhOk.',
+        '.kOOOOOkhOk.',
+        '.kkkkkkkkkk.',
         '............',
     ],
     // Kunci emas (hak akses).

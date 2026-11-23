@@ -13,6 +13,59 @@
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol',
         'Noto Color Emoji';
 
+    /* Tahap 5E-1: font pixel (Pixelify Sans) untuk judul, angka besar, dan tombol. */
+    --font-pixel: 'Pixelify Sans', ui-monospace, monospace;
+
+    /* Palet 24 warna diorama (resources/js/diorama/sprites/palette.ts), nama Indonesia. */
+    --color-px-tinta: #2b2a33; /* C1 */
+    --color-px-bayangan: #5b5470; /* C2 */
+    --color-px-logam: #8f88a8; /* C3 */
+    --color-px-sorotan: #fdf8f0; /* C4 */
+    --color-px-krem: #f7f1e3; /* C5 */
+    --color-px-dinding: #efe2c4; /* C6 */
+    --color-px-lantai-terang: #d9c7a3; /* C7 */
+    --color-px-lantai: #c4ad86; /* C8 */
+    --color-px-daun: #a7d7a5; /* C9 */
+    --color-px-daun-tua: #6fae7b; /* C10 */
+    --color-px-lampu: #ffe9a8; /* C11 */
+    --color-px-kunyit: #f6c56b; /* C12 */
+    --color-px-kunyit-tua: #e89b4f; /* C13 */
+    --color-px-bata: #e8907e; /* C14 */
+    --color-px-bata-tua: #c2675a; /* C15 */
+    --color-px-merah-muda: #f4b6c2; /* C16 */
+    --color-px-lavender: #c9b6e4; /* C17 */
+    --color-px-langit: #9fd3e6; /* C18 */
+    --color-px-biru-tua: #6a9fc4; /* C19 */
+    --color-px-kayu: #7a5c4b; /* C20 */
+    --color-px-malam: #3a3d6b; /* C24 */
+
+    /*
+     * Warna tambahan khusus menu samping (izin pemilik, 5E-1): nuansa kafe
+     * cokelat kopi. Bukan bagian palet diorama 24 warna, jangan dipakai di
+     * sprite atau diorama.
+     */
+    --color-kopi: #5a3a2a; /* latar menu */
+    --color-kopi-bingkai: #3b2418; /* bingkai */
+    --color-kopi-krem: #f5e6cf; /* teks dan ikon */
+    --color-kopi-redup: #c9a98a; /* teks sekunder */
+    --color-kopi-karamel: #e0a96d; /* aksen: tanda aktif, fokus */
+    --color-kopi-hover: #6d4733; /* latar saat hover */
+    --color-kopi-aktif: #8a5a3c; /* latar item aktif */
+    --color-kopi-garis: #7a5239; /* garis putus-putus */
+    --color-kopi-gelap: #4a2f22; /* kotak pengguna di bawah */
+
+    /* Item menu naik-turun 2px saat hover (steps(2) dari 0 ke -4px = 0 dan -2px). */
+    --animate-px-bob: px-bob 400ms steps(2) infinite;
+
+    @keyframes px-bob {
+        from {
+            transform: translateY(0);
+        }
+        to {
+            transform: translateY(-4px);
+        }
+    }
+
     --radius-lg: var(--radius);
     --radius-md: calc(var(--radius) - 2px);
     --radius-sm: calc(var(--radius) - 4px);
@@ -62,41 +115,71 @@
 }
 
 :root {
-    --background: oklch(1 0 0);
-    --foreground: oklch(0.145 0 0);
-    --card: oklch(1 0 0);
-    --card-foreground: oklch(0.145 0 0);
-    --popover: oklch(1 0 0);
-    --popover-foreground: oklch(0.145 0 0);
-    --primary: oklch(0.205 0 0);
-    --primary-foreground: oklch(0.985 0 0);
-    --secondary: oklch(0.97 0 0);
-    --secondary-foreground: oklch(0.205 0 0);
-    --muted: oklch(0.97 0 0);
-    --muted-foreground: oklch(0.556 0 0);
-    --accent: oklch(0.97 0 0);
-    --accent-foreground: oklch(0.205 0 0);
-    --destructive: oklch(0.577 0.245 27.325);
-    --destructive-foreground: oklch(0.577 0.245 27.325);
-    --border: oklch(0.922 0 0);
-    --input: oklch(0.922 0 0);
-    --ring: oklch(0.87 0 0);
-    --chart-1: oklch(0.646 0.222 41.116);
-    --chart-2: oklch(0.6 0.118 184.704);
-    --chart-3: oklch(0.398 0.07 227.392);
-    --chart-4: oklch(0.828 0.189 84.429);
-    --chart-5: oklch(0.769 0.188 70.08);
-    --radius: 0.625rem;
-    --sidebar: oklch(0.985 0 0);
-    --sidebar-foreground: oklch(0.145 0 0);
-    --sidebar-primary: oklch(0.205 0 0);
-    --sidebar-primary-foreground: oklch(0.985 0 0);
-    --sidebar-accent: oklch(0.97 0 0);
-    --sidebar-accent-foreground: oklch(0.205 0 0);
-    --sidebar-border: oklch(0.922 0 0);
-    --sidebar-ring: oklch(0.87 0 0);
+    /*
+     * Tahap 5E-1: tema pixel, selalu terang (keputusan pemilik). Semua warna dari
+     * palet diorama: latar krem C5, panel C4, teks tinta C1, tombol utama kunyit
+     * C12, garis lantai C8, fokus biru tua C19, menu samping kayu C20.
+     */
+    --background: #f7f1e3;
+    --foreground: #2b2a33;
+    --card: #fdf8f0;
+    --card-foreground: #2b2a33;
+    --popover: #fdf8f0;
+    --popover-foreground: #2b2a33;
+    --primary: #f6c56b;
+    --primary-foreground: #2b2a33;
+    --secondary: #efe2c4;
+    --secondary-foreground: #2b2a33;
+    --muted: #efe2c4;
+    --muted-foreground: #5b5470;
+    --accent: #ffe9a8;
+    --accent-foreground: #2b2a33;
+    --destructive: #c2675a;
+    --destructive-foreground: #c2675a;
+    --border: #c4ad86;
+    --input: #c4ad86;
+    --ring: #6a9fc4;
+    --chart-1: #f6c56b;
+    --chart-2: #6fae7b;
+    --chart-3: #6a9fc4;
+    --chart-4: #e8907e;
+    --chart-5: #c9b6e4;
+    --radius: 0rem;
+    --sidebar: #5a3a2a;
+    --sidebar-foreground: #f5e6cf;
+    --sidebar-primary: #e0a96d;
+    --sidebar-primary-foreground: #3b2418;
+    --sidebar-accent: #6d4733;
+    --sidebar-accent-foreground: #f5e6cf;
+    --sidebar-border: #3b2418;
+    --sidebar-ring: #e0a96d;
+
+    /* Sudut bertangga dua langkah (6px, anak tangga 3px), khas pixel. */
+    --pixel-corners: polygon(
+        0 6px,
+        3px 6px,
+        3px 3px,
+        6px 3px,
+        6px 0,
+        calc(100% - 6px) 0,
+        calc(100% - 6px) 3px,
+        calc(100% - 3px) 3px,
+        calc(100% - 3px) 6px,
+        100% 6px,
+        100% calc(100% - 6px),
+        calc(100% - 3px) calc(100% - 6px),
+        calc(100% - 3px) calc(100% - 3px),
+        calc(100% - 6px) calc(100% - 3px),
+        calc(100% - 6px) 100%,
+        6px 100%,
+        6px calc(100% - 3px),
+        3px calc(100% - 3px),
+        3px calc(100% - 6px),
+        0 calc(100% - 6px)
+    );
 }
 
+/* Mode gelap tidak dipakai sejak Tahap 5E-1 (tema pixel selalu terang); kelas .dark tidak lagi dipasang. */
 .dark {
     --background: oklch(0.145 0 0);
     --foreground: oklch(0.985 0 0);
@@ -140,4 +223,48 @@
     body {
         @apply bg-background text-foreground;
     }
+}
+
+/*
+ * Menu samping bergaya kafe (Tahap 5E-1, referensi pemilik): papan cokelat
+ * kopi bersudut bertangga. Bingkai 3px dibuat dengan drop-shadow di wadahnya
+ * supaya ikut bertangga (border biasa akan ikut terpotong). Sengaja di luar
+ * @layer agar menimpa border dan bayangan bawaan varian "floating". Hanya di
+ * layar lebar; di HP menu tetap laci biasa.
+ */
+.sidebar-kopi {
+    filter: drop-shadow(3px 0 0 var(--color-kopi-bingkai))
+        drop-shadow(-3px 0 0 var(--color-kopi-bingkai))
+        drop-shadow(0 3px 0 var(--color-kopi-bingkai))
+        drop-shadow(0 -3px 0 var(--color-kopi-bingkai));
+}
+
+.sidebar-kopi > [data-sidebar='sidebar'] {
+    border: 0;
+    box-shadow: none;
+    clip-path: var(--pixel-corners);
+}
+
+/*
+ * Serat kayu alami bergaya pixel (revisi pemilik): ubin 64 × 96 dari warna
+ * kopi saja, digambar 3× agar tiap piksel sebesar anak tangga sudut. Juga
+ * dipakai laci menu di HP.
+ */
+[data-sidebar='sidebar'] {
+    background-image: url('../images/kopi-serat.svg');
+    background-size: 192px 288px;
+}
+
+/*
+ * Bingkai pixel bersama (Tahap 5E-1): tepi tebal bersudut kotak dengan sisi
+ * kanan dan bawah lebih tebal (bayangan keras), warna tinta C1.
+ */
+@utility pixel-frame {
+    border: 3px solid var(--color-px-tinta);
+    box-shadow: 4px 4px 0 var(--color-px-tinta);
+}
+
+@utility pixel-frame-sm {
+    border: 2px solid var(--color-px-tinta);
+    box-shadow: 2px 2px 0 var(--color-px-tinta);
 }

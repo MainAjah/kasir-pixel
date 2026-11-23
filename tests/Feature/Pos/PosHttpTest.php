@@ -6,11 +6,13 @@ use App\Events\ItemScanned;
 use App\Events\SaleOpened;
 use App\Models\ActivityLog;
 use App\Models\CashShift;
+use App\Models\Category;
 use App\Models\ProductUnit;
 use App\Models\Sale;
 use App\Models\SaleVoid;
 use App\Models\StockMovement;
 use App\Models\User;
+use Carbon\CarbonImmutable;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\Event;
 use Inertia\Testing\AssertableInertia as Assert;
@@ -51,6 +53,44 @@ test('layar kasir menampilkan shift yang aktif', function () {
         ->where('shift.id', $shift->id)
         ->where('shift.opening_cash', 75000)
         ->where('cashier.id', $kasir->id));
+});
+
+test('layar kasir mengirim katalog produk aktif dengan kategori, satuan, dan stok', function () {
+    [$kasir] = kasirDenganShift();
+    $minuman = Category::factory()->create(['name' => 'Minuman']);
+    $teh = produkSiapJual(12, 5000, 'Teh Botol');
+    $teh->update(['category_id' => $minuman->id, 'min_stock' => 3]);
+    ProductUnit::factory()->for($teh)->create(['name' => 'dus', 'conversion' => 6, 'sell_price' => 28000, 'barcode' => '899TEH']);
+    produkSiapJual(0, 2000, 'Air Mineral');
+    $mati = produkSiapJual(5, 1000, 'Produk Mati');
+    $mati->update(['is_active' => false]);
+
+    $this->actingAs($kasir)->get('/kasir')->assertInertia(fn (Assert $page) => $page
+        ->has('catalog', 2)
+        ->where('catalog.0.name', 'Air Mineral')
+        ->where('catalog.0.category', null)
+        ->where('catalog.0.stock', 0)
+        ->where('catalog.1.name', 'Teh Botol')
+        ->where('catalog.1.category', 'Minuman')
+        ->where('catalog.1.stock', 12)
+        ->where('catalog.1.min_stock', 3)
+        ->has('catalog.1.units', 2)
+        ->where('catalog.1.units.0.unit_name', 'pcs')
+        ->where('catalog.1.units.0.price', 5000)
+        ->where('catalog.1.units.0.stock_base', 12)
+        ->where('catalog.1.units.1.unit_name', 'dus')
+        ->where('catalog.1.units.1.price', 28000)
+        ->where('catalog.1.units.1.barcode', '899TEH')
+        ->where('catalog.1.units.1.stock_units', 2));
+});
+
+test('tanpa shift aktif katalog tidak dikirim', function () {
+    $kasir = User::factory()->create()->assignRole('kasir');
+    produkSiapJual(5, 1000);
+
+    $this->actingAs($kasir)->get('/kasir')->assertInertia(fn (Assert $page) => $page
+        ->where('shift', null)
+        ->where('catalog', []));
 });
 
 test('kasir bisa membaca daftar produk tetapi tidak bisa mengelolanya', function () {
@@ -288,6 +328,41 @@ test('riwayat kasir hanya memuat penjualannya sendiri', function () {
         ->has('sales.data', 1)
         ->where('sales.data.0.total', 1000)
         ->where('sales.data.0.can_void', false));
+});
+
+test('riwayat bisa disaring hari ini, 7 hari, dan bulan ini menurut tanggal WIB', function () {
+    $at = fn (string $waktu) => CarbonImmutable::parse($waktu, config('app.display_timezone'));
+    $mie = produkSiapJual(50, 1000);
+
+    $this->travelTo($at('2026-10-30 10:00'));
+    [$kasir] = kasirDenganShift();
+    jualLewatAction($kasir, $mie->baseUnit, 4, 4000); // bulan lalu
+
+    $this->travelTo($at('2026-11-13 10:00'));
+    jualLewatAction($kasir, $mie->baseUnit, 3, 3000); // bulan ini, lebih dari 7 hari
+
+    $this->travelTo($at('2026-11-17 00:30'));
+    jualLewatAction($kasir, $mie->baseUnit, 2, 2000); // hari pertama 7 hari terakhir (WIB)
+
+    $this->travelTo($at('2026-11-23 09:00'));
+    jualLewatAction($kasir, $mie->baseUnit, 1, 1000); // hari ini
+
+    $this->travelTo($at('2026-11-23 12:00'));
+    $this->actingAs($kasir);
+
+    $totals = fn (string $periode) => $this->get("/kasir/penjualan?periode={$periode}")
+        ->assertOk()
+        ->inertiaProps('sales.data');
+
+    expect(collect($totals('semua'))->pluck('total')->all())->toBe([1000, 2000, 3000, 4000])
+        ->and(collect($totals('hari-ini'))->pluck('total')->all())->toBe([1000])
+        ->and(collect($totals('7-hari'))->pluck('total')->all())->toBe([1000, 2000])
+        ->and(collect($totals('bulan-ini'))->pluck('total')->all())->toBe([1000, 2000, 3000]);
+
+    $this->get('/kasir/penjualan?periode=hari-ini')->assertInertia(fn (Assert $p) => $p->where('period', 'hari-ini'));
+    $this->get('/kasir/penjualan?periode=tahun-lalu')->assertInertia(fn (Assert $p) => $p
+        ->where('period', 'semua')
+        ->has('sales.data', 4));
 });
 
 test('admin melihat penjualan di shift terbuka dan bisa membatalkannya', function () {

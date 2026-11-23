@@ -16,6 +16,10 @@ export default defineConfig({
                 bunny('Instrument Sans', {
                     weights: [400, 500, 600],
                 }),
+                // Tahap 5E-1 (izin pemilik): font pixel untuk judul, angka besar, dan tombol.
+                bunny('Pixelify Sans', {
+                    weights: [400, 500, 600, 700],
+                }),
             ],
         }),
         inertia(),

@@ -1,37 +1,7 @@
 import { Link, usePage } from '@inertiajs/react';
-import {
-    BookOpen,
-    ChartColumn,
-    ClipboardList,
-    ClipboardPen,
-    FolderGit2,
-    History,
-    KeyRound,
-    LayoutGrid,
-    Package,
-    PackagePlus,
-    ShoppingCart,
-    Sparkles,
-    Tags,
-    Truck,
-    UserCog,
-    Users,
-} from 'lucide-react';
-import AccessController from '@/actions/App/Http/Controllers/Admin/AccessController';
-import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
-import InventoryReportController from '@/actions/App/Http/Controllers/Reports/InventoryReportController';
-import SalesReportController from '@/actions/App/Http/Controllers/Reports/SalesReportController';
-import CategoryController from '@/actions/App/Http/Controllers/Inventory/CategoryController';
-import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
-import StockAdjustmentController from '@/actions/App/Http/Controllers/Inventory/StockAdjustmentController';
-import StockReceiptController from '@/actions/App/Http/Controllers/Inventory/StockReceiptController';
-import SupplierController from '@/actions/App/Http/Controllers/Inventory/SupplierController';
-import MemberController from '@/actions/App/Http/Controllers/Members/MemberController';
-import PosController from '@/actions/App/Http/Controllers/Pos/PosController';
-import SaleController from '@/actions/App/Http/Controllers/Pos/SaleController';
-import AppLogo from '@/components/app-logo';
-import { NavFooter } from '@/components/nav-footer';
-import { NavMain } from '@/components/nav-main';
+import { ROLE_LABELS } from '@/components/admin/pixel-table';
+import PixelIcon from '@/components/beranda/pixel-icon';
+import { activeLink, menuFor } from '@/components/layout/menu';
 import { NavUser } from '@/components/nav-user';
 import {
     Sidebar,
@@ -41,137 +11,132 @@ import {
     SidebarMenu,
     SidebarMenuButton,
     SidebarMenuItem,
+    SidebarMenuSub,
+    SidebarMenuSubButton,
+    SidebarMenuSubItem,
 } from '@/components/ui/sidebar';
 import { dashboard } from '@/routes';
-import { lab as dioramaLab } from '@/routes/diorama';
-import type { NavItem } from '@/types';
 
-const mainNavItems: NavItem[] = [
-    {
-        title: 'Beranda',
-        href: dashboard(),
-        icon: LayoutGrid,
-    },
-];
+/** Hover: latar lebih terang dan naik-turun 2px; aktif: latar karamel tua berbingkai karamel. */
+const GROUP =
+    'h-11 gap-3 border-2 border-transparent font-pixel text-base text-kopi-krem hover:bg-kopi-hover hover:text-kopi-krem motion-safe:hover:animate-px-bob data-[active=true]:border-kopi-karamel data-[active=true]:bg-kopi-aktif data-[active=true]:text-kopi-krem group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-1.5!';
 
-// Menu kasir untuk kasir dan admin. Kasir juga boleh membaca daftar produk.
-const posNavItems: NavItem[] = [
-    { title: 'Kasir', href: PosController.index(), icon: ShoppingCart },
-    {
-        title: 'Riwayat penjualan',
-        href: SaleController.index(),
-        icon: History,
-    },
-];
+const SUB =
+    'h-8 text-kopi-redup hover:bg-kopi-hover hover:text-kopi-krem motion-safe:hover:animate-px-bob data-[active=true]:bg-kopi-aktif data-[active=true]:font-semibold data-[active=true]:text-kopi-krem data-[active=true]:shadow-[inset_3px_0_0_var(--color-kopi-karamel)]';
 
-// Anggota dan simpanan: admin dan bendahara.
-const memberNavItem: NavItem = {
-    title: 'Anggota',
-    href: MemberController.index(),
-    icon: Users,
-};
+/** Garis pemisah putus-putus. */
+function Divider() {
+    return (
+        <hr className="mx-3 border-0 border-t-2 border-dashed border-kopi-garis" />
+    );
+}
 
-const readOnlyProductNav: NavItem = {
-    title: 'Produk',
-    href: ProductController.index(),
-    icon: Package,
-};
-
-// Menu inventaris hanya untuk admin (route middleware role:admin tetap jadi penjaga utama).
-const inventoryNavItems: NavItem[] = [
-    { title: 'Produk', href: ProductController.index(), icon: Package },
-    {
-        title: 'Penerimaan barang',
-        href: StockReceiptController.index(),
-        icon: PackagePlus,
-    },
-    {
-        title: 'Koreksi stok',
-        href: StockAdjustmentController.create(),
-        icon: ClipboardPen,
-    },
-    { title: 'Supplier', href: SupplierController.index(), icon: Truck },
-    { title: 'Kategori', href: CategoryController.index(), icon: Tags },
-];
-
-// Tahap 6B: kelola pengguna dan hak akses, hanya admin.
-const adminNavItems: NavItem[] = [
-    // Tahap 6C: laporan, hanya admin.
-    {
-        title: 'Laporan penjualan',
-        href: SalesReportController.index(),
-        icon: ChartColumn,
-    },
-    {
-        title: 'Laporan inventaris',
-        href: InventoryReportController.index(),
-        icon: ClipboardList,
-    },
-    { title: 'Pengguna', href: UserController.index(), icon: UserCog },
-    { title: 'Hak akses', href: AccessController.index(), icon: KeyRound },
-];
-
-// Pratinjau mesin diorama (Tahap 5B), hanya admin.
-const dioramaLabNav: NavItem = {
-    title: 'Diorama lab',
-    href: dioramaLab(),
-    icon: Sparkles,
-};
-
-const footerNavItems: NavItem[] = [
-    {
-        title: 'Repository',
-        href: 'https://github.com/laravel/react-starter-kit',
-        icon: FolderGit2,
-    },
-    {
-        title: 'Documentation',
-        href: 'https://laravel.com/docs/starter-kits#react',
-        icon: BookOpen,
-    },
-];
-
+/**
+ * Menu samping bergaya kafe (Tahap 5E-1, referensi pemilik): papan cokelat
+ * kopi bersudut bertangga (lihat .sidebar-kopi di app.css) dengan ikon pixel
+ * buatan sendiri. Susunan dan hak tiap peran ada di components/layout/menu.ts.
+ */
 export function AppSidebar() {
-    const { auth } = usePage().props;
-    const isAdmin = auth.roles.includes('admin');
-    const isKasir = auth.roles.includes('kasir');
-    const isBendahara = auth.roles.includes('bendahara');
-    const navItems = isAdmin
-        ? [
-              ...mainNavItems,
-              ...posNavItems,
-              ...inventoryNavItems,
-              memberNavItem,
-              ...adminNavItems,
-              dioramaLabNav,
-          ]
-        : isKasir
-          ? [...mainNavItems, ...posNavItems, readOnlyProductNav]
-          : isBendahara
-            ? [...mainNavItems, memberNavItem]
-            : mainNavItems;
+    const page = usePage();
+    const roles = page.props.auth.roles;
+    const groups = menuFor(roles);
+    const active = activeLink(groups, page.url.split('?')[0]);
+    const roleLabel = roles.map((r) => ROLE_LABELS[r] ?? r).join(', ');
 
     return (
-        <Sidebar collapsible="icon" variant="inset">
-            <SidebarHeader>
+        <Sidebar collapsible="icon" variant="floating" className="sidebar-kopi">
+            <SidebarHeader className="pt-3">
                 <SidebarMenu>
                     <SidebarMenuItem>
-                        <SidebarMenuButton size="lg" asChild>
+                        <SidebarMenuButton
+                            size="lg"
+                            asChild
+                            className="hover:bg-transparent hover:text-kopi-krem"
+                        >
                             <Link href={dashboard()} prefetch>
-                                <AppLogo />
+                                <span className="flex size-9 shrink-0 items-center justify-center border-2 border-kopi-bingkai bg-kopi-karamel">
+                                    <PixelIcon name="toko" scale={2} />
+                                </span>
+                                <span className="grid min-w-0 gap-0.5">
+                                    <span className="truncate font-pixel text-xl leading-tight text-kopi-krem">
+                                        Kasir Koperasi
+                                    </span>
+                                    {roleLabel && (
+                                        <span className="truncate text-[13px] text-kopi-redup">
+                                            Masuk sebagai {roleLabel}
+                                        </span>
+                                    )}
+                                </span>
                             </Link>
                         </SidebarMenuButton>
                     </SidebarMenuItem>
                 </SidebarMenu>
             </SidebarHeader>
 
-            <SidebarContent>
-                <NavMain items={navItems} />
+            <Divider />
+
+            <SidebarContent className="[scrollbar-width:thin] [scrollbar-color:var(--color-kopi-garis)_transparent] px-2 pt-1">
+                <SidebarMenu className="gap-1.5">
+                    {groups.map((group) => {
+                        const groupActive = active?.group.title === group.title;
+                        const first =
+                            group.href ?? group.items?.[0]?.href ?? '#';
+
+                        return (
+                            <SidebarMenuItem key={group.title}>
+                                <SidebarMenuButton
+                                    asChild
+                                    isActive={groupActive}
+                                    tooltip={{ children: group.title }}
+                                    className={GROUP}
+                                >
+                                    <Link href={first} prefetch>
+                                        <PixelIcon
+                                            name={group.icon}
+                                            scale={2}
+                                            className="shrink-0"
+                                        />
+                                        <span>{group.title}</span>
+                                    </Link>
+                                </SidebarMenuButton>
+
+                                {group.items && group.items.length > 0 && (
+                                    <SidebarMenuSub className="mt-1 mr-0 border-l-2 border-dashed border-kopi-garis">
+                                        {group.items.map((item) => (
+                                            <SidebarMenuSubItem key={item.href}>
+                                                <SidebarMenuSubButton
+                                                    asChild
+                                                    isActive={
+                                                        active?.link?.href ===
+                                                        item.href
+                                                    }
+                                                    className={SUB}
+                                                >
+                                                    <Link
+                                                        href={item.href}
+                                                        prefetch
+                                                    >
+                                                        <span>
+                                                            {item.title}
+                                                        </span>
+                                                    </Link>
+                                                </SidebarMenuSubButton>
+                                            </SidebarMenuSubItem>
+                                        ))}
+                                    </SidebarMenuSub>
+                                )}
+                            </SidebarMenuItem>
+                        );
+                    })}
+                </SidebarMenu>
             </SidebarContent>
 
-            <SidebarFooter>
-                <NavFooter items={footerNavItems} className="mt-auto" />
-                <NavUser />
+            <Divider />
+
+            <SidebarFooter className="pb-3">
+                <div className="border-2 border-kopi-garis bg-kopi-gelap group-data-[collapsible=icon]:border-transparent group-data-[collapsible=icon]:bg-transparent">
+                    <NavUser />
+                </div>
             </SidebarFooter>
         </Sidebar>
     );

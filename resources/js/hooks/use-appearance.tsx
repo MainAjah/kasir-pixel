@@ -46,10 +46,11 @@ const applyTheme = (appearance: Appearance): void => {
         return;
     }
 
-    const isDark = isDarkMode(appearance);
-
-    document.documentElement.classList.toggle('dark', isDark);
-    document.documentElement.style.colorScheme = isDark ? 'dark' : 'light';
+    // Tahap 5E-1: tema pixel selalu terang (keputusan pemilik). Pilihan tampilan
+    // tetap disimpan, tetapi mode gelap tidak dipasang.
+    void isDarkMode(appearance);
+    document.documentElement.classList.remove('dark');
+    document.documentElement.style.colorScheme = 'light';
 };
 
 const subscribe = (callback: () => void) => {

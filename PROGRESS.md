@@ -1,8 +1,94 @@
 # PROGRESS
 
+## Tahap 5E-1: Tema pixel bagian 1, kerangka dan halaman kasir (22–23 Nov 2026)
+
+Status: **selesai, ketiga langkah disetujui pemilik. Belum di-commit.** Tidak ada migration, tidak ada paket npm atau composer baru, dan tidak ada perubahan aturan uang, stok, atau simpanan: `CompleteSale`, harga dari server, stok, dan pembatalan (khusus admin) tidak disentuh.
+
+### Keputusan pemilik
+
+- **Font:** Pixelify Sans lewat Bunny Fonts, dengan mekanisme yang sama seperti Instrument Sans (`vite.config.ts`, izin pemilik). Dipakai untuk judul, angka besar, dan tombol; tabel dan isian tetap Instrument Sans.
+- **Tema selalu terang:** mode gelap tidak dipasang. Pengaturan Appearance di Settings kini tidak berpengaruh.
+- **Susunan menu:** Beranda; Kasir (Transaksi, Riwayat transaksi); Inventaris (Produk, Barang masuk, Penyesuaian stok, Supplier, Kategori); Laporan (Penjualan, Inventaris); Anggota; Admin (Pengguna, Hak akses, Diorama lab). Tiap peran hanya melihat menu yang boleh dibukanya.
+- **Gaya menu samping**, ditetapkan setelah beberapa revisi:
+  - kayu C20, lalu oak gelap: keduanya ditolak;
+  - pilihan akhir: **gaya kafe cokelat kopi** dari prototipe `docs/prototipe/sidebar-kopi-senja.html`, dengan tekstur serat kayu alami bergaya pixel;
+  - **9 warna kopi di luar palet diizinkan khusus untuk menu** (token `--color-kopi-*` di `app.css`). Palet diorama tetap 24 warna, dan warna kopi tidak boleh dipakai di sprite.
+- **Tombol Simpanan anggota:** tampil nonaktif dengan keterangan "segera hadir". Pembayaran tetap hanya tunai.
+- **Grid produk:** **server mengirim katalog** saat layar kasir dibuka (hanya baca).
+
+### Yang sudah selesai
+
+- **Langkah 1, kerangka semua halaman:**
+  - **Menu samping** (`app-sidebar.tsx`, susunan di `components/layout/menu.ts`):
+    - papan kopi bersudut bertangga 6 px dengan bingkai 3 px yang ikut bertangga (`drop-shadow` di `.sidebar-kopi`);
+    - tekstur serat `resources/images/kopi-serat.svg`: ubin 64 × 96 digambar 3×, hanya warna kopi;
+    - garis putus-putus; grup aktif berlatar karamel tua dengan bingkai karamel; hover naik-turun 2 px dengan `steps(2)`, mati bila pengguna meminta gerak dikurangi;
+    - ikon pixel baru "beranda" dan "toko", dan kotak pengguna di bawah;
+    - mode ikon 66 px dan laci di HP.
+  - **Header** (`app-sidebar-header.tsx`): judul halaman dalam font pixel, keterangan dari menu, serta tanggal dan jam (diperbarui tiap 15 detik, aman untuk SSR).
+  - **Dibuang:** tautan Repository dan Documentation bawaan starter kit.
+- **Langkah 2, halaman kasir** (`components/pos/*`):
+  - **Kolom cari:** satu kolom untuk cari sekaligus scanner, dan selalu kembali fokus seperti sebelumnya. Saat Enter: barcode persis dari katalog masuk langsung; satu-satunya barang yang cocok ikut masuk; bila tidak ada yang cocok, server ditanya seperti scan biasa.
+  - **Tab kategori:** Semua, kategori menurut abjad, dan Lainnya untuk barang tanpa kategori.
+  - **Grid produk:**
+    - lencana stok: aman (daun), menipis (kunyit), habis (bata);
+    - barang yang habis tidak bisa diklik;
+    - satuan lain tampil sebagai tombol "+ dus".
+  - **Keranjang:**
+    - − dan + serta isian jumlah, tombol hapus, dan peringatan bila jumlah melebihi stok;
+    - subtotal dan total besar;
+    - pilihan anggota (opsional);
+    - Tunai, dan Simpanan anggota yang nonaktif;
+    - uang diterima dengan tombol cepat Pas, 20rb, 50rb, 100rb, lalu Proses Pembayaran.
+  - **Potret zombie** di kiri bawah dengan balon "Total belanja".
+  - **Server:** `PosController` mengirim `catalog`, yaitu produk aktif dengan kategori, stok dari ledger (satu kueri `withStock`), dan satuan (dasar lebih dulu). `PosProduct::unit()` kini bisa menerima stok yang sudah diketahui.
+- **Langkah 3, Transaksi Berhasil dan riwayat:**
+  - **Halaman struk** kini memakai kerangka aplikasi. Kartu "Transaksi Berhasil!" muncul hanya tepat setelah bayar, ditandai flash `sale.completed` untuk nota itu (tanpa perubahan server). Isinya zombie, centang, total, tunai dan kembalian, Cetak Struk, dan Transaksi Baru (langsung terfokus, jadi cukup tekan Enter).
+  - **Struk dari riwayat:** hanya kertas struk dengan Cetak Struk dan Kembali ke riwayat. Saat dicetak, hanya kertas struk 80 mm yang keluar.
+  - **Riwayat transaksi:**
+    - tab Semua, Hari Ini, 7 Hari, Bulanan (`?periode=`, memakai `ReportPeriod` zona WIB; nilai lain dianggap Semua);
+    - tabel pixel dengan lencana Selesai/Batal;
+    - aturan cakupan tetap: kasir melihat penjualannya sendiri, admin melihat shift yang terbuka; pembatalan tetap khusus admin.
+- **Tes:**
+  - **Pest baru:** katalog (produk aktif, kategori, satuan, stok, tidak dikirim tanpa shift) dan saringan periode riwayat (termasuk batas 00.30 WIB).
+  - **Vitest baru:** `layout/menu`, `layout/kopi-serat` (ubin hanya warna kopi, 9 token), dan `pos/catalog` (status stok, tab, saringan, barcode).
+  - **Hasil:** 378 tes Pest dan 221 tes Vitest lulus; Pint, tsc, dan lint bersih.
+- **Dicoba di browser** (1366 × 768 dan HP):
+  - menu per peran (admin, kasir); laci HP; mode ikon;
+  - grid: klik kartu, "+ dus", cari lalu Enter, tab kategori, Pas membuat Proses Pembayaran aktif;
+  - riwayat: keempat tab; struk dari riwayat; dialog batal sebagai admin (ditutup tanpa membatalkan);
+  - kartu Transaksi Berhasil, dengan flash dipasang dari browser lewat `router.flash`.
+
+### Batasan dan hal yang perlu diketahui
+
+- **Belum dicoba sungguhan:**
+  - Proses Pembayaran tidak saya klik, supaya tidak mencatat penjualan di database `kasir`;
+  - Cetak Struk belum dicoba ke printer.
+- **Font pixel hilang setelah Vitest:** setiap kali `npx vp test` dijalankan, plugin font milik Vite ikut berjalan lalu menghapus `public/fonts-manifest.dev.json` milik server pengembangan. Akibatnya font pixel hilang sampai Vite dijalankan ulang. Hasil build produksi tidak terpengaruh. Usul perbaikan satu baris (daftar font kosong saat Vitest) belum dipasang, menunggu izin.
+- **Proses Vite tertinggal di Windows:** menghentikan tugas latar belakang tidak ikut menghentikan proses anak Vite. Hentikan dengan `taskkill /T` pada proses `npm run dev`.
+- **Judul ganda:** judul di dalam isi halaman lain (misalnya Produk) masih dobel dengan judul header. Isi halaman sengaja tidak diubah; bisa dirapikan di 5E-2.
+- **Komponen bawaan:** dialog batal dan paginasi masih bergaya komponen bawaan (warna tema, sudut kotak).
+- **Di HP:** keranjang kasir ada di bawah grid. Layar kasir dirancang untuk PC atau tablet mendatar.
+- **Prototipe:** `docs/prototipe/sidebar-kopi-senja.html` adalah prototipe mandiri (pemutar musik, merek "Kopi Senja"). Entri "prototipe" ditambahkan ke `.claude/launch.json` untuk membukanya.
+- **Server lokal:** `php artisan serve` berjalan di port **8000** (database `kasir`), ditambah Vite dan MariaDB. Browser pratinjau masuk sebagai admin.
+
+### Saran untuk tahap berikutnya
+
+**Tahap 5E-2** (tema pixel bagian 2: inventaris dengan kartu angka dan tab Daftar Barang, Stok Masuk, dan Stok Keluar; detail barang masuk; supplier; laporan 6C; pengguna; hak akses; potret penjaga Inventaris (gurita) di kanan bawah): **Sonnet, upaya tinggi**, memakai skill desain (frontend-design).
+
+- **Pakai ulang:** `PixelTable` dan `Badge`, `StockBadge` dan `stockStatus` (`components/pos/catalog.ts`), gaya tab dan tombol dari layar kasir, `BigPortrait post="inventaris"`, serta token palet `px-*` dan utilitas `pixel-frame`.
+- **Usulan yang perlu izin lebih dulu:**
+  - pisahkan tab, tombol, dan dialog pixel menjadi komponen bersama;
+  - rapikan judul ganda di isi halaman;
+  - pasang perbaikan font saat Vitest.
+- Tampilkan satu halaman contoh (misalnya Inventaris) sebelum diterapkan ke halaman lain.
+- Mulai sesi baru setelah mengganti model.
+
+---
+
 ## Tahap 6C: Laporan penjualan dan inventaris, ringkasan di Beranda (22 Nov 2026)
 
-Status: **selesai, disetujui pemilik, sudah di-commit (commit "Tahap 6C").** Tidak ada migration, tidak ada perintah yang mengubah database, dan tidak ada paket baru. Laporan hanya membaca; ledger, aturan stok, dan data penjualan tidak diubah.
+Status: **selesai, disetujui pemilik, sudah di-commit (c0166ab).** Tidak ada migration, tidak ada perintah yang mengubah database, dan tidak ada paket baru. Laporan hanya membaca; ledger, aturan stok, dan data penjualan tidak diubah.
 
 ### Keputusan pemilik
 

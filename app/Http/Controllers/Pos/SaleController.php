@@ -13,6 +13,7 @@ use App\Http\Controllers\Controller;
 use App\Http\Requests\Pos\CompleteSaleRequest;
 use App\Http\Requests\Pos\VoidSaleRequest;
 use App\Models\Sale;
+use App\Support\ReportPeriod;
 use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
@@ -44,15 +45,20 @@ class SaleController extends Controller
         return to_route('pos.sales.receipt', $sale);
     }
 
+    /** Tab periode di riwayat (Tahap 5E-1); selain "semua" memakai ReportPeriod (zona tampilan). */
+    private const PERIODS = ['semua', 'hari-ini', '7-hari', 'bulan-ini'];
+
     /**
      * Riwayat penjualan. Kasir: miliknya sendiri. Admin: semua penjualan di shift yang masih terbuka
-     * (tempat membatalkan; shift yang sudah tutup tidak bisa dibatalkan).
+     * (tempat membatalkan; shift yang sudah tutup tidak bisa dibatalkan). Bisa disaring menurut
+     * tanggal penjualan: hari ini, 7 hari, atau bulan ini.
      */
     public function index(Request $request): Response
     {
         $user = $request->user();
         $isAdmin = $user->hasRole(Role::Admin->value);
         $tz = config('app.display_timezone');
+        $period = in_array($request->query('periode'), self::PERIODS, true) ? $request->query('periode') : 'semua';
 
         $sales = Sale::query()
             ->with(['cashier:id,name', 'cashShift:id,closed_at', 'void:id,sale_id,reason'])
@@ -60,8 +66,11 @@ class SaleController extends Controller
             ->when($isAdmin,
                 fn ($q) => $q->whereHas('cashShift', fn ($s) => $s->whereNull('closed_at')),
                 fn ($q) => $q->where('created_by', $user->id))
+            ->when($period !== 'semua',
+                fn ($q) => $q->whereBetween('created_at', ReportPeriod::make($period)->utcRange()))
             ->orderByDesc('id')
             ->paginate(20)
+            ->withQueryString()
             ->through(fn (Sale $s) => [
                 'id' => $s->id,
                 'number' => $s->number,
@@ -77,6 +86,7 @@ class SaleController extends Controller
         return Inertia::render('kasir/riwayat', [
             'sales' => $sales,
             'scope' => $isAdmin ? 'admin' : 'kasir',
+            'period' => $period,
         ]);
     }
 

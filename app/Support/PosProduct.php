@@ -9,11 +9,15 @@ use App\Models\ProductUnit;
  */
 class PosProduct
 {
-    /** @return array<string, mixed> */
-    public static function unit(ProductUnit $unit): array
+    /**
+     * @param  int|null  $stock  Stok satuan dasar yang sudah diketahui (misalnya dari scope withStock);
+     *                           null berarti dibaca dari ledger.
+     * @return array<string, mixed>
+     */
+    public static function unit(ProductUnit $unit, ?int $stock = null): array
     {
         $product = $unit->product;
-        $stock = $product->currentStock();
+        $stock ??= $product->currentStock();
 
         return [
             'product_unit_id' => $unit->id,

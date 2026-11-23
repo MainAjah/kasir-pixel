@@ -41,17 +41,18 @@ export default function MemberPicker({
     }
 
     return (
-        <div className="grid gap-2">
-            <Label htmlFor="anggota">Anggota (opsional)</Label>
+        <div className="relative grid grid-cols-[auto_1fr] items-center gap-x-2">
+            <Label htmlFor="anggota">Anggota</Label>
             <Input
                 id="anggota"
                 value={query}
                 onChange={(e) => setQuery(e.target.value)}
                 autoComplete="off"
-                placeholder="Nomor atau nama anggota"
+                placeholder="Opsional: nomor atau nama"
+                className="h-9"
             />
             {results.length > 0 && (
-                <ul className="divide-y rounded-md border bg-card text-sm">
+                <ul className="absolute top-full right-0 left-0 z-20 mt-1 divide-y border-2 border-px-tinta bg-card text-sm shadow-[3px_3px_0_var(--color-px-tinta)]">
                     {results.map((m) => (
                         <li key={m.id}>
                             <button
