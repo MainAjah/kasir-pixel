@@ -31,6 +31,19 @@ describe('menu samping (5E-1)', () => {
         ]);
     });
 
+    it('Beranda, Kasir, Inventaris, dan Laporan memakai ikon gambar pemilik', () => {
+        const images = Object.fromEntries(
+            menuFor(['admin']).map((g) => [g.title, g.image ?? null]),
+        );
+
+        expect(images.Beranda).toMatch(/beranda\.png/);
+        expect(images.Kasir).toMatch(/kasir\.png/);
+        expect(images.Inventaris).toMatch(/inventaris\.png/);
+        expect(images.Laporan).toMatch(/laporan\.png/);
+        expect(images.Anggota).toBeNull();
+        expect(images.Admin).toBeNull();
+    });
+
     it('tautan aktif memakai awalan jalur terpanjang', () => {
         const menu = menuFor(['admin']);
 

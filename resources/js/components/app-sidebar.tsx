@@ -19,7 +19,7 @@ import { dashboard } from '@/routes';
 
 /** Hover: latar lebih terang dan naik-turun 2px; aktif: latar karamel tua berbingkai karamel. */
 const GROUP =
-    'h-11 gap-3 border-2 border-transparent font-pixel text-base text-kopi-krem hover:bg-kopi-hover hover:text-kopi-krem motion-safe:hover:animate-px-bob data-[active=true]:border-kopi-karamel data-[active=true]:bg-kopi-aktif data-[active=true]:text-kopi-krem group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-1.5!';
+    'h-11 gap-3 border-2 border-transparent font-pixel text-base text-kopi-krem hover:bg-kopi-hover hover:text-kopi-krem motion-safe:hover:animate-px-bob data-[active=true]:border-kopi-karamel data-[active=true]:bg-kopi-aktif data-[active=true]:text-kopi-krem group-data-[collapsible=icon]:size-10! group-data-[collapsible=icon]:p-0.5!';
 
 const SUB =
     'h-8 text-kopi-redup hover:bg-kopi-hover hover:text-kopi-krem motion-safe:hover:animate-px-bob data-[active=true]:bg-kopi-aktif data-[active=true]:font-semibold data-[active=true]:text-kopi-krem data-[active=true]:shadow-[inset_3px_0_0_var(--color-kopi-karamel)]';
@@ -54,7 +54,7 @@ export function AppSidebar() {
                             className="hover:bg-transparent hover:text-kopi-krem"
                         >
                             <Link href={dashboard()} prefetch>
-                                <span className="flex size-9 shrink-0 items-center justify-center border-2 border-kopi-bingkai bg-kopi-karamel">
+                                <span className="flex size-8 shrink-0 items-center justify-center border-2 border-kopi-bingkai bg-kopi-karamel">
                                     <PixelIcon name="toko" scale={2} />
                                 </span>
                                 <span className="grid min-w-0 gap-0.5">
@@ -91,11 +91,22 @@ export function AppSidebar() {
                                     className={GROUP}
                                 >
                                     <Link href={first} prefetch>
-                                        <PixelIcon
-                                            name={group.icon}
-                                            scale={2}
-                                            className="shrink-0"
-                                        />
+                                        {/* Kotak ikon 32 px, sama dengan avatar profil di bawah. */}
+                                        <span className="grid size-8 shrink-0 place-items-center">
+                                            {group.image ? (
+                                                <img
+                                                    src={group.image}
+                                                    alt=""
+                                                    aria-hidden="true"
+                                                    className="max-h-8 max-w-8 [image-rendering:pixelated]"
+                                                />
+                                            ) : (
+                                                <PixelIcon
+                                                    name={group.icon}
+                                                    scale={2}
+                                                />
+                                            )}
+                                        </span>
                                         <span>{group.title}</span>
                                     </Link>
                                 </SidebarMenuButton>

@@ -18,6 +18,11 @@ import SalesReportController from '@/actions/App/Http/Controllers/Reports/SalesR
 import type { PixelIconName } from '@/components/beranda/pixel-icons';
 import { dashboard } from '@/routes';
 import { lab as dioramaLab } from '@/routes/diorama';
+// Ikon gambar pemilik (latar dibuang, kisi paling besar 36 piksel), dipakai menu samping.
+import berandaImage from '../../../images/menu/beranda.png';
+import inventarisImage from '../../../images/menu/inventaris.png';
+import kasirImage from '../../../images/menu/kasir.png';
+import laporanImage from '../../../images/menu/laporan.png';
 
 export type Role = 'admin' | 'kasir' | 'bendahara';
 
@@ -32,6 +37,8 @@ export type MenuLink = {
 export type MenuGroup = {
     title: string;
     icon: PixelIconName;
+    /** Ikon gambar dari pemilik; bila ada, dipakai menggantikan ikon pixel. */
+    image?: string;
     /** Grup satu tautan (Beranda, Anggota) memakai `href`; grup lain punya `items`. */
     href?: string;
     subtitle?: string;
@@ -46,6 +53,7 @@ export const MENU: MenuGroup[] = [
     {
         title: 'Beranda',
         icon: 'beranda',
+        image: berandaImage,
         href: dashboard.url(),
         subtitle: 'Diorama toko',
         roles: ALL,
@@ -53,6 +61,7 @@ export const MENU: MenuGroup[] = [
     {
         title: 'Kasir',
         icon: 'kasir',
+        image: kasirImage,
         roles: ['admin', 'kasir'],
         items: [
             {
@@ -72,6 +81,7 @@ export const MENU: MenuGroup[] = [
     {
         title: 'Inventaris',
         icon: 'stok',
+        image: inventarisImage,
         roles: ['admin', 'kasir'],
         items: [
             {
@@ -109,6 +119,7 @@ export const MENU: MenuGroup[] = [
     {
         title: 'Laporan',
         icon: 'laporan',
+        image: laporanImage,
         roles: ADMIN,
         items: [
             {

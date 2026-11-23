@@ -2,7 +2,7 @@
 
 ## Tahap 5E-1: Tema pixel bagian 1, kerangka dan halaman kasir (22–23 Nov 2026)
 
-Status: **selesai, ketiga langkah disetujui pemilik. Belum di-commit.** Tidak ada migration, tidak ada paket npm atau composer baru, dan tidak ada perubahan aturan uang, stok, atau simpanan: `CompleteSale`, harga dari server, stok, dan pembatalan (khusus admin) tidak disentuh.
+Status: **selesai, ketiga langkah disetujui pemilik, sudah di-commit (fb0fd71).** Tidak ada migration, tidak ada paket npm atau composer baru, dan tidak ada perubahan aturan uang, stok, atau simpanan: `CompleteSale`, harga dari server, stok, dan pembatalan (khusus admin) tidak disentuh.
 
 ### Keputusan pemilik
 
@@ -58,6 +58,17 @@ Status: **selesai, ketiga langkah disetujui pemilik. Belum di-commit.** Tidak ad
   - grid: klik kartu, "+ dus", cari lalu Enter, tab kategori, Pas membuat Proses Pembayaran aktif;
   - riwayat: keempat tab; struk dari riwayat; dialog batal sebagai admin (ditutup tanpa membatalkan);
   - kartu Transaksi Berhasil, dengan flash dipasang dari browser lewat `router.flash`.
+
+### Tambahan setelah commit fb0fd71: ikon menu dari gambar pemilik (disetujui, belum di-commit)
+
+- **Ikon gambar:** Beranda (toko), Kasir (komputer), Inventaris (ransel), dan Laporan (gulungan) memakai gambar pemilik tanpa latar. Anggota dan Admin tetap memakai ikon pixel lama.
+- **Pengolahan:** latar dibuang, termasuk pola kotak-kotak dan celah yang terkurung tali atau kabel. Gambar komputer diubah dulu dari WebP lewat codec Windows. Setiap gambar lalu disusutkan ke kisi paling besar 32 piksel dengan warna terbanyak per sel; khusus toko, warnanya dirata-ratakan. Hasilnya tampil 1:1.
+- **Ukuran (revisi pemilik):** semua kotak ikon menu, termasuk logo, berukuran 32 × 32 px, sama dengan avatar profil, sehingga teks menu sejajar.
+- **Berkas:**
+  - ikon aplikasi di `resources/images/menu/`, dipasang lewat `image` di `components/layout/menu.ts`;
+  - gambar asli, hasil olahan beserta pratinjau 8×, dan alat `ikon.cjs` di `docs/referensi-antarmuka/ikon-menu/` (folder pemilik, tidak di-commit). Alat itu butuh `png.cjs`, yaitu salinan `docs/referensi-karakter/alat/png.js`.
+- **Warna dan pemakaian:** ikon memakai warna asli gambar, bukan 24 warna palet, seperti karakter. Gambarnya tampak dari internet: aman untuk tugas dan demo, tetapi jangan dipublikasikan atau dikomersialkan tanpa izin pembuatnya.
+- **Tes:** Vitest `layout/menu` memastikan keempat menu memakai ikon gambar. Seluruhnya 222 tes Vitest lulus; tsc dan lint bersih.
 
 ### Batasan dan hal yang perlu diketahui
 
