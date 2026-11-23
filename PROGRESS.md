@@ -59,7 +59,9 @@ Status: **selesai, ketiga langkah disetujui pemilik, sudah di-commit (fb0fd71).*
   - riwayat: keempat tab; struk dari riwayat; dialog batal sebagai admin (ditutup tanpa membatalkan);
   - kartu Transaksi Berhasil, dengan flash dipasang dari browser lewat `router.flash`.
 
-### Tambahan setelah commit fb0fd71: ikon menu dari gambar pemilik (disetujui, belum di-commit)
+### Tambahan setelah commit fb0fd71: ikon menu dari gambar pemilik (disetujui, di-commit e9d6e6a)
+
+- **Revisi ikon Kasir (belum di-commit):** diganti gambar komputer baru dari pemilik (`asli/kasir-2.png`). Latar hitamnya dibuang lewat opsi baru `BG_DARK` di `ikon.cjs`, potongan kabel kecil ikut dibuang, warnanya dirata-ratakan supaya layar biru dan logo masih terlihat, lalu diberi garis tepi tinta 1 piksel (opsi `OUTLINE`). Ukurannya 30 × 32.
 
 - **Ikon gambar:** Beranda (toko), Kasir (komputer), Inventaris (ransel), dan Laporan (gulungan) memakai gambar pemilik tanpa latar. Anggota dan Admin tetap memakai ikon pixel lama.
 - **Pengolahan:** latar dibuang, termasuk pola kotak-kotak dan celah yang terkurung tali atau kabel. Gambar komputer diubah dulu dari WebP lewat codec Windows. Setiap gambar lalu disusutkan ke kisi paling besar 32 piksel dengan warna terbanyak per sel; khusus toko, warnanya dirata-ratakan. Hasilnya tampil 1:1.
