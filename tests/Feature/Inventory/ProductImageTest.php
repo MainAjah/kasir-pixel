@@ -1,6 +1,7 @@
 <?php
 
 use App\Models\ActivityLog;
+use App\Models\Product;
 use App\Models\User;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Http\UploadedFile;
@@ -41,6 +42,34 @@ test('admin mengunggah gambar barang, berkas tersimpan dan tampil di form serta 
     [$kasir] = kasirDenganShift();
     $this->actingAs($kasir)->get('/kasir')->assertInertia(fn (Assert $p) => $p
         ->where('catalog.0.image_url', '/storage/'.$path));
+});
+
+test('gambar bisa dipilih langsung saat menambah produk (6D)', function () {
+    $data = [
+        'sku' => 'BR-001',
+        'name' => 'Roti tawar',
+        'category_id' => null,
+        'min_stock' => 5,
+        'is_active' => true,
+        'units' => [['name' => 'bungkus', 'conversion' => 1, 'sell_price' => 15000, 'barcode' => '8990001', 'is_base' => true]],
+    ];
+
+    $this->actingAs($this->admin)
+        ->post('/produk', [...$data, 'image' => pngKecil('roti.png')])
+        ->assertSessionHasNoErrors();
+
+    $roti = Product::where('sku', 'BR-001')->firstOrFail();
+    expect($roti->image_path)->toStartWith('produk/'.$roti->id.'-');
+    Storage::disk('public')->assertExists($roti->image_path);
+
+    // Tanpa gambar tetap bisa, dan gambar yang tidak sah menggagalkan simpan tanpa membuat produk.
+    $this->post('/produk', [...$data, 'sku' => 'BR-002', 'units' => [[...$data['units'][0], 'barcode' => '8990002']]])
+        ->assertSessionHasNoErrors();
+    expect(Product::where('sku', 'BR-002')->value('image_path'))->toBeNull();
+
+    $this->post('/produk', [...$data, 'sku' => 'BR-003', 'units' => [[...$data['units'][0], 'barcode' => '8990003']], 'image' => UploadedFile::fake()->create('nota.pdf', 10, 'application/pdf')])
+        ->assertSessionHasErrors('image');
+    expect(Product::where('sku', 'BR-003')->exists())->toBeFalse();
 });
 
 test('mengganti gambar menghapus berkas lama, melepas gambar menghapus berkasnya', function () {

@@ -40,6 +40,7 @@ test('admin membuka kedua pos dan menerima pilihan fiturnya', function () {
                 ['label' => 'Transaksi', 'href' => '/kasir'],
                 ['label' => 'Riwayat transaksi', 'href' => '/kasir/penjualan'],
                 ['label' => 'Laporan penjualan', 'href' => '/laporan/penjualan', 'note' => null],
+                ['label' => 'Tambah produk', 'href' => '/produk/baru', 'note' => null],
             ],
         ]);
 
@@ -65,7 +66,12 @@ test('kasir membuka pos Kasir, pos Inventaris ditolak di server dengan pesan sin
         ->getJson(route('dashboard.post', 'kasir'))
         ->assertOk()
         ->assertJsonPath('options.0.href', '/kasir')
-        ->assertJsonPath('options.2', ['label' => 'Laporan penjualan', 'href' => null, 'note' => 'khusus admin']);
+        ->assertJsonPath('options.2', ['label' => 'Laporan penjualan', 'href' => null, 'note' => 'khusus admin'])
+        // Tahap 6D: "Tambah produk" juga nonaktif "khusus admin", dan rutenya 403 untuk kasir.
+        ->assertJsonPath('options.3', ['label' => 'Tambah produk', 'href' => null, 'note' => 'khusus admin']);
+
+    $this->actingAs($kasir)->get(route('products.create'))->assertForbidden();
+    $this->actingAs($kasir)->post(route('products.store'), [])->assertForbidden();
 
     $this->actingAs($kasir)
         ->getJson(route('dashboard.post', 'inventaris'))

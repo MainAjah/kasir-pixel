@@ -76,6 +76,14 @@ export const MENU: MenuGroup[] = [
                 href: SaleController.index.url(),
                 roles: ['admin', 'kasir'],
             },
+            {
+                // Tahap 6D: form tambah produk yang sudah ada; ubah dan
+                // nonaktifkan tetap lewat Inventaris > Produk.
+                title: 'Tambah Produk',
+                subtitle: 'Barang baru untuk dijual',
+                href: ProductController.create.url(),
+                roles: ADMIN,
+            },
         ],
     },
     {

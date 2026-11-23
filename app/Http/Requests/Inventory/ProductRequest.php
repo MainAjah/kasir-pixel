@@ -32,7 +32,14 @@ class ProductRequest extends FormRequest
             'units.*.sell_price' => ['required', 'integer', 'min:0'],
             'units.*.barcode' => ['nullable', 'string', 'max:64'],
             'units.*.is_base' => ['required', 'boolean'],
+            // Tahap 6D: gambar boleh dipilih langsung saat menambah produk.
+            'image' => ['nullable', ...ProductImageRequest::IMAGE_RULES],
         ];
+    }
+
+    public function messages(): array
+    {
+        return ProductImageRequest::IMAGE_MESSAGES;
     }
 
     public function attributes(): array
@@ -45,6 +52,7 @@ class ProductRequest extends FormRequest
             'units.*.conversion' => 'isi satuan',
             'units.*.sell_price' => 'harga jual',
             'units.*.barcode' => 'barcode',
+            'image' => 'gambar',
         ];
     }
 }

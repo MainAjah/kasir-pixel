@@ -3,6 +3,7 @@
 namespace App\Http\Controllers\Inventory;
 
 use App\Actions\Inventory\SaveProduct;
+use App\Actions\Inventory\SetProductImage;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\ProductRequest;
 use App\Models\Category;
@@ -58,9 +59,14 @@ class ProductController extends Controller
         ]);
     }
 
-    public function store(ProductRequest $request, SaveProduct $action): RedirectResponse
+    public function store(ProductRequest $request, SaveProduct $action, SetProductImage $image): RedirectResponse
     {
-        $product = $action->handle(null, $request->validated(), $request->user()->id);
+        $product = $action->handle(null, $request->safe()->except('image'), $request->user()->id);
+
+        // Tahap 6D: gambar yang dipilih di form tambah dipasang setelah produk tersimpan.
+        if ($request->hasFile('image')) {
+            $image->handle($product, $request->file('image'), $request->user()->id);
+        }
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk disimpan.']);
 
@@ -98,7 +104,8 @@ class ProductController extends Controller
 
     public function update(ProductRequest $request, Product $product, SaveProduct $action): RedirectResponse
     {
-        $action->handle($product, $request->validated(), $request->user()->id);
+        // Gambar saat mengubah tetap lewat ProductImageController (bagian "Gambar barang").
+        $action->handle($product, $request->safe()->except('image'), $request->user()->id);
 
         Inertia::flash('toast', ['type' => 'success', 'message' => 'Produk diperbarui.']);
 

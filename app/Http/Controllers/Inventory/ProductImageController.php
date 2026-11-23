@@ -10,7 +10,7 @@ use Illuminate\Http\RedirectResponse;
 use Illuminate\Http\Request;
 use Inertia\Inertia;
 
-/** Gambar barang untuk kartu kasir dan rak diorama (hanya admin). */
+/** Gambar barang untuk kartu kasir (hanya admin). */
 class ProductImageController extends Controller
 {
     public function store(ProductImageRequest $request, Product $product, SetProductImage $action): RedirectResponse

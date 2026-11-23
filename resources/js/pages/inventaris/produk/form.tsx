@@ -1,4 +1,5 @@
 import { Head, Link, router, useForm } from '@inertiajs/react';
+import { useEffect, useState } from 'react';
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
 import ProductImageController from '@/actions/App/Http/Controllers/Inventory/ProductImageController';
 import PixelIcon from '@/components/beranda/pixel-icon';
@@ -34,7 +35,7 @@ type ProductData = {
 };
 
 /**
- * Gambar barang untuk kartu kasir dan rak diorama. Disimpan terpisah dari form
+ * Gambar barang untuk kartu kasir. Disimpan terpisah dari form
  * utama (unggah langsung), jadi data produk dan satuan tidak ikut terkirim.
  */
 function ProductImageSection({ product }: { product: ProductData }) {
@@ -44,9 +45,8 @@ function ProductImageSection({ product }: { product: ProductData }) {
         <section className="space-y-3">
             <h3 className="font-medium">Gambar barang</h3>
             <p className="text-sm text-muted-foreground">
-                Tampil di kartu kasir dan rak diorama. Pakai PNG berlatar
-                transparan, paling besar 2 MB. Tanpa gambar, dipakai ikon
-                kardus.
+                Tampil di kartu kasir. Pakai PNG berlatar transparan, paling
+                besar 2 MB. Tanpa gambar, dipakai ikon kardus.
             </p>
             <div className="flex flex-wrap items-center gap-4">
                 <div className="grid size-20 place-items-center border-2 border-px-tinta bg-px-sorotan">
@@ -116,6 +116,83 @@ function ProductImageSection({ product }: { product: ProductData }) {
     );
 }
 
+/**
+ * Pemilih gambar untuk produk baru (Tahap 6D): dikirim bersama form, lalu
+ * dipasang server setelah produk tersimpan. Pratinjau dari berkas lokal.
+ */
+function NewImagePicker({
+    file,
+    onChange,
+    error,
+}: {
+    file: File | null;
+    onChange: (file: File | null) => void;
+    error?: string;
+}) {
+    const [preview, setPreview] = useState<string | null>(null);
+    const [inputKey, setInputKey] = useState(0);
+
+    useEffect(() => {
+        if (!file) {
+            setPreview(null);
+
+            return;
+        }
+
+        const url = URL.createObjectURL(file);
+        setPreview(url);
+
+        return () => URL.revokeObjectURL(url);
+    }, [file]);
+
+    return (
+        <section className="space-y-3">
+            <h3 className="font-medium">Gambar barang</h3>
+            <p className="text-sm text-muted-foreground">
+                Opsional. Tampil di kartu kasir. Pakai PNG berlatar transparan,
+                paling besar 2 MB. Tanpa gambar, dipakai ikon kardus.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+                <div className="grid size-20 place-items-center border-2 border-px-tinta bg-px-sorotan">
+                    {preview ? (
+                        <img
+                            src={preview}
+                            alt="Pratinjau gambar barang"
+                            className="max-h-16 max-w-16 object-contain [image-rendering:pixelated]"
+                        />
+                    ) : (
+                        <PixelIcon name="produk" scale={4} />
+                    )}
+                </div>
+                <div className="grid gap-2">
+                    <Input
+                        key={inputKey}
+                        type="file"
+                        accept="image/png,image/webp,image/gif,image/jpeg"
+                        aria-label="Pilih gambar barang"
+                        onChange={(e) => onChange(e.target.files?.[0] ?? null)}
+                    />
+                    <InputError message={error} />
+                    {file && (
+                        <Button
+                            type="button"
+                            size="sm"
+                            variant="ghost"
+                            className="justify-self-start"
+                            onClick={() => {
+                                onChange(null);
+                                setInputKey((k) => k + 1);
+                            }}
+                        >
+                            Batal pilih gambar
+                        </Button>
+                    )}
+                </div>
+            </div>
+        </section>
+    );
+}
+
 const emptyUnit = (isBase: boolean): UnitRow => ({
     id: null,
     name: isBase ? 'pcs' : '',
@@ -142,6 +219,8 @@ export default function ProdukForm({
             ...u,
             barcode: u.barcode ?? '',
         })) ?? [emptyUnit(true)]) as UnitRow[],
+        // Tahap 6D: gambar bisa dipilih langsung saat menambah produk.
+        image: null as File | null,
     });
 
     const locked = product?.has_movements ?? false;
@@ -170,9 +249,11 @@ export default function ProdukForm({
 
     function submit(e: React.FormEvent) {
         e.preventDefault();
-        form.transform((data) => ({
+        form.transform(({ image, ...data }) => ({
             ...data,
             category_id: data.category_id || null,
+            // Saat mengubah, gambar lewat bagian "Gambar barang" tersendiri.
+            ...(product ? {} : { image }),
         }));
         form.submit(
             product
@@ -287,9 +368,11 @@ export default function ProdukForm({
                 {product ? (
                     <ProductImageSection product={product} />
                 ) : (
-                    <p className="text-sm text-muted-foreground">
-                        Gambar barang bisa diunggah setelah produk disimpan.
-                    </p>
+                    <NewImagePicker
+                        file={form.data.image}
+                        onChange={(file) => form.setData('image', file)}
+                        error={form.errors.image}
+                    />
                 )}
 
                 <section className="space-y-3">

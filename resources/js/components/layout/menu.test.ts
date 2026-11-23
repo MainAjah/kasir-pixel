@@ -16,6 +16,31 @@ describe('menu samping (5E-1)', () => {
         ]);
     });
 
+    it('Tambah Produk di grup Kasir hanya untuk admin (6D)', () => {
+        const kasirItems = (roles: string[]) =>
+            menuFor(roles)
+                .find((g) => g.title === 'Kasir')
+                ?.items?.map((i) => i.title);
+
+        expect(kasirItems(['admin'])).toEqual([
+            'Transaksi',
+            'Riwayat transaksi',
+            'Tambah Produk',
+        ]);
+        expect(kasirItems(['kasir'])).not.toContain('Tambah Produk');
+
+        const add = menuFor(['admin'])
+            .find((g) => g.title === 'Kasir')
+            ?.items?.find((i) => i.title === 'Tambah Produk');
+        expect(add?.href).toBe('/produk/baru');
+        expect(
+            activeLink(menuFor(['admin']), '/produk/baru')?.link?.title,
+        ).toBe('Tambah Produk');
+        expect(
+            activeLink(menuFor(['admin']), '/produk/3/ubah')?.link?.title,
+        ).toBe('Produk');
+    });
+
     it('kasir hanya Beranda, Kasir, dan Produk di Inventaris', () => {
         expect(titles(['kasir'])).toEqual([
             ['Beranda', []],
