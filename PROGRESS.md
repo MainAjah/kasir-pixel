@@ -1,8 +1,36 @@
 # PROGRESS
 
+## Tahap 6D: Tambah produk dari sidebar dan pos Kasir (23 Nov 2026)
+
+Status: **selesai, disetujui pemilik, sudah di-commit (e383815).** Tugas kecil di luar tabel tahap: CRUD produk sudah ada sejak Tahap 2, jadi yang dikerjakan hanya memunculkannya. Tidak ada migration, tidak ada paket baru, dan aturan akses tidak berubah. Rute tambah produk tetap `role:admin`, dan kasir tidak mendapat hak mengelola produk.
+
+### Yang sudah selesai
+
+- **Sidebar:** menu "Tambah Produk" di grup Kasir, hanya untuk admin (`components/layout/menu.ts`), menuju form tambah produk yang sudah ada (`/produk/baru`). Ubah dan nonaktifkan produk tetap lewat Inventaris → Produk, atau tautan "Kembali" di form; tidak ada halaman baru.
+- **Pos Kasir di diorama:** pilihan "Tambah produk" ditambahkan ke `App\Enums\Post` dengan `admin_only`. `DashboardPostController` dan `PostPanel` tidak diubah, karena mekanisme `note` yang sama dengan "Laporan penjualan" langsung berlaku: aktif untuk admin, redup "khusus admin" untuk kasir.
+- **Revisi pemilik:** form tambah produk bisa langsung memilih gambar barang, dengan pratinjau dan tombol Batal pilih.
+  - Gambar ikut terkirim saat Simpan, lalu dipasang `SetProductImage` setelah `SaveProduct` (tidak berubah) membuat produk.
+  - Aturan berkas sama dengan unggah gambar (`ProductImageRequest::IMAGE_RULES`). Gambar tidak sah menggagalkan simpan tanpa membuat produk.
+  - Form ubah tetap memakai bagian Unggah/Lepas gambar tersendiri. Keterangan "rak diorama" di bagian gambar dihapus, karena gambar di rak dibatalkan.
+- **AccessMap tidak diubah:** baris "Tambah dan ubah produk" (admin, `products.create`) sudah ada, dan tes kecocokan tetap lulus.
+- **Tes:**
+  - `DashboardPostTest`: pilihan pos untuk admin dan kasir, serta kasir 403 di `GET /produk/baru` dan `POST /produk`;
+  - `ProductImageTest`: tambah produk dengan gambar, tanpa gambar, dan gambar tidak sah;
+  - `menu.test.ts`: menu hanya untuk admin, beserta tautan aktifnya.
+  - Hasil: 384 tes Pest dan 223 tes Vitest lulus; Pint, tsc, dan lint bersih.
+- **Dicoba di browser:**
+  - **sebagai admin:** menu tampil dan menyala di form; pos Kasir menampilkan "Tambah produk" aktif; pratinjau gambar di form tambah (form tidak disimpan);
+  - **sebagai kasir:** menu tidak tampil, pilihan pos redup "khusus admin", dan `/produk/baru` 403.
+
+### Catatan
+
+- Komentar di migration `2026_11_23_090000_add_image_path_to_products_table` masih menyebut "rak diorama". Dibiarkan, karena migration yang sudah ada tidak diubah tanpa izin, dan itu hanya komentar.
+
+---
+
 ## Tambahan: gambar barang dan data contoh empat produk (23 Nov 2026)
 
-Status: **disetujui pemilik, belum di-commit.** Ada satu migration baru (migration lama tidak diubah) yang sudah dijalankan di database lokal `kasir` atas izin pemilik. Aturan uang, stok, dan penjualan tidak berubah.
+Status: **disetujui pemilik, sudah di-commit (1c337f4).** Ada satu migration baru (migration lama tidak diubah) yang sudah dijalankan di database lokal `kasir` atas izin pemilik. Aturan uang, stok, dan penjualan tidak berubah.
 
 ### Keputusan pemilik
 
