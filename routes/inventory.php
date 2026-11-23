@@ -2,6 +2,7 @@
 
 use App\Http\Controllers\Inventory\CategoryController;
 use App\Http\Controllers\Inventory\ProductController;
+use App\Http\Controllers\Inventory\ProductImageController;
 use App\Http\Controllers\Inventory\StockAdjustmentController;
 use App\Http\Controllers\Inventory\StockCardController;
 use App\Http\Controllers\Inventory\StockReceiptController;
@@ -20,6 +21,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('produk/{product}/ubah', [ProductController::class, 'edit'])->name('products.edit');
     Route::put('produk/{product}', [ProductController::class, 'update'])->name('products.update');
     Route::get('produk/{product}/kartu-stok', [StockCardController::class, 'show'])->name('products.stock-card');
+    // Gambar barang untuk kartu kasir dan rak diorama.
+    Route::post('produk/{product}/gambar', [ProductImageController::class, 'store'])->name('products.image.store');
+    Route::delete('produk/{product}/gambar', [ProductImageController::class, 'destroy'])->name('products.image.destroy');
 
     Route::get('penerimaan-barang', [StockReceiptController::class, 'index'])->name('stock-receipts.index');
     Route::get('penerimaan-barang/baru', [StockReceiptController::class, 'create'])->name('stock-receipts.create');

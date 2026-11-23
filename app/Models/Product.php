@@ -16,6 +16,7 @@ use Illuminate\Database\Eloquent\SoftDeletes;
  * @property string $sku
  * @property string $name
  * @property int|null $category_id
+ * @property string|null $image_path Berkas gambar di disk "public" (lihat SetProductImage).
  * @property int $min_stock
  * @property bool $is_active
  * @property int|null $stock Terisi bila memakai scope withStock().
@@ -83,6 +84,12 @@ class Product extends Model
         $query->whereRaw(
             'COALESCE((select balance_after from stock_movements where product_id = products.id order by id desc limit 1), 0) <= products.min_stock'
         );
+    }
+
+    /** Alamat gambar barang (relatif ke situs, ikut host yang dipakai), null bila belum ada. */
+    public function imageUrl(): ?string
+    {
+        return $this->image_path ? '/storage/'.$this->image_path : null;
     }
 
     /** Stok terkini dari ledger (satu query). */

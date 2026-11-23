@@ -104,7 +104,18 @@ function ProductCard({
                 aria-label={`Tambah ${product.name}, ${base.unit_name}, ${formatRupiah(base.price)}`}
                 className="flex flex-1 flex-col items-center gap-1.5 px-2 pt-3 pb-2.5 text-center outline-none hover:bg-px-lampu focus-visible:bg-px-lampu focus-visible:ring-2 focus-visible:ring-px-biru-tua focus-visible:ring-inset active:bg-px-kunyit disabled:cursor-not-allowed disabled:bg-px-dinding"
             >
-                <PixelIcon name="produk" scale={3} />
+                <span className="grid size-12 place-items-center">
+                    {product.image_url ? (
+                        <img
+                            src={product.image_url}
+                            alt=""
+                            aria-hidden="true"
+                            className="max-h-12 max-w-12 object-contain [image-rendering:pixelated]"
+                        />
+                    ) : (
+                        <PixelIcon name="produk" scale={3} />
+                    )}
+                </span>
                 <span className="line-clamp-2 min-h-[2lh] text-sm leading-tight font-semibold text-px-tinta">
                     {product.name}
                 </span>

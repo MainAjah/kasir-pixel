@@ -53,6 +53,7 @@ class PosController extends Controller
                     'id' => $product->id,
                     'sku' => $product->sku,
                     'name' => $product->name,
+                    'image_url' => $product->imageUrl(),
                     'category' => $product->category?->name,
                     'stock' => $stock,
                     'min_stock' => $product->min_stock,

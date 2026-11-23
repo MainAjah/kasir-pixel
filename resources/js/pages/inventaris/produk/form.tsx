@@ -1,5 +1,7 @@
-import { Head, Link, useForm } from '@inertiajs/react';
+import { Head, Link, router, useForm } from '@inertiajs/react';
 import ProductController from '@/actions/App/Http/Controllers/Inventory/ProductController';
+import ProductImageController from '@/actions/App/Http/Controllers/Inventory/ProductImageController';
+import PixelIcon from '@/components/beranda/pixel-icon';
 import StockAdjustmentController from '@/actions/App/Http/Controllers/Inventory/StockAdjustmentController';
 import StockCardController from '@/actions/App/Http/Controllers/Inventory/StockCardController';
 import Heading from '@/components/heading';
@@ -26,9 +28,93 @@ type ProductData = {
     category_id: number | null;
     min_stock: number;
     is_active: boolean;
+    image_url: string | null;
     has_movements: boolean;
     units: (Omit<UnitRow, 'barcode'> & { barcode: string | null })[];
 };
+
+/**
+ * Gambar barang untuk kartu kasir dan rak diorama. Disimpan terpisah dari form
+ * utama (unggah langsung), jadi data produk dan satuan tidak ikut terkirim.
+ */
+function ProductImageSection({ product }: { product: ProductData }) {
+    const form = useForm<{ image: File | null }>({ image: null });
+
+    return (
+        <section className="space-y-3">
+            <h3 className="font-medium">Gambar barang</h3>
+            <p className="text-sm text-muted-foreground">
+                Tampil di kartu kasir dan rak diorama. Pakai PNG berlatar
+                transparan, paling besar 2 MB. Tanpa gambar, dipakai ikon
+                kardus.
+            </p>
+            <div className="flex flex-wrap items-center gap-4">
+                <div className="grid size-20 place-items-center border-2 border-px-tinta bg-px-sorotan">
+                    {product.image_url ? (
+                        <img
+                            src={product.image_url}
+                            alt={`Gambar ${product.name}`}
+                            className="max-h-16 max-w-16 object-contain [image-rendering:pixelated]"
+                        />
+                    ) : (
+                        <PixelIcon name="produk" scale={4} />
+                    )}
+                </div>
+                <div className="grid gap-2">
+                    <Input
+                        type="file"
+                        accept="image/png,image/webp,image/gif,image/jpeg"
+                        aria-label="Pilih gambar barang"
+                        onChange={(e) =>
+                            form.setData('image', e.target.files?.[0] ?? null)
+                        }
+                    />
+                    <InputError message={form.errors.image} />
+                    <div className="flex gap-2">
+                        <Button
+                            type="button"
+                            size="sm"
+                            disabled={
+                                form.processing || form.data.image === null
+                            }
+                            onClick={() =>
+                                form.post(
+                                    ProductImageController.store.url(
+                                        product.id,
+                                    ),
+                                    {
+                                        forceFormData: true,
+                                        preserveScroll: true,
+                                        onSuccess: () => form.reset(),
+                                    },
+                                )
+                            }
+                        >
+                            Unggah gambar
+                        </Button>
+                        {product.image_url && (
+                            <Button
+                                type="button"
+                                size="sm"
+                                variant="ghost"
+                                onClick={() =>
+                                    router.delete(
+                                        ProductImageController.destroy.url(
+                                            product.id,
+                                        ),
+                                        { preserveScroll: true },
+                                    )
+                                }
+                            >
+                                Lepas gambar
+                            </Button>
+                        )}
+                    </div>
+                </div>
+            </div>
+        </section>
+    );
+}
 
 const emptyUnit = (isBase: boolean): UnitRow => ({
     id: null,
@@ -197,6 +283,14 @@ export default function ProdukForm({
                     />
                     Aktif (muncul di kasir)
                 </label>
+
+                {product ? (
+                    <ProductImageSection product={product} />
+                ) : (
+                    <p className="text-sm text-muted-foreground">
+                        Gambar barang bisa diunggah setelah produk disimpan.
+                    </p>
+                )}
 
                 <section className="space-y-3">
                     <h3 className="font-medium">Satuan</h3>

@@ -80,6 +80,7 @@ class ProductController extends Controller
                 'category_id' => $product->category_id,
                 'min_stock' => $product->min_stock,
                 'is_active' => $product->is_active,
+                'image_url' => $product->imageUrl(),
                 'has_movements' => $locked,
                 'units' => $product->units->map(fn ($u) => [
                     'id' => $u->id,

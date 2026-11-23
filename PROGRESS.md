@@ -1,5 +1,46 @@
 # PROGRESS
 
+## Tambahan: gambar barang dan data contoh empat produk (23 Nov 2026)
+
+Status: **disetujui pemilik, belum di-commit.** Ada satu migration baru (migration lama tidak diubah) yang sudah dijalankan di database lokal `kasir` atas izin pemilik. Aturan uang, stok, dan penjualan tidak berubah.
+
+### Keputusan pemilik
+
+- **Barang yang dipertahankan:** Air mineral 600 ml (gambar botol), Cokelat batang (gambar Choco Cat), Biskuit kelapa (gambar Biscoff), Keripik singkong (gambar keripik). Barang lain akan ditambah pemilik sendiri lewat aplikasi.
+- **Penghapusan:** 18 produk lain dihapus lunak; riwayat penjualan dan ledger tetap utuh.
+- **Penyimpanan gambar:** kolom gambar di produk, diunggah lewat form Produk.
+- **Rak diorama:** bungkus mini **dibatalkan**. Rak tetap mengikuti stok nyata seperti rancangan 5D-1, jadi kini tampak cukup kosong karena barang rak tinggal tiga. Diorama tidak diubah.
+
+### Yang sudah selesai
+
+- **Skema:** migration `2026_11_23_090000_add_image_path_to_products_table` (kolom `image_path`, boleh kosong). `Product::imageUrl()` mengembalikan `/storage/...`, jadi mengikuti host yang dipakai.
+- **Unggah gambar** (hanya admin):
+  - rute `POST` dan `DELETE /produk/{id}/gambar`, terpisah dari simpan produk sehingga `SaveProduct` tidak berubah;
+  - Action `SetProductImage`: nama berkas acak di disk `public/produk`, berkas lama dihapus, dicatat di `activity_logs`;
+  - validasi PNG/WebP/GIF/JPG, paling besar 2 MB dan 2000 × 2000.
+- **Form Produk:** bagian "Gambar barang" dengan pratinjau, Unggah gambar, dan Lepas gambar (hanya saat ubah; produk baru disimpan dulu).
+- **Kasir:** katalog membawa `image_url`, dan kartu grid menampilkan gambar (paling besar 48 px). Tanpa gambar tetap ikon kardus.
+- **Gambar keempat barang:** latarnya dibuang dengan `docs/referensi-antarmuka/ikon-menu/ikon.cjs`, yang mendapat opsi baru `BG_WHITE` untuk latar putih murni (badan botol bening tetap utuh). Watermark dan kartu latar ikut terbuang. Hasilnya di `database/seeders/gambar-produk/{SKU}.png`, sedangkan gambar asli dan pratinjaunya di `docs/referensi-antarmuka/gambar-barang/` (folder pemilik).
+- **Database lokal `kasir`:**
+  - migration dijalankan;
+  - `php artisan storage:link` (tautan `public/storage`);
+  - 18 produk dihapus lunak (dicatat `product.deleted`): DM-001 sampai DM-008, DM-102 sampai DM-106, DM-204, DM-301 sampai DM-304;
+  - keempat barang diberi gambar.
+- **Seeder data contoh:** hanya empat produk (stok penuh, setengah, sedikit, kosong), dan gambarnya dipasang otomatis.
+- **Tes:**
+  - Pest baru `Inventory/ProductImageTest`: simpan, tampil di form dan katalog kasir, ganti menghapus berkas lama, lepas, berkas ditolak, kasir dan bendahara 403. Tes memakai PNG kecil dari base64 karena ekstensi GD tidak terpasang.
+  - `DemoDataTest` disesuaikan: empat produk bergambar, disk `public` dipalsukan, dan simulasi 5 kali, bukan 20, karena stok contoh lebih sedikit.
+  - Hasil: 383 tes Pest dan 222 tes Vitest lulus; Pint, tsc, dan lint bersih.
+
+### Batasan dan hal yang perlu diketahui
+
+- **Kategori kosong:** Sembako dan Kebutuhan rumah kini tanpa produk, tetapi masih ada di halaman Kategori (tidak dihapus).
+- **Latar gambar unggahan:** gambar yang diunggah dipakai apa adanya; aplikasi tidak membuang latarnya. Pakai PNG berlatar transparan.
+- **Penyimpanan di server lain:** perlu `php artisan storage:link` sekali, dan folder `storage/app/public/produk` ikut dicadangkan.
+- **Hak cipta:** gambar barang tampak berasal dari internet (merek Biscoff dan gaya Choco Cat). Aman untuk tugas dan demo, jangan dipublikasikan atau dikomersialkan.
+
+---
+
 ## Tahap 5E-1: Tema pixel bagian 1, kerangka dan halaman kasir (22–23 Nov 2026)
 
 Status: **selesai, ketiga langkah disetujui pemilik, sudah di-commit (fb0fd71).** Tidak ada migration, tidak ada paket npm atau composer baru, dan tidak ada perubahan aturan uang, stok, atau simpanan: `CompleteSale`, harga dari server, stok, dan pembatalan (khusus admin) tidak disentuh.

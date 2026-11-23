@@ -29,6 +29,8 @@ export type CatalogProduct = {
     id: number;
     sku: string;
     name: string;
+    /** Gambar barang (unggahan admin), null berarti ikon kardus. */
+    image_url: string | null;
     category: string | null;
     /** Stok dalam satuan dasar. */
     stock: number;

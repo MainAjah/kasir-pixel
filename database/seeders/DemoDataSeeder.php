@@ -4,6 +4,7 @@ namespace Database\Seeders;
 
 use App\Actions\Inventory\AdjustStock;
 use App\Actions\Inventory\SaveProduct;
+use App\Actions\Inventory\SetProductImage;
 use App\Actions\Pos\OpenShift;
 use App\Actions\Savings\CreateMember;
 use App\Actions\Savings\PostSaving;
@@ -15,12 +16,15 @@ use App\Models\Member;
 use App\Models\Product;
 use App\Models\User;
 use Illuminate\Database\Seeder;
+use Illuminate\Http\File;
 use RuntimeException;
 
 /**
- * Data contoh untuk demo (Tahap 6): kategori, sekitar 20 produk beserta satuan dan barcode,
+ * Data contoh untuk demo (Tahap 6): kategori, empat produk bergambar beserta satuan dan
+ * barcode (dikurangi atas permintaan pemilik; barang lain ditambah sendiri lewat aplikasi),
  * stok awal dengan campuran kosong, sedikit, setengah, dan penuh, beberapa anggota dengan
- * simpanan, dan satu shift demo untuk kasir contoh.
+ * simpanan, dan satu shift demo untuk kasir contoh. Gambar barang diambil dari
+ * database/seeders/gambar-produk/{SKU}.png.
  *
  * Hanya untuk lingkungan lokal: di lingkungan lain seeder ini tidak melakukan apa-apa,
  * jadi database tes dan produksi tidak pernah tersentuh. Semua tulisan lewat Action yang
@@ -46,28 +50,10 @@ class DemoDataSeeder extends Seeder
      * @var array<int, array{string, string, string, string, int, string, array{string, int, int}|null}>
      */
     private const PRODUCTS = [
-        ['DM-001', 'Beras 5 kg', 'Sembako', 'sak', 68000, 'penuh', null],
-        ['DM-002', 'Minyak goreng 1 L', 'Sembako', 'botol', 17500, 'setengah', ['dus', 12, 200000]],
-        ['DM-003', 'Gula pasir 1 kg', 'Sembako', 'pak', 16000, 'penuh', null],
-        ['DM-004', 'Tepung terigu 1 kg', 'Sembako', 'pak', 13000, 'sedikit', null],
-        ['DM-005', 'Telur ayam 1 kg', 'Sembako', 'kg', 28000, 'setengah', null],
-        ['DM-006', 'Mi instan', 'Sembako', 'bungkus', 3200, 'penuh', ['dus', 40, 120000]],
-        ['DM-007', 'Garam dapur', 'Sembako', 'bungkus', 4000, 'kosong', null],
-        ['DM-008', 'Kecap manis', 'Sembako', 'botol', 12000, 'sedikit', null],
         ['DM-101', 'Air mineral 600 ml', 'Minuman', 'botol', 3500, 'penuh', ['dus', 24, 80000]],
-        ['DM-102', 'Teh celup', 'Minuman', 'kotak', 6500, 'setengah', null],
-        ['DM-103', 'Teh botol', 'Minuman', 'botol', 5000, 'sedikit', null],
-        ['DM-104', 'Susu UHT cokelat', 'Minuman', 'kotak', 6500, 'setengah', null],
-        ['DM-105', 'Jus jeruk', 'Minuman', 'botol', 7000, 'kosong', null],
-        ['DM-106', 'Minuman isotonik', 'Minuman', 'botol', 8000, 'penuh', null],
         ['DM-201', 'Biskuit kelapa', 'Makanan ringan', 'bungkus', 9000, 'setengah', null],
         ['DM-202', 'Keripik singkong', 'Makanan ringan', 'bungkus', 8500, 'sedikit', null],
         ['DM-203', 'Cokelat batang', 'Makanan ringan', 'batang', 12000, 'kosong', null],
-        ['DM-204', 'Permen mint', 'Makanan ringan', 'bungkus', 1000, 'penuh', null],
-        ['DM-301', 'Sabun mandi', 'Kebutuhan rumah', 'batang', 4500, 'penuh', null],
-        ['DM-302', 'Detergen 1 kg', 'Kebutuhan rumah', 'pak', 21000, 'setengah', null],
-        ['DM-303', 'Pasta gigi', 'Kebutuhan rumah', 'tube', 12500, 'sedikit', null],
-        ['DM-304', 'Tisu gulung', 'Kebutuhan rumah', 'roll', 7500, 'penuh', null],
     ];
 
     /** Anggota contoh: nama, simpanan wajib (jumlah bulan terakhir), setoran sukarela. */
@@ -106,7 +92,9 @@ class DemoDataSeeder extends Seeder
         $categories = [];
 
         foreach (self::PRODUCTS as $i => [$sku, $name, $category, $unit, $price, $level, $extra]) {
-            if (Product::withTrashed()->where('sku', $sku)->exists()) {
+            if ($existing = Product::withTrashed()->where('sku', $sku)->first()) {
+                $this->attachImage($existing, $admin);
+
                 continue;
             }
 
@@ -144,6 +132,18 @@ class DemoDataSeeder extends Seeder
             if ($qty > 0) {
                 $adjust->handle($product, StockMovementType::Opening, $product->baseUnit, $qty, $admin->id);
             }
+
+            $this->attachImage($product, $admin);
+        }
+    }
+
+    /** Gambar barang contoh (bila ada berkasnya dan produk belum bergambar). */
+    private function attachImage(Product $product, User $admin): void
+    {
+        $file = database_path("seeders/gambar-produk/{$product->sku}.png");
+
+        if ($product->image_path === null && is_file($file)) {
+            app(SetProductImage::class)->handle($product, new File($file), $admin->id);
         }
     }
 

@@ -19,6 +19,10 @@ use Database\Seeders\DatabaseSeeder;
 use Database\Seeders\DemoDataSeeder;
 use Database\Seeders\RoleSeeder;
 use Illuminate\Support\Facades\Event;
+use Illuminate\Support\Facades\Storage;
+
+// Seeder memasang gambar barang ke disk public: jangan sampai menulis ke disk sungguhan.
+beforeEach(fn () => Storage::fake('public'));
 
 /** Jalankan blok seolah-olah di lingkungan lokal (database tes di-rollback RefreshDatabase). */
 function sebagaiLokal(Closure $block): void
@@ -63,12 +67,19 @@ test('DatabaseSeeder tidak membuat data contoh di database tes', function () {
         ->and(Category::count())->toBe(0);
 });
 
-test('seeder lokal membuat kategori, sekitar 20 produk dengan satuan dan barcode', function () {
+test('seeder lokal membuat kategori, empat produk bergambar dengan satuan dan barcode', function () {
     akunDemo();
     sebagaiLokal(fn () => $this->seed(DemoDataSeeder::class));
 
     expect(Category::where('name', 'Minuman')->exists())->toBeTrue()
-        ->and(Product::count())->toBeBetween(18, 24);
+        ->and(Product::orderBy('sku')->pluck('name')->all())
+        ->toBe(['Air mineral 600 ml', 'Biskuit kelapa', 'Keripik singkong', 'Cokelat batang']);
+
+    // Tiap produk contoh bergambar, dan berkasnya ada di disk public.
+    foreach (Product::all() as $product) {
+        expect($product->image_path)->not->toBeNull();
+        Storage::disk('public')->assertExists($product->image_path);
+    }
 
     foreach (Product::with('units')->get() as $product) {
         expect($product->units->where('is_base', true))->toHaveCount(1)
@@ -79,7 +90,7 @@ test('seeder lokal membuat kategori, sekitar 20 produk dengan satuan dan barcode
     expect(ProductUnit::where('conversion', '>', 1)->exists())->toBeTrue()
         ->and(ProductUnit::pluck('barcode')->unique()->count())->toBe(ProductUnit::count());
 
-    expect(Category::where('name', 'Minuman')->first()->products()->count())->toBeGreaterThanOrEqual(4);
+    expect(Category::where('name', 'Minuman')->first()->products()->count())->toBe(1);
 });
 
 test('stok awal lewat ledger dengan campuran kosong, sedikit, setengah, dan penuh', function () {
@@ -190,7 +201,10 @@ test('simulasi hanya memilih produk yang punya stok dan aktif', function () {
     $nonaktif = Product::withStock()->get()->first(fn ($p) => $p->stock > 0);
     $nonaktif->update(['is_active' => false]);
 
-    for ($i = 0; $i < 20; $i++) {
+    // Data contoh kini empat produk: setelah satu dinonaktifkan tersisa 31 unit
+    // berstok, dan satu simulasi paling banyak 2 barang × 3, jadi 5 kali tidak
+    // pernah menghabiskan stok.
+    for ($i = 0; $i < 5; $i++) {
         app(SimulateSale::class)->handle();
     }
 
