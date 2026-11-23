@@ -16,7 +16,7 @@ describe('menu samping (5E-1)', () => {
         ]);
     });
 
-    it('Tambah Produk di grup Kasir hanya untuk admin (6D)', () => {
+    it('grup Kasir tanpa Tambah Produk; form tambah dibuka lewat Produk', () => {
         const kasirItems = (roles: string[]) =>
             menuFor(roles)
                 .find((g) => g.title === 'Kasir')
@@ -25,19 +25,9 @@ describe('menu samping (5E-1)', () => {
         expect(kasirItems(['admin'])).toEqual([
             'Transaksi',
             'Riwayat transaksi',
-            'Tambah Produk',
         ]);
-        expect(kasirItems(['kasir'])).not.toContain('Tambah Produk');
-
-        const add = menuFor(['admin'])
-            .find((g) => g.title === 'Kasir')
-            ?.items?.find((i) => i.title === 'Tambah Produk');
-        expect(add?.href).toBe('/produk/baru');
         expect(
             activeLink(menuFor(['admin']), '/produk/baru')?.link?.title,
-        ).toBe('Tambah Produk');
-        expect(
-            activeLink(menuFor(['admin']), '/produk/3/ubah')?.link?.title,
         ).toBe('Produk');
     });
 

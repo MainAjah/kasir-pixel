@@ -86,6 +86,8 @@ Status: **selesai, ketiga langkah disetujui pemilik, sudah di-commit (746871a).*
 
 ## Tahap 6D: Tambah produk dari sidebar dan pos Kasir (23 Nov 2026)
 
+**Revisi 23 Nov 2026 (setelah 5E-2), atas permintaan pemilik:** pilihan "Tambah produk" di pos Kasir dan menu "Tambah Produk" di grup Kasir pada sidebar **dihapus lagi**. Form tambah produk (dengan pemilih gambar) tetap ada lewat Inventaris → Produk → tombol Tambah Produk, dan tetap khusus admin. Tes `DashboardPostTest` dan `menu.test.ts` disesuaikan.
+
 Status: **selesai, disetujui pemilik, sudah di-commit (e383815).** Tugas kecil di luar tabel tahap: CRUD produk sudah ada sejak Tahap 2, jadi yang dikerjakan hanya memunculkannya. Tidak ada migration, tidak ada paket baru, dan aturan akses tidak berubah. Rute tambah produk tetap `role:admin`, dan kasir tidak mendapat hak mengelola produk.
 
 ### Yang sudah selesai

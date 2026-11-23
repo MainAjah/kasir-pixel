@@ -62,8 +62,6 @@ enum Post: string
                 ['label' => 'Transaksi', 'route' => 'pos.index'],
                 ['label' => 'Riwayat transaksi', 'route' => 'pos.sales.index'],
                 ['label' => 'Laporan penjualan', 'route' => 'reports.sales', 'admin_only' => true],
-                // Tahap 6D: form tambah produk (CRUD sejak Tahap 2), tetap khusus admin.
-                ['label' => 'Tambah produk', 'route' => 'products.create', 'admin_only' => true],
             ],
             self::Inventaris => [
                 ['label' => 'Stok barang', 'route' => 'products.index'],

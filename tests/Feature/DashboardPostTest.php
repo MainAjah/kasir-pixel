@@ -40,9 +40,10 @@ test('admin membuka kedua pos dan menerima pilihan fiturnya', function () {
                 ['label' => 'Transaksi', 'href' => '/kasir'],
                 ['label' => 'Riwayat transaksi', 'href' => '/kasir/penjualan'],
                 ['label' => 'Laporan penjualan', 'href' => '/laporan/penjualan', 'note' => null],
-                ['label' => 'Tambah produk', 'href' => '/produk/baru', 'note' => null],
             ],
-        ]);
+        ])
+        // "Tambah produk" tidak lagi ada di pos Kasir (dihapus atas permintaan pemilik).
+        ->assertJsonCount(3, 'options');
 
     $this->actingAs($admin)
         ->getJson(route('dashboard.post', 'inventaris'))
@@ -67,9 +68,9 @@ test('kasir membuka pos Kasir, pos Inventaris ditolak di server dengan pesan sin
         ->assertOk()
         ->assertJsonPath('options.0.href', '/kasir')
         ->assertJsonPath('options.2', ['label' => 'Laporan penjualan', 'href' => null, 'note' => 'khusus admin'])
-        // Tahap 6D: "Tambah produk" juga nonaktif "khusus admin", dan rutenya 403 untuk kasir.
-        ->assertJsonPath('options.3', ['label' => 'Tambah produk', 'href' => null, 'note' => 'khusus admin']);
+        ->assertJsonCount(3, 'options');
 
+    // Form tambah produk tetap khusus admin.
     $this->actingAs($kasir)->get(route('products.create'))->assertForbidden();
     $this->actingAs($kasir)->post(route('products.store'), [])->assertForbidden();
 
