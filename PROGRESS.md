@@ -2,7 +2,7 @@
 
 ## Tahap 5E-2: Tema pixel bagian 2, inventaris dan halaman tabel (23 Nov 2026)
 
-Status: **selesai, ketiga langkah disetujui pemilik, belum di-commit (menunggu izin).** Tidak ada migration, tidak ada paket npm atau composer baru, dan tidak ada perubahan aturan uang, stok, atau hak akses. Server hanya mendapat bacaan baru: kartu angka, daftar Stok Keluar, detail penerimaan, dan `image_url`. Semua penulisan stok tetap lewat `AdjustStock` dan `ReceiveStock` yang tidak disentuh.
+Status: **selesai, ketiga langkah disetujui pemilik, sudah di-commit (746871a).** Tidak ada migration, tidak ada paket npm atau composer baru, dan tidak ada perubahan aturan uang, stok, atau hak akses. Server hanya mendapat bacaan baru: kartu angka, daftar Stok Keluar, detail penerimaan, dan `image_url`. Semua penulisan stok tetap lewat `AdjustStock` dan `ReceiveStock` yang tidak disentuh.
 
 ### Yang sudah selesai
 
