@@ -12,6 +12,47 @@ const QUICK_AMOUNTS = [20000, 50000, 100000];
 const CHIP =
     'border-2 border-px-tinta bg-px-dinding font-pixel text-px-tinta hover:bg-px-lampu focus-visible:ring-2 focus-visible:ring-px-biru-tua focus-visible:outline-none disabled:cursor-not-allowed disabled:border-px-logam disabled:text-px-bayangan disabled:hover:bg-px-dinding';
 
+/** Tempat sampah 8 × 8 (warna teks tombol). */
+const TRASH = [
+    '...##...',
+    '.######.',
+    '........',
+    '.######.',
+    '.#.##.#.',
+    '.#.##.#.',
+    '.#.##.#.',
+    '.######.',
+];
+
+function TrashIcon() {
+    return (
+        <svg
+            aria-hidden="true"
+            viewBox="0 0 8 8"
+            width={16}
+            height={16}
+            shapeRendering="crispEdges"
+        >
+            {TRASH.flatMap((row, y) =>
+                row
+                    .split('')
+                    .map((ch, x) =>
+                        ch === '#' ? (
+                            <rect
+                                key={`${x},${y}`}
+                                x={x}
+                                y={y}
+                                width={1}
+                                height={1}
+                                fill="currentColor"
+                            />
+                        ) : null,
+                    ),
+            )}
+        </svg>
+    );
+}
+
 function CartRow({
     line,
     onQty,
@@ -32,10 +73,11 @@ function CartRow({
                 <button
                     type="button"
                     aria-label={`Hapus ${line.product_name} dari keranjang`}
+                    title="Hapus dari keranjang"
                     onClick={onRemove}
-                    className="-mt-0.5 grid size-6 shrink-0 place-items-center border-2 border-transparent font-pixel text-base text-px-bata-tua hover:border-px-tinta hover:bg-px-bata hover:text-px-tinta focus-visible:ring-2 focus-visible:ring-px-biru-tua focus-visible:outline-none"
+                    className="grid size-7 shrink-0 place-items-center border-2 border-px-tinta bg-px-sorotan text-px-tinta hover:bg-px-bata focus-visible:ring-2 focus-visible:ring-px-biru-tua focus-visible:outline-none"
                 >
-                    ×
+                    <TrashIcon />
                 </button>
             </div>
 
@@ -46,11 +88,20 @@ function CartRow({
                 </p>
 
                 <div className="flex items-center">
+                    {/* Pada jumlah 1, minus mengeluarkan barang dari keranjang. */}
                     <button
                         type="button"
-                        aria-label={`Kurangi ${line.product_name}`}
-                        disabled={line.qty <= 1}
-                        onClick={() => onQty(line.qty - 1)}
+                        aria-label={
+                            line.qty <= 1
+                                ? `Hapus ${line.product_name} dari keranjang`
+                                : `Kurangi ${line.product_name}`
+                        }
+                        title={
+                            line.qty <= 1 ? 'Hapus dari keranjang' : undefined
+                        }
+                        onClick={() =>
+                            line.qty <= 1 ? onRemove() : onQty(line.qty - 1)
+                        }
                         className={cn(CHIP, 'size-7 text-sm')}
                     >
                         −

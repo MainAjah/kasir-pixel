@@ -67,7 +67,12 @@ export default function PosScreen({
         cartEmptyRef.current = cart.length === 0;
     }, [cart]);
 
-    const focusScan = useCallback(() => scanRef.current?.focus(), []);
+    // preventScroll: kembali siap untuk scanner tanpa menggulir layar ke kolom
+    // cari (revisi pemilik: setelah klik barang, layar tetap di tempatnya).
+    const focusScan = useCallback(
+        () => scanRef.current?.focus({ preventScroll: true }),
+        [],
+    );
 
     // Kolom cari/scan selalu fokus: saat dibuka, setelah klik di area kosong, dan
     // saat scanner mulai mengetik ketika fokus sedang tidak di kolom isian mana pun.
