@@ -1,9 +1,18 @@
 import { Head, Link, router } from '@inertiajs/react';
 import SupplierController from '@/actions/App/Http/Controllers/Inventory/SupplierController';
 import PixelTable, { ActiveBadge } from '@/components/admin/pixel-table';
-import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
-import { Button } from '@/components/ui/button';
+import GuardCorner from '@/components/pixel/guard-corner';
+import PixelGlyph, { GLYPHS } from '@/components/pixel/pixel-glyph';
+import {
+    ICON_BUTTON,
+    PRIMARY_BUTTON,
+    ROW,
+    TBODY,
+    THEAD,
+    TOGGLE_BUTTON,
+} from '@/components/pixel/styles';
+import { cn } from '@/lib/utils';
 import type { Paginated } from '@/types';
 
 type SupplierRow = {
@@ -16,7 +25,10 @@ type SupplierRow = {
     entries: number;
 };
 
-/** Supplier (Tahap 6B, admin): data master, dinonaktifkan bukan dihapus. */
+/**
+ * Supplier (Tahap 6B, admin; gaya pixel 5E-2): data master, dinonaktifkan
+ * bukan dihapus.
+ */
 export default function SupplierIndex({
     suppliers,
 }: {
@@ -26,21 +38,24 @@ export default function SupplierIndex({
         <>
             <Head title="Supplier" />
 
-            <div className="space-y-6 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Supplier"
-                        description="Pemasok barang. Supplier aktif bisa dipilih saat mencatat barang masuk; yang nonaktif tetap tercatat di penerimaan lama."
-                    />
-                    <Button asChild>
-                        <Link href={SupplierController.create()}>
-                            Tambah supplier
-                        </Link>
-                    </Button>
+            <div className="space-y-4 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="max-w-prose text-sm text-px-bayangan">
+                        Pemasok barang. Supplier aktif bisa dipilih saat
+                        mencatat barang masuk; yang nonaktif tetap tercatat di
+                        penerimaan lama.
+                    </p>
+                    <Link
+                        href={SupplierController.create()}
+                        className={PRIMARY_BUTTON}
+                    >
+                        <PixelGlyph rows={GLYPHS.tambah} />
+                        Tambah supplier
+                    </Link>
                 </div>
 
                 <PixelTable>
-                    <thead className="bg-muted/50 text-left">
+                    <thead className={THEAD}>
                         <tr>
                             <th className="p-3">Nama</th>
                             <th className="p-3">Kontak</th>
@@ -50,55 +65,54 @@ export default function SupplierIndex({
                             <th className="p-3 text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className={TBODY}>
                         {suppliers.data.length === 0 && (
                             <tr>
                                 <td
                                     colSpan={6}
-                                    className="p-6 text-center text-muted-foreground"
+                                    className="p-8 text-center text-px-bayangan"
                                 >
-                                    Belum ada supplier.
+                                    Belum ada supplier. Tambahkan pemasok
+                                    pertama.
                                 </td>
                             </tr>
                         )}
                         {suppliers.data.map((s) => (
-                            <tr key={s.id} className="border-t">
-                                <td className="p-3 font-medium">
+                            <tr key={s.id} className={ROW}>
+                                <td className="p-3 font-semibold">
                                     {s.name}
                                     {s.note && (
-                                        <span className="block text-xs font-normal text-muted-foreground">
+                                        <span className="block text-xs font-normal text-px-bayangan">
                                             {s.note}
                                         </span>
                                     )}
                                 </td>
                                 <td className="p-3">{s.contact ?? '-'}</td>
                                 <td className="p-3">{s.address ?? '-'}</td>
-                                <td className="p-3 text-right">{s.entries}</td>
+                                <td className="p-3 text-right font-pixel">
+                                    {s.entries}
+                                </td>
                                 <td className="p-3">
                                     <ActiveBadge active={s.is_active} />
                                 </td>
                                 <td className="p-3">
-                                    <div className="flex justify-end gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            asChild
+                                    <div className="flex justify-end gap-1.5">
+                                        <Link
+                                            href={SupplierController.edit(s.id)}
+                                            className={ICON_BUTTON}
+                                            aria-label={`Ubah ${s.name}`}
+                                            title="Ubah"
                                         >
-                                            <Link
-                                                href={SupplierController.edit(
-                                                    s.id,
-                                                )}
-                                            >
-                                                Ubah
-                                            </Link>
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant={
+                                            <PixelGlyph rows={GLYPHS.ubah} />
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            className={cn(
+                                                TOGGLE_BUTTON,
                                                 s.is_active
-                                                    ? 'outline'
-                                                    : 'secondary'
-                                            }
+                                                    ? 'bg-px-sorotan hover:bg-px-bata'
+                                                    : 'bg-px-daun hover:bg-px-lampu',
+                                            )}
                                             onClick={() =>
                                                 router.post(
                                                     s.is_active
@@ -116,7 +130,7 @@ export default function SupplierIndex({
                                             {s.is_active
                                                 ? 'Nonaktifkan'
                                                 : 'Aktifkan'}
-                                        </Button>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -124,7 +138,15 @@ export default function SupplierIndex({
                     </tbody>
                 </PixelTable>
 
-                <Pagination links={suppliers.links} />
+                <div className="flex items-end justify-between gap-4">
+                    <Pagination
+                        links={suppliers.links}
+                        from={suppliers.from}
+                        to={suppliers.to}
+                        total={suppliers.total}
+                    />
+                    <GuardCorner post="inventaris" />
+                </div>
             </div>
         </>
     );

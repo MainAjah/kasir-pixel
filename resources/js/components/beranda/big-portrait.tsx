@@ -10,6 +10,8 @@ type Props = {
     size: number;
     /** Tinggi potret paling besar yang masih muat di layar (px layar). */
     capHeight: number;
+    /** Cermin ke arah sebaliknya (mis. penjaga di pojok kanan menghadap ke kiri). */
+    flip?: boolean;
 };
 
 /**
@@ -17,7 +19,12 @@ type Props = {
  * tambahan), dilukis tajam tanpa anti-alias. Semua penjaga tampak sama besar
  * (disamakan menurut luas).
  */
-export default function BigPortrait({ post, size, capHeight }: Props) {
+export default function BigPortrait({
+    post,
+    size,
+    capHeight,
+    flip = false,
+}: Props) {
     const ref = useRef<HTMLCanvasElement>(null);
     const [matrix, setMatrix] = useState(() => guardPortrait(post));
 
@@ -62,6 +69,7 @@ export default function BigPortrait({ post, size, capHeight }: Props) {
                 width: matrix.width * scale,
                 height: matrix.height * scale,
                 imageRendering: 'pixelated',
+                transform: flip ? 'scaleX(-1)' : undefined,
             }}
         />
     );

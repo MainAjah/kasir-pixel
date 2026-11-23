@@ -1,9 +1,9 @@
 import { Head, Link, useForm } from '@inertiajs/react';
 import UserController from '@/actions/App/Http/Controllers/Admin/UserController';
-import Heading from '@/components/heading';
 import InputError from '@/components/input-error';
 import NativeSelect from '@/components/native-select';
-import { Button } from '@/components/ui/button';
+import PixelPanel from '@/components/pixel/pixel-panel';
+import { PRIMARY_BUTTON, SECONDARY_BUTTON } from '@/components/pixel/styles';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 
@@ -37,18 +37,9 @@ export default function PenggunaForm({
         <>
             <Head title={user ? 'Ubah pengguna' : 'Tambah pengguna'} />
 
-            <div className="space-y-6 p-4">
-                <Heading
-                    title={user ? `Ubah ${user.name}` : 'Tambah pengguna'}
-                    description={
-                        user
-                            ? 'Kosongkan kata sandi bila tidak ingin menggantinya.'
-                            : 'Pengguna baru langsung aktif dan bisa masuk dengan email dan kata sandi ini.'
-                    }
-                />
-
+            <div className="max-w-xl p-4">
                 <form
-                    className="max-w-xl space-y-6"
+                    className="pixel-form"
                     onSubmit={(e) => {
                         e.preventDefault();
                         form.submit(
@@ -58,97 +49,114 @@ export default function PenggunaForm({
                         );
                     }}
                 >
-                    <div className="grid gap-2">
-                        <Label htmlFor="name">Nama</Label>
-                        <Input
-                            id="name"
-                            autoFocus
-                            value={form.data.name}
-                            onChange={(e) =>
-                                form.setData('name', e.target.value)
-                            }
-                        />
-                        <InputError message={form.errors.name} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="email">Email</Label>
-                        <Input
-                            id="email"
-                            type="email"
-                            value={form.data.email}
-                            onChange={(e) =>
-                                form.setData('email', e.target.value)
-                            }
-                        />
-                        <InputError message={form.errors.email} />
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label htmlFor="role">Peran</Label>
-                        <NativeSelect
-                            id="role"
-                            value={form.data.role}
-                            disabled={user?.is_self}
-                            onChange={(e) =>
-                                form.setData('role', e.target.value)
-                            }
-                        >
-                            {roles.map((r) => (
-                                <option key={r.value} value={r.value}>
-                                    {r.label}
-                                </option>
-                            ))}
-                        </NativeSelect>
-                        {user?.is_self && (
-                            <p className="text-xs text-muted-foreground">
-                                Anda tidak bisa mengubah peran sendiri.
-                            </p>
-                        )}
-                        <InputError message={form.errors.role} />
-                    </div>
-
-                    <div className="grid gap-4 sm:grid-cols-2">
+                    <PixelPanel
+                        title={user ? `Ubah ${user.name}` : 'Tambah pengguna'}
+                        description={
+                            user
+                                ? 'Kosongkan kata sandi bila tidak ingin menggantinya.'
+                                : 'Pengguna baru langsung aktif dan bisa masuk dengan email dan kata sandi ini.'
+                        }
+                    >
                         <div className="grid gap-2">
-                            <Label htmlFor="password">
-                                {user ? 'Kata sandi baru' : 'Kata sandi'}
-                            </Label>
+                            <Label htmlFor="name">Nama</Label>
                             <Input
-                                id="password"
-                                type="password"
-                                autoComplete="new-password"
-                                value={form.data.password}
+                                id="name"
+                                autoFocus
+                                value={form.data.name}
                                 onChange={(e) =>
-                                    form.setData('password', e.target.value)
+                                    form.setData('name', e.target.value)
                                 }
                             />
-                            <InputError message={form.errors.password} />
+                            <InputError message={form.errors.name} />
                         </div>
+
                         <div className="grid gap-2">
-                            <Label htmlFor="password_confirmation">
-                                Ulangi kata sandi
-                            </Label>
+                            <Label htmlFor="email">Email</Label>
                             <Input
-                                id="password_confirmation"
-                                type="password"
-                                autoComplete="new-password"
-                                value={form.data.password_confirmation}
+                                id="email"
+                                type="email"
+                                value={form.data.email}
                                 onChange={(e) =>
-                                    form.setData(
-                                        'password_confirmation',
-                                        e.target.value,
-                                    )
+                                    form.setData('email', e.target.value)
                                 }
                             />
+                            <InputError message={form.errors.email} />
                         </div>
-                    </div>
 
-                    <div className="flex items-center gap-3">
-                        <Button disabled={form.processing}>Simpan</Button>
-                        <Button variant="ghost" asChild>
-                            <Link href={UserController.index()}>Batal</Link>
-                        </Button>
-                    </div>
+                        <div className="grid gap-2">
+                            <Label htmlFor="role">Peran</Label>
+                            <NativeSelect
+                                id="role"
+                                value={form.data.role}
+                                disabled={user?.is_self}
+                                onChange={(e) =>
+                                    form.setData('role', e.target.value)
+                                }
+                            >
+                                {roles.map((r) => (
+                                    <option key={r.value} value={r.value}>
+                                        {r.label}
+                                    </option>
+                                ))}
+                            </NativeSelect>
+                            {user?.is_self && (
+                                <p className="text-xs text-px-bayangan">
+                                    Anda tidak bisa mengubah peran sendiri.
+                                </p>
+                            )}
+                            <InputError message={form.errors.role} />
+                        </div>
+
+                        <div className="grid gap-4 sm:grid-cols-2">
+                            <div className="grid gap-2">
+                                <Label htmlFor="password">
+                                    {user ? 'Kata sandi baru' : 'Kata sandi'}
+                                </Label>
+                                <Input
+                                    id="password"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    value={form.data.password}
+                                    onChange={(e) =>
+                                        form.setData('password', e.target.value)
+                                    }
+                                />
+                                <InputError message={form.errors.password} />
+                            </div>
+                            <div className="grid gap-2">
+                                <Label htmlFor="password_confirmation">
+                                    Ulangi kata sandi
+                                </Label>
+                                <Input
+                                    id="password_confirmation"
+                                    type="password"
+                                    autoComplete="new-password"
+                                    value={form.data.password_confirmation}
+                                    onChange={(e) =>
+                                        form.setData(
+                                            'password_confirmation',
+                                            e.target.value,
+                                        )
+                                    }
+                                />
+                            </div>
+                        </div>
+
+                        <div className="flex items-center gap-3">
+                            <button
+                                className={PRIMARY_BUTTON}
+                                disabled={form.processing}
+                            >
+                                Simpan
+                            </button>
+                            <Link
+                                href={UserController.index()}
+                                className={SECONDARY_BUTTON}
+                            >
+                                Batal
+                            </Link>
+                        </div>
+                    </PixelPanel>
                 </form>
             </div>
         </>

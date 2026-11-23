@@ -59,6 +59,12 @@ class StockMovement extends Model
         return $this->belongsTo(StockEntry::class);
     }
 
+    /** Baris penjualan asal mutasi `sale` (untuk nomor nota di daftar Stok keluar). */
+    public function saleItem(): BelongsTo
+    {
+        return $this->belongsTo(SaleItem::class);
+    }
+
     /** @return BelongsTo<User, $this> */
     public function creator(): BelongsTo
     {

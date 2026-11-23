@@ -239,6 +239,39 @@
         drop-shadow(0 -3px 0 var(--color-kopi-bingkai));
 }
 
+/*
+ * Form bergaya pixel (Tahap 5E-2): isian di dalam .pixel-form memakai kotak
+ * krem bertepi tinta tanpa sudut membulat, sama dengan kolom cari kasir.
+ * Sengaja di luar @layer agar menimpa kelas bawaan komponen isian.
+ */
+.pixel-form
+    :is(
+        input:not([type='checkbox'], [type='radio'], [type='file']),
+        select,
+        textarea
+    ) {
+    border: 2px solid var(--color-px-tinta);
+    border-radius: 0;
+    background-color: var(--color-px-sorotan);
+    box-shadow: none;
+    color: var(--color-px-tinta);
+}
+
+.pixel-form :is(input, select, textarea):focus-visible {
+    outline: 2px solid var(--color-px-biru-tua);
+    outline-offset: 1px;
+}
+
+.pixel-form :is(input, select, textarea):disabled {
+    border-color: var(--color-px-logam);
+    background-color: var(--color-px-dinding);
+    color: var(--color-px-bayangan);
+}
+
+.pixel-form :is(input[type='checkbox'], input[type='radio']) {
+    accent-color: var(--color-px-kunyit);
+}
+
 .sidebar-kopi > [data-sidebar='sidebar'] {
     border: 0;
     box-shadow: none;

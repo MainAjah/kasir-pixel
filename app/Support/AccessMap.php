@@ -34,6 +34,7 @@ class AccessMap
             self::row('produk-kelola', 'Tambah dan ubah produk', $admin, 'products.create'),
             self::row('kategori', 'Kategori', $admin, 'categories.index'),
             self::row('barang-masuk', 'Barang masuk', $admin, 'stock-receipts.index'),
+            self::row('stok-keluar', 'Stok keluar (daftar mutasi)', $admin, 'stock-out.index'),
             self::row('penyesuaian', 'Penyesuaian stok', $admin, 'stock-adjustments.create'),
             self::row('supplier', 'Supplier', $admin, 'suppliers.index'),
             self::row('anggota', 'Anggota dan simpanan', [Role::Admin, Role::Bendahara], 'members.index'),

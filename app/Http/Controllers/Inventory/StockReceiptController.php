@@ -2,11 +2,13 @@
 
 namespace App\Http\Controllers\Inventory;
 
+use App\Actions\Inventory\InventoryStats;
 use App\Actions\Inventory\ReceiveStock;
 use App\Exceptions\StockException;
 use App\Http\Controllers\Controller;
 use App\Http\Requests\Inventory\StockReceiptRequest;
 use App\Models\StockEntry;
+use App\Models\StockMovement;
 use App\Models\Supplier;
 use Carbon\Carbon;
 use Illuminate\Http\RedirectResponse;
@@ -15,7 +17,7 @@ use Inertia\Response;
 
 class StockReceiptController extends Controller
 {
-    public function index(): Response
+    public function index(InventoryStats $stats): Response
     {
         $entries = StockEntry::query()
             ->withCount('movements')
@@ -33,7 +35,60 @@ class StockReceiptController extends Controller
                 'by' => $e->creator?->name,
             ]);
 
-        return Inertia::render('inventaris/penerimaan/index', ['entries' => $entries]);
+        return Inertia::render('inventaris/penerimaan/index', [
+            // Tahap 5E-2: tab Stok Masuk di halaman Inventaris memakai kepala yang sama.
+            'stats' => $stats->handle(),
+            'entries' => $entries,
+        ]);
+    }
+
+    /**
+     * Detail penerimaan (Tahap 5E-2): pemasok, tanggal, dan daftar barang yang
+     * diterima. Hanya membaca mutasi ledger milik dokumen ini.
+     */
+    public function show(StockEntry $stockEntry): Response
+    {
+        $stockEntry->load([
+            'supplier:id,name,contact,address,deleted_at',
+            'creator:id,name',
+            'movements' => fn ($q) => $q->orderBy('id'),
+            'movements.product:id,sku,name,image_path,deleted_at',
+            'movements.product.baseUnit:id,product_id,name',
+            'movements.inputUnit:id,name,conversion',
+        ]);
+
+        $lines = $stockEntry->movements->map(fn (StockMovement $m) => [
+            'id' => $m->id,
+            'product' => $m->product?->name,
+            'sku' => $m->product?->sku,
+            'image_url' => $m->product?->imageUrl(),
+            'input_qty' => $m->input_qty,
+            'input_unit' => $m->inputUnit?->name,
+            'conversion' => $m->inputUnit?->conversion,
+            'qty' => $m->qty,
+            'base_unit' => $m->product?->baseUnit?->name,
+            'cost_total' => $m->cost_total,
+        ])->values();
+
+        return Inertia::render('inventaris/penerimaan/show', [
+            'entry' => [
+                'id' => $stockEntry->id,
+                'number' => $stockEntry->number,
+                'occurred_at' => $stockEntry->occurred_at->timezone(config('app.display_timezone'))->format('d/m/Y H:i'),
+                'supplier_name' => $stockEntry->supplier_name,
+                'supplier' => $stockEntry->supplier ? [
+                    'name' => $stockEntry->supplier->name,
+                    'contact' => $stockEntry->supplier->contact,
+                    'address' => $stockEntry->supplier->address,
+                ] : null,
+                'note' => $stockEntry->note,
+                'by' => $stockEntry->creator?->name,
+                'lines' => $lines,
+                // Nilai hanya dari baris yang harga belinya diisi.
+                'total_cost' => (int) $stockEntry->movements->sum('cost_total'),
+                'has_missing_cost' => $stockEntry->movements->contains(fn (StockMovement $m) => $m->cost_total === null),
+            ],
+        ]);
     }
 
     public function create(): Response

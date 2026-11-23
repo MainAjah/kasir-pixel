@@ -5,6 +5,7 @@ use App\Http\Controllers\Inventory\ProductController;
 use App\Http\Controllers\Inventory\ProductImageController;
 use App\Http\Controllers\Inventory\StockAdjustmentController;
 use App\Http\Controllers\Inventory\StockCardController;
+use App\Http\Controllers\Inventory\StockOutController;
 use App\Http\Controllers\Inventory\StockReceiptController;
 use App\Http\Controllers\Inventory\SupplierController;
 use Illuminate\Support\Facades\Route;
@@ -28,6 +29,12 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('penerimaan-barang', [StockReceiptController::class, 'index'])->name('stock-receipts.index');
     Route::get('penerimaan-barang/baru', [StockReceiptController::class, 'create'])->name('stock-receipts.create');
     Route::post('penerimaan-barang', [StockReceiptController::class, 'store'])->name('stock-receipts.store');
+    // Detail penerimaan (Tahap 5E-2): hanya membaca.
+    Route::get('penerimaan-barang/{stockEntry}', [StockReceiptController::class, 'show'])
+        ->whereNumber('stockEntry')->name('stock-receipts.show');
+
+    // Tab Stok Keluar di halaman Inventaris (Tahap 5E-2): hanya membaca ledger.
+    Route::get('stok-keluar', [StockOutController::class, 'index'])->name('stock-out.index');
 
     Route::get('koreksi-stok', [StockAdjustmentController::class, 'create'])->name('stock-adjustments.create');
     Route::post('koreksi-stok', [StockAdjustmentController::class, 'store'])->name('stock-adjustments.store');

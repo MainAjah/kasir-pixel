@@ -1,8 +1,12 @@
 import { Head, Link } from '@inertiajs/react';
 import StockReceiptController from '@/actions/App/Http/Controllers/Inventory/StockReceiptController';
-import Heading from '@/components/heading';
+import PixelTable, { Badge } from '@/components/admin/pixel-table';
+import InventoryHeader from '@/components/inventory/inventory-header';
+import type { InventoryStats } from '@/components/inventory/inventory-header';
 import Pagination from '@/components/pagination';
-import { Button } from '@/components/ui/button';
+import GuardCorner from '@/components/pixel/guard-corner';
+import PixelGlyph, { GLYPHS } from '@/components/pixel/pixel-glyph';
+import { PRIMARY_BUTTON, ROW, TBODY, THEAD } from '@/components/pixel/styles';
 import type { Paginated } from '@/types';
 
 type Entry = {
@@ -17,79 +21,101 @@ type Entry = {
     by: string | null;
 };
 
+/**
+ * Inventaris, tab Stok Masuk (Tahap 5E-2): daftar penerimaan barang dari
+ * pemasok. Hanya admin (rute dijaga role:admin).
+ */
 export default function PenerimaanIndex({
+    stats,
     entries,
 }: {
+    stats: InventoryStats;
     entries: Paginated<Entry>;
 }) {
     return (
         <>
             <Head title="Penerimaan barang" />
 
-            <div className="space-y-6 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Penerimaan barang"
-                        description="Catatan barang masuk dari pemasok. Stok ada di kartu stok tiap produk."
-                    />
-                    <Button asChild>
-                        <Link href={StockReceiptController.create()}>
-                            Catat penerimaan
-                        </Link>
-                    </Button>
+            <div className="space-y-4 p-4">
+                <InventoryHeader stats={stats} active="masuk" />
+
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="max-w-prose text-sm text-px-bayangan">
+                        Barang masuk dari pemasok. Stok tiap barang ada di kartu
+                        stoknya.
+                    </p>
+                    <Link
+                        href={StockReceiptController.create()}
+                        className={PRIMARY_BUTTON}
+                    >
+                        <PixelGlyph rows={GLYPHS.tambah} />
+                        Catat penerimaan
+                    </Link>
                 </div>
 
-                <div className="overflow-x-auto rounded-md border">
-                    <table className="w-full text-sm">
-                        <thead className="bg-muted/50 text-left">
+                <PixelTable>
+                    <thead className={THEAD}>
+                        <tr>
+                            <th className="p-3">Nomor</th>
+                            <th className="p-3">Tanggal</th>
+                            <th className="p-3">Pemasok</th>
+                            <th className="p-3 text-right">Jenis barang</th>
+                            <th className="p-3">Catatan</th>
+                            <th className="p-3">Oleh</th>
+                        </tr>
+                    </thead>
+                    <tbody className={TBODY}>
+                        {entries.data.length === 0 && (
                             <tr>
-                                <th className="p-3">Nomor</th>
-                                <th className="p-3">Tanggal</th>
-                                <th className="p-3">Pemasok</th>
-                                <th className="p-3 text-right">Baris</th>
-                                <th className="p-3">Catatan</th>
-                                <th className="p-3">Oleh</th>
+                                <td
+                                    colSpan={6}
+                                    className="p-8 text-center text-px-bayangan"
+                                >
+                                    Belum ada penerimaan. Catat barang masuk
+                                    pertama.
+                                </td>
                             </tr>
-                        </thead>
-                        <tbody>
-                            {entries.data.length === 0 && (
-                                <tr>
-                                    <td
-                                        colSpan={6}
-                                        className="p-6 text-center text-muted-foreground"
+                        )}
+                        {entries.data.map((e) => (
+                            <tr key={e.id} className={ROW}>
+                                <td className="p-3 font-mono font-semibold">
+                                    <Link
+                                        href={StockReceiptController.show(e.id)}
+                                        className="underline decoration-2 underline-offset-2 hover:text-px-bayangan"
                                     >
-                                        Belum ada penerimaan.
-                                    </td>
-                                </tr>
-                            )}
-                            {entries.data.map((e) => (
-                                <tr key={e.id} className="border-t">
-                                    <td className="p-3 font-mono">
                                         {e.number}
-                                    </td>
-                                    <td className="p-3 whitespace-nowrap">
-                                        {e.occurred_at}
-                                    </td>
-                                    <td className="p-3">
-                                        {e.supplier_name ?? '-'}
-                                        {e.from_master && (
-                                            <span className="ml-2 text-xs text-muted-foreground">
-                                                (supplier terdaftar)
-                                            </span>
-                                        )}
-                                    </td>
-                                    <td className="p-3 text-right">
-                                        {e.lines}
-                                    </td>
-                                    <td className="p-3">{e.note ?? '-'}</td>
-                                    <td className="p-3">{e.by ?? '-'}</td>
-                                </tr>
-                            ))}
-                        </tbody>
-                    </table>
-                </div>
+                                    </Link>
+                                </td>
+                                <td className="p-3 whitespace-nowrap">
+                                    {e.occurred_at}
+                                </td>
+                                <td className="p-3">
+                                    {e.supplier_name ?? '-'}
+                                    {e.from_master && (
+                                        <span className="ml-2 align-middle">
+                                            <Badge tone="biru">Terdaftar</Badge>
+                                        </span>
+                                    )}
+                                </td>
+                                <td className="p-3 text-right font-pixel">
+                                    {e.lines}
+                                </td>
+                                <td className="p-3">{e.note ?? '-'}</td>
+                                <td className="p-3">{e.by ?? '-'}</td>
+                            </tr>
+                        ))}
+                    </tbody>
+                </PixelTable>
 
-                <Pagination links={entries.links} />
+                <div className="flex items-end justify-between gap-4">
+                    <Pagination
+                        links={entries.links}
+                        from={entries.from}
+                        to={entries.to}
+                        total={entries.total}
+                    />
+                    <GuardCorner post="inventaris" />
+                </div>
             </div>
         </>
     );
@@ -97,6 +123,6 @@ export default function PenerimaanIndex({
 
 PenerimaanIndex.layout = {
     breadcrumbs: [
-        { title: 'Penerimaan barang', href: StockReceiptController.index() },
+        { title: 'Barang masuk', href: StockReceiptController.index() },
     ],
 };

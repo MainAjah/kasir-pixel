@@ -4,9 +4,17 @@ import PixelTable, {
     ActiveBadge,
     RoleBadge,
 } from '@/components/admin/pixel-table';
-import Heading from '@/components/heading';
 import Pagination from '@/components/pagination';
-import { Button } from '@/components/ui/button';
+import PixelGlyph, { GLYPHS } from '@/components/pixel/pixel-glyph';
+import {
+    ICON_BUTTON,
+    PRIMARY_BUTTON,
+    ROW,
+    TBODY,
+    THEAD,
+    TOGGLE_BUTTON,
+} from '@/components/pixel/styles';
+import { cn } from '@/lib/utils';
 import type { Paginated } from '@/types';
 
 type UserRow = {
@@ -19,7 +27,10 @@ type UserRow = {
     is_self: boolean;
 };
 
-/** Kelola pengguna (Tahap 6B, admin). Pengguna dinonaktifkan, tidak dihapus. */
+/**
+ * Kelola pengguna (Tahap 6B, admin; gaya pixel 5E-2). Pengguna dinonaktifkan,
+ * tidak dihapus.
+ */
 export default function PenggunaIndex({
     users,
 }: {
@@ -48,21 +59,24 @@ export default function PenggunaIndex({
         <>
             <Head title="Pengguna" />
 
-            <div className="space-y-6 p-4">
-                <div className="flex flex-wrap items-start justify-between gap-4">
-                    <Heading
-                        title="Pengguna"
-                        description="Akun yang bisa masuk ke aplikasi. Pengguna dinonaktifkan, tidak dihapus; selalu harus ada minimal satu admin aktif."
-                    />
-                    <Button asChild>
-                        <Link href={UserController.create()}>
-                            Tambah pengguna
-                        </Link>
-                    </Button>
+            <div className="space-y-4 p-4">
+                <div className="flex flex-wrap items-center justify-between gap-3">
+                    <p className="max-w-prose text-sm text-px-bayangan">
+                        Akun yang bisa masuk ke aplikasi. Pengguna
+                        dinonaktifkan, tidak dihapus; selalu harus ada minimal
+                        satu admin aktif.
+                    </p>
+                    <Link
+                        href={UserController.create()}
+                        className={PRIMARY_BUTTON}
+                    >
+                        <PixelGlyph rows={GLYPHS.tambah} />
+                        Tambah pengguna
+                    </Link>
                 </div>
 
                 <PixelTable>
-                    <thead className="bg-muted/50 text-left">
+                    <thead className={THEAD}>
                         <tr>
                             <th className="p-3">Nama</th>
                             <th className="p-3">Email</th>
@@ -71,13 +85,13 @@ export default function PenggunaIndex({
                             <th className="p-3 text-right">Aksi</th>
                         </tr>
                     </thead>
-                    <tbody>
+                    <tbody className={TBODY}>
                         {users.data.map((u) => (
-                            <tr key={u.id} className="border-t">
-                                <td className="p-3 font-medium">
+                            <tr key={u.id} className={ROW}>
+                                <td className="p-3 font-semibold">
                                     {u.name}
                                     {u.is_self && (
-                                        <span className="ml-2 text-xs text-muted-foreground">
+                                        <span className="ml-2 text-xs font-normal text-px-bayangan">
                                             (Anda)
                                         </span>
                                     )}
@@ -93,25 +107,23 @@ export default function PenggunaIndex({
                                     <ActiveBadge active={u.is_active} />
                                 </td>
                                 <td className="p-3">
-                                    <div className="flex justify-end gap-2">
-                                        <Button
-                                            size="sm"
-                                            variant="outline"
-                                            asChild
+                                    <div className="flex justify-end gap-1.5">
+                                        <Link
+                                            href={UserController.edit(u.id)}
+                                            className={ICON_BUTTON}
+                                            aria-label={`Ubah ${u.name}`}
+                                            title="Ubah"
                                         >
-                                            <Link
-                                                href={UserController.edit(u.id)}
-                                            >
-                                                Ubah
-                                            </Link>
-                                        </Button>
-                                        <Button
-                                            size="sm"
-                                            variant={
+                                            <PixelGlyph rows={GLYPHS.ubah} />
+                                        </Link>
+                                        <button
+                                            type="button"
+                                            className={cn(
+                                                TOGGLE_BUTTON,
                                                 u.is_active
-                                                    ? 'outline'
-                                                    : 'secondary'
-                                            }
+                                                    ? 'bg-px-sorotan hover:bg-px-bata'
+                                                    : 'bg-px-daun hover:bg-px-lampu',
+                                            )}
                                             disabled={u.is_self}
                                             title={
                                                 u.is_self
@@ -123,7 +135,7 @@ export default function PenggunaIndex({
                                             {u.is_active
                                                 ? 'Nonaktifkan'
                                                 : 'Aktifkan'}
-                                        </Button>
+                                        </button>
                                     </div>
                                 </td>
                             </tr>
@@ -131,7 +143,12 @@ export default function PenggunaIndex({
                     </tbody>
                 </PixelTable>
 
-                <Pagination links={users.links} />
+                <Pagination
+                    links={users.links}
+                    from={users.from}
+                    to={users.to}
+                    total={users.total}
+                />
             </div>
         </>
     );

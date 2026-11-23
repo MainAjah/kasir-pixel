@@ -79,5 +79,10 @@ describe('menu samping (5E-1)', () => {
         expect(activeLink(menu, '/kasir')?.link?.title).toBe('Transaksi');
         expect(activeLink(menu, '/anggota/5')?.group.title).toBe('Anggota');
         expect(activeLink(menu, '/settings/profile')).toBeNull();
+
+        // Tab Stok Keluar (5E-2) menyalakan grup Inventaris tanpa sub-menu.
+        const keluar = activeLink(menu, '/stok-keluar');
+        expect(keluar?.group.title).toBe('Inventaris');
+        expect(keluar?.link).toBeNull();
     });
 });

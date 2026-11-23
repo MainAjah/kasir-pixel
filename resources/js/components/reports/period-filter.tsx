@@ -1,9 +1,17 @@
 import { router } from '@inertiajs/react';
 import { useState } from 'react';
+import type { ReactNode } from 'react';
 import NativeSelect from '@/components/native-select';
-import { Button } from '@/components/ui/button';
+import {
+    PRIMARY_BUTTON,
+    SECONDARY_BUTTON,
+    TAB,
+    TAB_ACTIVE,
+    TAB_IDLE,
+} from '@/components/pixel/styles';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { cn } from '@/lib/utils';
 
 export type ReportFilters = {
     preset: string;
@@ -81,7 +89,7 @@ export default function PeriodFilter({
     const csvHref = `${csvUrl}?${new URLSearchParams(filterQuery({ ...filters, kasir }))}`;
 
     return (
-        <div className="space-y-3">
+        <div className="pixel-form space-y-3">
             <div className="flex flex-wrap items-end gap-2">
                 <div
                     className="flex flex-wrap gap-2"
@@ -95,10 +103,13 @@ export default function PeriodFilter({
                                 : !rangeOpen && filters.preset === p.value;
 
                         return (
-                            <Button
+                            <button
                                 key={p.value}
-                                size="sm"
-                                variant={active ? 'default' : 'outline'}
+                                type="button"
+                                className={cn(
+                                    TAB,
+                                    active ? TAB_ACTIVE : TAB_IDLE,
+                                )}
                                 aria-pressed={active}
                                 onClick={() => {
                                     if (p.value === 'rentang') {
@@ -112,7 +123,7 @@ export default function PeriodFilter({
                                 }}
                             >
                                 {p.label}
-                            </Button>
+                            </button>
                         );
                     })}
                 </div>
@@ -145,16 +156,13 @@ export default function PeriodFilter({
                     </div>
                 )}
 
-                <Button
-                    size="sm"
-                    variant="secondary"
-                    asChild
-                    className="ml-auto"
+                <a
+                    href={csvHref}
+                    download
+                    className={cn(SECONDARY_BUTTON, 'ml-auto h-9 text-sm')}
                 >
-                    <a href={csvHref} download>
-                        Ekspor CSV
-                    </a>
-                </Button>
+                    Ekspor CSV
+                </a>
             </div>
 
             {rangeOpen && (
@@ -183,14 +191,18 @@ export default function PeriodFilter({
                             onChange={(e) => setTo(e.target.value)}
                         />
                     </div>
-                    <Button size="sm" onClick={() => go({ preset: 'rentang' })}>
+                    <button
+                        type="button"
+                        className={cn(PRIMARY_BUTTON, 'h-9 text-sm')}
+                        onClick={() => go({ preset: 'rentang' })}
+                    >
                         Terapkan
-                    </Button>
+                    </button>
                 </div>
             )}
 
             {(errors.dari || errors.sampai || errors.periode) && (
-                <p className="text-sm text-destructive">
+                <p className="inline-block bg-px-bata px-1.5 text-sm text-px-tinta">
                     {errors.dari ?? errors.sampai ?? errors.periode}
                 </p>
             )}
@@ -198,21 +210,48 @@ export default function PeriodFilter({
     );
 }
 
-/** Kartu angka berbingkai pixel sederhana. */
+/** Warna kotak ikon kartu angka (palet diorama). */
+const STAT_TONES = {
+    kunyit: 'bg-px-kunyit',
+    daun: 'bg-px-daun',
+    lampu: 'bg-px-lampu',
+    bata: 'bg-px-bata',
+    langit: 'bg-px-langit',
+} as const;
+
+/**
+ * Kartu angka berbingkai pixel (gaya 5E): kertas krem, bingkai tinta tebal,
+ * angka besar dengan font pixel, dan kotak ikon berwarna palet bila ada.
+ */
 export function StatCard({
     label,
     value,
     hint,
+    icon,
+    tone = 'kunyit',
 }: {
     label: string;
     value: string;
     hint?: string;
+    icon?: ReactNode;
+    tone?: keyof typeof STAT_TONES;
 }) {
     return (
-        <div className="border-[3px] border-current p-3 text-foreground shadow-[3px_3px_0_currentColor]">
-            <p className="text-xs text-muted-foreground">{label}</p>
-            <p className="mt-1 text-xl font-bold break-words">{value}</p>
-            {hint && <p className="text-xs text-muted-foreground">{hint}</p>}
+        <div className="flex items-center gap-3 bg-px-sorotan p-3 text-px-tinta pixel-frame">
+            {icon && (
+                <span
+                    className={`grid size-11 shrink-0 place-items-center border-2 border-px-tinta ${STAT_TONES[tone]}`}
+                >
+                    {icon}
+                </span>
+            )}
+            <div className="min-w-0">
+                <p className="text-xs text-px-bayangan">{label}</p>
+                <p className="font-pixel text-2xl leading-tight break-words">
+                    {value}
+                </p>
+                {hint && <p className="text-xs text-px-bayangan">{hint}</p>}
+            </div>
         </div>
     );
 }

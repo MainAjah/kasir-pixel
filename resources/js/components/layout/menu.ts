@@ -44,6 +44,8 @@ export type MenuGroup = {
     subtitle?: string;
     roles: Role[];
     items?: MenuLink[];
+    /** Jalur lain yang termasuk grup ini tanpa tautan sendiri (mis. tab Stok Keluar). */
+    paths?: string[];
 };
 
 const ALL: Role[] = ['admin', 'kasir', 'bendahara'];
@@ -91,6 +93,8 @@ export const MENU: MenuGroup[] = [
         icon: 'stok',
         image: inventarisImage,
         roles: ['admin', 'kasir'],
+        // Tahap 5E-2: tab Stok Keluar hanya dibuka lewat kepala Inventaris.
+        paths: ['/stok-keluar'],
         items: [
             {
                 title: 'Produk',
@@ -220,6 +224,10 @@ export function activeLink(
     for (const group of groups) {
         if (group.href) {
             consider(group, group.href, null);
+        }
+
+        for (const extra of group.paths ?? []) {
+            consider(group, extra, null);
         }
 
         for (const link of group.items ?? []) {

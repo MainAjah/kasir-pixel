@@ -1,7 +1,9 @@
 import { Head, usePage } from '@inertiajs/react';
+import PixelIcon from '@/components/beranda/pixel-icon';
+import GuardCorner from '@/components/pixel/guard-corner';
+import PixelGlyph, { GLYPHS } from '@/components/pixel/pixel-glyph';
 import InventoryReportController from '@/actions/App/Http/Controllers/Reports/InventoryReportController';
 import PixelTable, { Badge } from '@/components/admin/pixel-table';
-import Heading from '@/components/heading';
 import PeriodFilter, { StatCard } from '@/components/reports/period-filter';
 import type { ReportFilters } from '@/components/reports/period-filter';
 import { formatNumber, formatRupiah } from '@/lib/format';
@@ -72,11 +74,12 @@ export default function LaporanInventaris({
         <>
             <Head title="Laporan inventaris" />
 
-            <div className="space-y-6 p-4">
-                <Heading
-                    title="Laporan inventaris"
-                    description="Stok saat ini dari ledger stok, produk aktif saja. Nilai stok memakai harga jual. Periode hanya berlaku untuk tabel mutasi."
-                />
+            <div className="space-y-5 p-4">
+                <p className="max-w-prose text-sm text-px-bayangan">
+                    Stok saat ini dari ledger stok, produk aktif saja. Nilai
+                    stok memakai harga jual. Periode hanya berlaku untuk tabel
+                    mutasi.
+                </p>
 
                 <PeriodFilter
                     url={InventoryReportController.index.url()}
@@ -85,34 +88,58 @@ export default function LaporanInventaris({
                     errors={errors}
                 />
 
-                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-5">
+                <section className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3 2xl:grid-cols-5">
                     <StatCard
                         label="Produk aktif"
                         value={formatNumber(report.summary.products)}
+                        icon={<PixelIcon name="produk" scale={2} />}
+                        tone="kunyit"
                     />
                     <StatCard
                         label="Aman"
                         value={formatNumber(report.summary.aman)}
+                        icon={<PixelIcon name="stok" scale={2} />}
+                        tone="daun"
                     />
                     <StatCard
                         label="Stok menipis (termasuk kosong)"
                         value={formatNumber(report.summary.low)}
                         hint={`${report.summary.menipis} menipis, ${report.summary.kosong} kosong`}
+                        icon={
+                            <PixelGlyph
+                                rows={GLYPHS.awas}
+                                scale={3}
+                                className="text-px-tinta"
+                            />
+                        }
+                        tone="lampu"
                     />
                     <StatCard
                         label="Kosong"
                         value={formatNumber(report.summary.kosong)}
+                        icon={
+                            <PixelGlyph
+                                rows={GLYPHS.habis}
+                                scale={3}
+                                className="text-px-tinta"
+                            />
+                        }
+                        tone="bata"
                     />
                     <StatCard
                         label="Nilai stok (harga jual)"
                         value={formatRupiah(report.summary.value)}
+                        icon={<PixelIcon name="laporan" scale={2} />}
+                        tone="langit"
                     />
                 </section>
 
                 <section className="space-y-2">
-                    <h3 className="font-semibold">Perlu diisi</h3>
+                    <h3 className="font-pixel text-lg text-px-tinta">
+                        Perlu diisi
+                    </h3>
                     <PixelTable>
-                        <thead className="bg-muted/50 text-left">
+                        <thead className="bg-px-dinding text-left text-px-tinta">
                             <tr>
                                 <th className="p-3">Produk</th>
                                 <th className="p-3 text-right">Stok</th>
@@ -120,19 +147,22 @@ export default function LaporanInventaris({
                                 <th className="p-3">Status</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-px-sorotan">
                             {restock.length === 0 && (
                                 <tr>
                                     <td
                                         colSpan={4}
-                                        className="p-4 text-center text-muted-foreground"
+                                        className="p-4 text-center text-px-bayangan"
                                     >
                                         Semua stok aman.
                                     </td>
                                 </tr>
                             )}
                             {restock.map((p) => (
-                                <tr key={p.id} className="border-t">
+                                <tr
+                                    key={p.id}
+                                    className="border-t-2 border-dashed border-px-lantai"
+                                >
                                     <td className="p-3">{p.name}</td>
                                     <td className="p-3 text-right">
                                         {formatNumber(p.stock)} {p.unit}
@@ -150,9 +180,11 @@ export default function LaporanInventaris({
                 </section>
 
                 <section className="space-y-2">
-                    <h3 className="font-semibold">Semua produk</h3>
+                    <h3 className="font-pixel text-lg text-px-tinta">
+                        Semua produk
+                    </h3>
                     <PixelTable>
-                        <thead className="bg-muted/50 text-left">
+                        <thead className="bg-px-dinding text-left text-px-tinta">
                             <tr>
                                 <th className="p-3">SKU</th>
                                 <th className="p-3">Produk</th>
@@ -163,9 +195,12 @@ export default function LaporanInventaris({
                                 <th className="p-3 text-right">Nilai stok</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-px-sorotan">
                             {report.products.map((p) => (
-                                <tr key={p.id} className="border-t">
+                                <tr
+                                    key={p.id}
+                                    className="border-t-2 border-dashed border-px-lantai"
+                                >
                                     <td className="p-3 font-mono text-xs">
                                         {p.sku}
                                     </td>
@@ -190,17 +225,17 @@ export default function LaporanInventaris({
                 </section>
 
                 <section className="space-y-2">
-                    <h3 className="font-semibold">
+                    <h3 className="font-pixel text-lg text-px-tinta">
                         Mutasi stok {tanggal(filters.from)} sampai{' '}
                         {tanggal(filters.to)}
                     </h3>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-sm text-px-bayangan">
                         Satuan dasar. Masuk = saldo awal dan penerimaan; keluar
                         = penjualan dikurangi pembatalan; saldo awal + masuk +
                         keluar + penyesuaian = saldo akhir.
                     </p>
                     <PixelTable>
-                        <thead className="bg-muted/50 text-left">
+                        <thead className="bg-px-dinding text-left text-px-tinta">
                             <tr>
                                 <th className="p-3">Produk</th>
                                 <th className="p-3 text-right">Saldo awal</th>
@@ -210,9 +245,12 @@ export default function LaporanInventaris({
                                 <th className="p-3 text-right">Saldo akhir</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-px-sorotan">
                             {report.products.map((p) => (
-                                <tr key={p.id} className="border-t">
+                                <tr
+                                    key={p.id}
+                                    className="border-t-2 border-dashed border-px-lantai"
+                                >
                                     <td className="p-3">{p.name}</td>
                                     <td className="p-3 text-right">
                                         {formatNumber(p.opening)}
@@ -231,7 +269,7 @@ export default function LaporanInventaris({
                                     </td>
                                 </tr>
                             ))}
-                            <tr className="border-t-[3px] border-current font-semibold">
+                            <tr className="border-t-[3px] border-px-tinta bg-px-dinding font-semibold">
                                 <td className="p-3">Jumlah</td>
                                 <td className="p-3" />
                                 <td className="p-3 text-right">
@@ -248,6 +286,10 @@ export default function LaporanInventaris({
                         </tbody>
                     </PixelTable>
                 </section>
+
+                <div className="flex justify-end">
+                    <GuardCorner post="inventaris" />
+                </div>
             </div>
         </>
     );

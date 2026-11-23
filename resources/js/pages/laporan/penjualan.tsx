@@ -1,7 +1,9 @@
 import { Head, usePage } from '@inertiajs/react';
+import PixelIcon from '@/components/beranda/pixel-icon';
+import GuardCorner from '@/components/pixel/guard-corner';
+import PixelGlyph, { GLYPHS } from '@/components/pixel/pixel-glyph';
 import SalesReportController from '@/actions/App/Http/Controllers/Reports/SalesReportController';
 import PixelTable from '@/components/admin/pixel-table';
-import Heading from '@/components/heading';
 import PeriodFilter, { StatCard } from '@/components/reports/period-filter';
 import type { ReportFilters } from '@/components/reports/period-filter';
 import { formatNumber, formatRupiah } from '@/lib/format';
@@ -56,11 +58,10 @@ export default function LaporanPenjualan({
         <>
             <Head title="Laporan penjualan" />
 
-            <div className="space-y-6 p-4">
-                <Heading
-                    title="Laporan penjualan"
-                    description={`${tanggal(filters.from)} sampai ${tanggal(filters.to)}. Penjualan yang dibatalkan tidak dihitung dan tampil terpisah di bawah.`}
-                />
+            <div className="space-y-5 p-4">
+                <p className="max-w-prose text-sm text-px-bayangan">
+                    {`${tanggal(filters.from)} sampai ${tanggal(filters.to)}. Penjualan yang dibatalkan tidak dihitung dan tampil terpisah di bawah.`}
+                </p>
 
                 <PeriodFilter
                     url={SalesReportController.index.url()}
@@ -74,26 +75,42 @@ export default function LaporanPenjualan({
                     <StatCard
                         label="Total penjualan"
                         value={formatRupiah(report.summary.total)}
+                        icon={<PixelIcon name="laporan" scale={2} />}
+                        tone="kunyit"
                     />
                     <StatCard
                         label="Jumlah transaksi"
                         value={formatNumber(report.summary.count)}
+                        icon={<PixelIcon name="kasir" scale={2} />}
+                        tone="langit"
                     />
                     <StatCard
                         label="Rata-rata per transaksi"
                         value={formatRupiah(report.summary.average)}
+                        icon={<PixelIcon name="stok" scale={2} />}
+                        tone="daun"
                     />
                     <StatCard
                         label="Dibatalkan (tidak dihitung)"
                         value={formatNumber(report.voided.count)}
                         hint={formatRupiah(report.voided.total)}
+                        icon={
+                            <PixelGlyph
+                                rows={GLYPHS.habis}
+                                scale={3}
+                                className="text-px-tinta"
+                            />
+                        }
+                        tone="bata"
                     />
                 </section>
 
                 <section className="space-y-2">
-                    <h3 className="font-semibold">Penjualan per hari</h3>
+                    <h3 className="font-pixel text-lg text-px-tinta">
+                        Penjualan per hari
+                    </h3>
                     <PixelTable>
-                        <thead className="bg-muted/50 text-left">
+                        <thead className="bg-px-dinding text-left text-px-tinta">
                             <tr>
                                 <th className="p-3">Tanggal</th>
                                 <th className="p-3 text-right">Transaksi</th>
@@ -101,9 +118,12 @@ export default function LaporanPenjualan({
                                 <th className="w-1/3 p-3" aria-hidden="true" />
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-px-sorotan">
                             {report.daily.map((d) => (
-                                <tr key={d.date} className="border-t">
+                                <tr
+                                    key={d.date}
+                                    className="border-t-2 border-dashed border-px-lantai"
+                                >
                                     <td className="p-2 px-3">
                                         {tanggal(d.date)}
                                     </td>
@@ -115,7 +135,7 @@ export default function LaporanPenjualan({
                                     </td>
                                     <td className="p-2 px-3" aria-hidden="true">
                                         <div
-                                            className="h-3 border-2 border-[#2b2a33] bg-[#f6c56b]"
+                                            className="h-3 border-2 border-px-tinta bg-px-kunyit"
                                             style={{
                                                 width: `${(d.total / max) * 100}%`,
                                                 minWidth: d.total > 0 ? 6 : 0,
@@ -134,9 +154,11 @@ export default function LaporanPenjualan({
 
                 <div className="grid gap-6 lg:grid-cols-2">
                     <section className="space-y-2">
-                        <h3 className="font-semibold">Produk terlaris</h3>
+                        <h3 className="font-pixel text-lg text-px-tinta">
+                            Produk terlaris
+                        </h3>
                         <PixelTable>
-                            <thead className="bg-muted/50 text-left">
+                            <thead className="bg-px-dinding text-left text-px-tinta">
                                 <tr>
                                     <th className="p-3">Produk</th>
                                     <th className="p-3 text-right">Terjual</th>
@@ -145,19 +167,22 @@ export default function LaporanPenjualan({
                                     </th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="bg-px-sorotan">
                                 {report.top_products.length === 0 && (
                                     <tr>
                                         <td
                                             colSpan={3}
-                                            className="p-4 text-center text-muted-foreground"
+                                            className="p-4 text-center text-px-bayangan"
                                         >
                                             Belum ada penjualan.
                                         </td>
                                     </tr>
                                 )}
                                 {report.top_products.map((p) => (
-                                    <tr key={p.product_id} className="border-t">
+                                    <tr
+                                        key={p.product_id}
+                                        className="border-t-2 border-dashed border-px-lantai"
+                                    >
                                         <td className="p-3">{p.name}</td>
                                         <td className="p-3 text-right">
                                             {formatNumber(p.qty)} {p.unit}
@@ -172,9 +197,11 @@ export default function LaporanPenjualan({
                     </section>
 
                     <section className="space-y-2">
-                        <h3 className="font-semibold">Penjualan per kasir</h3>
+                        <h3 className="font-pixel text-lg text-px-tinta">
+                            Penjualan per kasir
+                        </h3>
                         <PixelTable>
-                            <thead className="bg-muted/50 text-left">
+                            <thead className="bg-px-dinding text-left text-px-tinta">
                                 <tr>
                                     <th className="p-3">Kasir</th>
                                     <th className="p-3 text-right">
@@ -183,19 +210,22 @@ export default function LaporanPenjualan({
                                     <th className="p-3 text-right">Total</th>
                                 </tr>
                             </thead>
-                            <tbody>
+                            <tbody className="bg-px-sorotan">
                                 {report.cashiers.length === 0 && (
                                     <tr>
                                         <td
                                             colSpan={3}
-                                            className="p-4 text-center text-muted-foreground"
+                                            className="p-4 text-center text-px-bayangan"
                                         >
                                             Belum ada penjualan.
                                         </td>
                                     </tr>
                                 )}
                                 {report.cashiers.map((c) => (
-                                    <tr key={c.user_id} className="border-t">
+                                    <tr
+                                        key={c.user_id}
+                                        className="border-t-2 border-dashed border-px-lantai"
+                                    >
                                         <td className="p-3">{c.name}</td>
                                         <td className="p-3 text-right">
                                             {c.count}
@@ -211,13 +241,15 @@ export default function LaporanPenjualan({
                 </div>
 
                 <section className="space-y-2">
-                    <h3 className="font-semibold">Penjualan dibatalkan</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="font-pixel text-lg text-px-tinta">
+                        Penjualan dibatalkan
+                    </h3>
+                    <p className="text-sm text-px-bayangan">
                         Tidak termasuk dalam angka di atas. Stoknya sudah
                         dikembalikan lewat mutasi pembatalan.
                     </p>
                     <PixelTable>
-                        <thead className="bg-muted/50 text-left">
+                        <thead className="bg-px-dinding text-left text-px-tinta">
                             <tr>
                                 <th className="p-3">Nomor</th>
                                 <th className="p-3">Waktu jual</th>
@@ -227,19 +259,22 @@ export default function LaporanPenjualan({
                                 <th className="p-3">Dibatalkan oleh</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className="bg-px-sorotan">
                             {report.voided.rows.length === 0 && (
                                 <tr>
                                     <td
                                         colSpan={6}
-                                        className="p-4 text-center text-muted-foreground"
+                                        className="p-4 text-center text-px-bayangan"
                                     >
                                         Tidak ada penjualan yang dibatalkan.
                                     </td>
                                 </tr>
                             )}
                             {report.voided.rows.map((v) => (
-                                <tr key={v.number} className="border-t">
+                                <tr
+                                    key={v.number}
+                                    className="border-t-2 border-dashed border-px-lantai"
+                                >
                                     <td className="p-3 font-mono">
                                         {v.number}
                                     </td>
@@ -254,7 +289,7 @@ export default function LaporanPenjualan({
                                     <td className="p-3">
                                         {v.voided_by ?? '-'}
                                         {v.voided_at && (
-                                            <span className="block text-xs text-muted-foreground">
+                                            <span className="block text-xs text-px-bayangan">
                                                 {v.voided_at}
                                             </span>
                                         )}
@@ -264,6 +299,10 @@ export default function LaporanPenjualan({
                         </tbody>
                     </PixelTable>
                 </section>
+
+                <div className="flex justify-end">
+                    <GuardCorner post="kasir" />
+                </div>
             </div>
         </>
     );

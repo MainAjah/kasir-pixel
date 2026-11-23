@@ -6,9 +6,8 @@ import PixelTable, {
     ROLE_LABELS,
     RoleBadge,
 } from '@/components/admin/pixel-table';
-import Heading from '@/components/heading';
 import NativeSelect from '@/components/native-select';
-import { Button } from '@/components/ui/button';
+import { PRIMARY_BUTTON, ROW, TBODY, THEAD } from '@/components/pixel/styles';
 
 type RoleCard = {
     value: string;
@@ -48,8 +47,9 @@ function RoleSelect({ user }: { user: UserRow }) {
                     </option>
                 ))}
             </NativeSelect>
-            <Button
-                size="sm"
+            <button
+                type="button"
+                className={`${PRIMARY_BUTTON} h-8 px-3 text-sm`}
                 disabled={!changed || saving || user.is_self}
                 onClick={() =>
                     router.put(
@@ -71,7 +71,7 @@ function RoleSelect({ user }: { user: UserRow }) {
                 }
             >
                 Simpan
-            </Button>
+            </button>
         </div>
     );
 }
@@ -93,21 +93,24 @@ export default function HakAksesIndex({
         <>
             <Head title="Hak akses" />
 
-            <div className="space-y-8 p-4">
-                <Heading
-                    title="Hak akses"
-                    description="Tiga peran tetap: Admin, Kasir, Bendahara. Tabel di bawah menunjukkan halaman yang bisa dibuka tiap peran; penjagaannya ada di server."
-                />
+            <div className="pixel-form space-y-6 p-4">
+                <p className="max-w-prose text-sm text-px-bayangan">
+                    Tiga peran tetap: Admin, Kasir, Bendahara. Tabel di bawah
+                    menunjukkan halaman yang bisa dibuka tiap peran;
+                    penjagaannya ada di server.
+                </p>
 
                 <section className="grid gap-4 sm:grid-cols-3">
                     {roles.map((r) => (
                         <div
                             key={r.value}
-                            className="border-[3px] border-current p-4 text-foreground shadow-[3px_3px_0_currentColor]"
+                            className="bg-px-sorotan p-4 text-px-tinta pixel-frame"
                         >
                             <RoleBadge role={r.value} label={r.label} />
-                            <p className="mt-3 text-2xl font-bold">{r.users}</p>
-                            <p className="text-sm text-muted-foreground">
+                            <p className="mt-3 font-pixel text-3xl leading-none">
+                                {r.users}
+                            </p>
+                            <p className="mt-1 text-sm text-px-bayangan">
                                 pengguna ({r.active_users} aktif)
                             </p>
                         </div>
@@ -115,9 +118,11 @@ export default function HakAksesIndex({
                 </section>
 
                 <section className="space-y-3">
-                    <h3 className="font-semibold">Apa yang bisa dibuka</h3>
+                    <h3 className="font-pixel text-lg text-px-tinta">
+                        Apa yang bisa dibuka
+                    </h3>
                     <PixelTable>
-                        <thead className="bg-muted/50 text-left">
+                        <thead className={THEAD}>
                             <tr>
                                 <th className="p-3">Fitur</th>
                                 {roles.map((r) => (
@@ -130,9 +135,9 @@ export default function HakAksesIndex({
                                 ))}
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className={TBODY}>
                             {rows.map((row) => (
-                                <tr key={row.key} className="border-t">
+                                <tr key={row.key} className={ROW}>
                                     <td className="p-3">{row.label}</td>
                                     {roles.map((r) => {
                                         const ok = row.roles.includes(r.value);
@@ -148,8 +153,8 @@ export default function HakAksesIndex({
                                                     }
                                                     className={
                                                         ok
-                                                            ? 'font-bold text-[#6fae7b]'
-                                                            : 'text-muted-foreground'
+                                                            ? 'inline-grid size-6 place-items-center border-2 border-px-tinta bg-px-daun font-bold text-px-tinta'
+                                                            : 'text-px-bayangan'
                                                     }
                                                 >
                                                     {ok ? '✓' : '–'}
@@ -164,13 +169,15 @@ export default function HakAksesIndex({
                 </section>
 
                 <section className="space-y-3">
-                    <h3 className="font-semibold">Peran tiap pengguna</h3>
-                    <p className="text-sm text-muted-foreground">
+                    <h3 className="font-pixel text-lg text-px-tinta">
+                        Peran tiap pengguna
+                    </h3>
+                    <p className="text-sm text-px-bayangan">
                         Anda tidak bisa mengubah peran sendiri, dan harus selalu
                         ada minimal satu admin aktif.
                     </p>
                     <PixelTable>
-                        <thead className="bg-muted/50 text-left">
+                        <thead className={THEAD}>
                             <tr>
                                 <th className="p-3">Nama</th>
                                 <th className="p-3">Email</th>
@@ -178,13 +185,13 @@ export default function HakAksesIndex({
                                 <th className="p-3 text-right">Peran</th>
                             </tr>
                         </thead>
-                        <tbody>
+                        <tbody className={TBODY}>
                             {users.map((u) => (
-                                <tr key={u.id} className="border-t">
-                                    <td className="p-3 font-medium">
+                                <tr key={u.id} className={ROW}>
+                                    <td className="p-3 font-semibold">
                                         {u.name}
                                         {u.is_self && (
-                                            <span className="ml-2 text-xs text-muted-foreground">
+                                            <span className="ml-2 text-xs font-normal text-px-bayangan">
                                                 (Anda)
                                             </span>
                                         )}

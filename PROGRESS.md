@@ -1,5 +1,89 @@
 # PROGRESS
 
+## Tahap 5E-2: Tema pixel bagian 2, inventaris dan halaman tabel (23 Nov 2026)
+
+Status: **selesai, ketiga langkah disetujui pemilik, belum di-commit (menunggu izin).** Tidak ada migration, tidak ada paket npm atau composer baru, dan tidak ada perubahan aturan uang, stok, atau hak akses. Server hanya mendapat bacaan baru: kartu angka, daftar Stok Keluar, detail penerimaan, dan `image_url`. Semua penulisan stok tetap lewat `AdjustStock` dan `ReceiveStock` yang tidak disentuh.
+
+### Yang sudah selesai
+
+- **Langkah 1, Inventaris (Produk):**
+  - **Kepala bersama** (`components/inventory/inventory-header.tsx`):
+    - 4 kartu angka: Total produk, Stok tersedia, Stok menipis, Stok habis;
+    - tab Daftar Barang, Stok Masuk, Stok Keluar. Dua tab terakhir hanya tampil untuk admin.
+  - **Sumber angka kartu:** `App\Actions\Inventory\InventoryStats`, hanya membaca produk aktif.
+    - Stok dari `Product::withStock` dan status dari `InventoryReport::statusFor`, jadi menipis + habis = angka "Stok menipis" di Beranda.
+    - Stok tersedia = jumlah stok (satuan dasar) dari produk yang stoknya > 0.
+  - **Tabel Daftar Barang:**
+    - gambar barang per baris (`ProductThumb`); bila belum ada gambar, ikon kardus pixel;
+    - lencana Aman/Menipis/Habis (`stockStatus` yang sama dengan kasir);
+    - ikon Kartu stok dan Ubah (Ubah khusus admin);
+    - pagination "Menampilkan x–y dari z".
+  - **Tombol dan potret:** tombol "Tambah Produk" tetap ada (admin). Potret gurita di kanan bawah (`GuardCorner`, disembunyikan di layar kecil).
+  - **Halaman baru Stok Keluar** (`/stok-keluar`, hanya admin, hanya membaca):
+    - mutasi keluar dari penjualan dan koreksi minus, dengan nomor nota dan tanda "dibatalkan" untuk penjualan yang di-void;
+    - controller `StockOutController`, relasi baru `StockMovement::saleItem()`.
+- **Langkah 2, Barang masuk, Supplier, Penyesuaian stok:**
+  - **Detail penerimaan baru** (`/penerimaan-barang/{id}`, hanya admin, hanya membaca):
+    - supplier dengan kontak dan alamat, tanggal, pencatat, dan catatan;
+    - daftar item dengan satuan input, konversi, qty dasar, dan harga beli, beserta total;
+    - nomor di daftar Barang masuk menaut ke halaman ini.
+  - **Form bergaya pixel:** Barang masuk, Penyesuaian stok, Supplier, dan Produk memakai `PixelPanel` dan kelas `.pixel-form` (isian bertepi tinta, fokus biru tua).
+  - **Halaman lain:** daftar Supplier, Kartu stok, dan Kategori ikut diberi gaya.
+  - Judul breadcrumb koreksi stok menjadi "Penyesuaian stok", sama dengan menu.
+- **Langkah 3, Laporan, Pengguna, Hak akses:**
+  - **Laporan penjualan dan inventaris:**
+    - kartu angka berikon dengan warna palet;
+    - tombol periode bergaya tab; Ekspor CSV dan Terapkan bergaya tombol pixel;
+    - tabel berkepala krem; batang harian kunyit;
+    - potret di kanan bawah: zombie di laporan penjualan, gurita di laporan inventaris;
+    - kartu laporan inventaris memakai 5 kolom hanya di layar sangat lebar (di 1366 px tersusun 3 + 2), supaya "Nilai stok" tidak terpotong.
+  - **Pengguna:** tombol Tambah pengguna, ikon Ubah, dan tombol Aktifkan/Nonaktifkan seperti di Supplier. Form pengguna memakai panel pixel.
+  - **Hak akses:**
+    - kartu peran berbingkai pixel;
+    - centang matriks dalam kotak hijau daun;
+    - tombol Simpan ganti peran bergaya pixel.
+- **Komponen bersama baru** (`components/pixel/`):
+  - `styles.ts`: kelas tombol utama dan kedua, tombol ikon, tombol Aktifkan/Nonaktifkan, tab, isian, serta kepala, badan, dan baris tabel;
+  - `pixel-glyph.tsx`: glif 8 × 8 untuk ubah, kartu, cari, awas, habis, masuk, keluar, tambah;
+  - `pixel-panel.tsx` dan `guard-corner.tsx`.
+- **Komponen lama yang berubah tampilannya:**
+  - `StatCard`: ikon dan warna, dipakai juga di laporan;
+  - `Pagination`: kotak pixel dan keterangan jumlah;
+  - `BigPortrait`: opsi `flip`;
+  - `PeriodFilter`.
+- **Perubahan lain:**
+  - grup menu Inventaris kini ikut menyala di `/stok-keluar` (`MenuGroup.paths`);
+  - **AccessMap** mendapat baris "Stok keluar (daftar mutasi)" untuk admin.
+- **Judul ganda:** judul di isi halaman-halaman di atas diganti satu kalimat keterangan, karena judul sudah ada di header. Usulan ini tercatat "perlu izin" di 5E-1 dan terlihat di tiap langkah yang disetujui.
+- **Tes:**
+  - **Pest baru:** `Inventory/InventoryHeaderTest` dan `Inventory/StockReceiptDetailTest`. Isinya: kartu angka, `image_url`, isi Stok Keluar (termasuk penjualan yang dibatalkan), detail penerimaan, serta 403 untuk kasir dan bendahara.
+  - **Vitest:** `menu.test.ts` ditambah pemeriksaan tautan aktif Stok Keluar.
+  - **Hasil:** 393 tes Pest dan 223 tes Vitest lulus; Pint, tsc, dan lint (`resources/js`) bersih.
+- **Dicoba di browser** (1366 × 768):
+  - **sebagai admin:** semua halaman di atas;
+  - **sebagai kasir:** hanya tab Daftar Barang, tanpa aksi dan tanpa Tambah Produk.
+
+### Batasan dan hal yang perlu diketahui
+
+- **Tidak dibuat:** Stock Opname, menu Pembelian, Pengaturan, dan Koperasi, sesuai permintaan. Halaman Anggota tidak disentuh.
+- **Tanpa potret:** Pengguna dan Hak akses tidak diberi potret penjaga karena tidak termasuk pos mana pun. Mudah ditambahkan bila diinginkan.
+- **Font pixel hilang setelah Vitest:** masih terjadi, karena usul perbaikannya belum diizinkan. Jalankan ulang Vite setelah `npx vp test`.
+- **Peringatan lint lama:** peringatan di `docs/referensi-karakter/alat/*.js` sudah ada sejak sebelumnya dan bukan bagian tahap ini.
+- **Komentar migration:** komentar di migration gambar produk yang menyebut "rak diorama" tetap dibiarkan, karena migration lama tidak diubah tanpa izin.
+- **Belum digayakan:** dialog batal penjualan di riwayat kasir masih komponen bawaan (dari 5E-1).
+
+### Saran untuk tahap berikutnya
+
+**Tahap 7** (bonus: SHU dan pinjaman sederhana): **Sonnet, upaya sedang**, sesuai tabel di `claude.md`.
+
+- **Plan mode lebih dulu:** tahap ini menyentuh uang dan simpanan, jadi aturan pinjaman, angsuran, dan pembagian SHU perlu disetujui sebelum ada kode.
+- **Ledger:** pinjaman dan SHU mengikuti pola ledger yang hanya bisa ditambah (`savings_ledger`, `PostSaving`), dengan tes Pest wajib.
+- **Pos Koperasi** di Beranda masih ditunda. Bila halaman Anggota ikut diberi gaya pixel, pakai ulang `components/pixel/` dan `PixelTable`.
+- **Bila bonus Tahap 7 dan 8 dilewati,** lanjut ke **Tahap 9** (review ringan, README, bahan presentasi): Sonnet, upaya sedang.
+- Mulai sesi baru setelah mengganti model.
+
+---
+
 ## Tahap 6D: Tambah produk dari sidebar dan pos Kasir (23 Nov 2026)
 
 Status: **selesai, disetujui pemilik, sudah di-commit (e383815).** Tugas kecil di luar tabel tahap: CRUD produk sudah ada sejak Tahap 2, jadi yang dikerjakan hanya memunculkannya. Tidak ada migration, tidak ada paket baru, dan aturan akses tidak berubah. Rute tambah produk tetap `role:admin`, dan kasir tidak mendapat hak mengelola produk.

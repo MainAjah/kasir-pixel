@@ -43,6 +43,7 @@ class StockCardController extends Controller
                 'id' => $product->id,
                 'sku' => $product->sku,
                 'name' => $product->name,
+                'image_url' => $product->imageUrl(),
                 'min_stock' => $product->min_stock,
                 'stock' => $product->currentStock(),
                 'base_unit' => $product->baseUnit?->name,

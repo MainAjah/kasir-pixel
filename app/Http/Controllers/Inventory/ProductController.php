@@ -2,6 +2,7 @@
 
 namespace App\Http\Controllers\Inventory;
 
+use App\Actions\Inventory\InventoryStats;
 use App\Actions\Inventory\SaveProduct;
 use App\Actions\Inventory\SetProductImage;
 use App\Http\Controllers\Controller;
@@ -15,7 +16,7 @@ use Inertia\Response;
 
 class ProductController extends Controller
 {
-    public function index(Request $request): Response
+    public function index(Request $request, InventoryStats $stats): Response
     {
         $search = trim((string) $request->query('q', ''));
         $low = $request->boolean('menipis');
@@ -36,6 +37,7 @@ class ProductController extends Controller
                 'id' => $p->id,
                 'sku' => $p->sku,
                 'name' => $p->name,
+                'image_url' => $p->imageUrl(),
                 'category' => $p->category?->name,
                 'stock' => $p->stock ?? 0,
                 'min_stock' => $p->min_stock,
@@ -46,6 +48,8 @@ class ProductController extends Controller
             ]);
 
         return Inertia::render('inventaris/produk/index', [
+            // Tahap 5E-2: kartu angka di kepala halaman Inventaris (hanya membaca).
+            'stats' => $stats->handle(),
             'products' => $products,
             'filters' => ['q' => $search, 'menipis' => $low],
         ]);
