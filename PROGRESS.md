@@ -1,5 +1,83 @@
 # PROGRESS
 
+## Tahap 10: REST API kasir dan stok, checkout all-or-nothing (24 Nov 2026)
+
+Status: **selesai, hasil dan dokumen menunggu persetujuan pemilik, belum di-commit.**
+- **Pemicu:** soal tugas Tema 3 (Smart Koperasi System) mewajibkan "Klien App Kasir, REST API perhitungan total & mutasi stok". Bagian "30% Hard Problem"-nya meminta checkout multi-barang yang di-rollback seluruhnya bila satu barang gagal.
+- **Keputusan pemilik:**
+  - token Sanctum;
+  - layar kasir ikut memakai API;
+  - kunci berurutan (anti-deadlock);
+  - API stok = checkout + baca mutasi.
+- **Aturan uang dan stok tidak berubah:** harga dari server, stok tidak boleh minus, ledger hanya-tambah.
+
+**Catatan riwayat git:** atas permintaan pemilik, baris `Co-Authored-By: Claude` dihapus dari ke-34 commit lama, lalu di-force-push ke GitHub (`MainAjah/kasir-pixel`). Hash commit lama yang disebut di catatan tahap sebelumnya tidak cocok lagi. Branch lokal `cadangan-sebelum-rewrite` menyimpan riwayat lama.
+
+### Yang sudah selesai
+
+- **Paket dan skema:**
+  - `laravel/sanctum` lewat `php artisan install:api`: `config/sanctum.php`, `routes/api.php`, satu migration baru `personal_access_tokens` (sudah dijalankan di database `kasir` atas izin pemilik);
+  - `statefulApi()` di `bootstrap/app.php`;
+  - `HasApiTokens` di `User`;
+  - migration lama tidak diubah.
+- **Endpoint `/api/v1`** (dokumentasi di `docs/api.md`):
+  - `POST`/`DELETE token`;
+  - `GET produk` dan `produk/{id}`;
+  - `POST keranjang/hitung` (perhitungan total, tidak menyimpan);
+  - `POST penjualan` (checkout);
+  - `GET penjualan/{id}`;
+  - `GET produk/{id}/mutasi` (admin).
+
+  Dijaga `auth:sanctum` + `role:` yang sama dengan rute web. `EnsureUserIsActive` kini menjawab 403 JSON untuk API.
+- **Logika:**
+  - `App\Actions\Pos\PriceCart` (baru): perhitungan harga yang dipindah apa adanya dari `CompleteSale`, dipakai bersama oleh endpoint hitung dan checkout;
+  - `CompleteSale` mengunci semua produk keranjang sekaligus menurut urutan id sebelum menulis apa pun, dan transaksinya dicoba ulang paling banyak 3 kali bila database melaporkan deadlock;
+  - `StockException::insufficient()` membawa barang yang gagal (`productId`, `productName`, `available`, `requested`), dan `AdjustStock` mengirim id produknya. Pesan tidak berubah.
+- **Jawaban checkout:**
+  - `201` berisi nota dan `receipt_url`;
+  - `409` bila stok kurang, dengan `rolled_back` dan `failed_item`;
+  - `422` untuk aturan kasir dan validasi.
+- **Layar kasir:**
+  - Proses Pembayaran memanggil `POST /api/v1/penjualan` (`lib/checkout.ts`, cookie sesi + `X-XSRF-TOKEN`);
+  - bila berhasil, membuka struk dan memasang flash `sale.completed`, sehingga kartu Transaksi Berhasil dan diorama tetap jalan;
+  - bila gagal, baris barang penyebabnya ditandai merah ("Barang ini membatalkan transaksi") dan keranjang tetap utuh.
+
+  Rute web lama `POST /kasir/penjualan` dibiarkan sebagai cadangan beserta tesnya.
+- **Tes:**
+  - **Pest baru** `tests/Feature/Api/` (30 tes):
+    - token: benar, salah, nonaktif, dicabut;
+    - akses 401/403 per peran dan nota kasir lain;
+    - panggilan lewat sesi;
+    - produk, hitung total (harga server, dua satuan, tidak menulis), checkout sukses;
+    - **skenario soal persis:** 5 barang, barang ke-4 habis dibeli kasir lain di antara hitung dan bayar → 409, tanpa sisa nota, baris, pembayaran, atau mutasi, dan stok kelima barang tetap;
+    - urutan kunci terbalik dan dua satuan;
+    - aturan kasir 422.
+  - **Vitest baru** `lib/checkout.test.ts`.
+  - **Hasil:** 423 tes Pest dan 227 tes Vitest lulus; Pint, tsc, dan lint bersih.
+- **Dicoba sungguhan:**
+  - **browser sebagai kasir:** keranjang dengan Keripik melebihi stok → 409, baris merah, dan stok Air mineral tidak berubah. Setelah jumlah dibetulkan → Transaksi Berhasil.
+  - **curl dengan token:** hitung 4 barang dengan barang ke-4 Cokelat stok 0 → checkout 409 dengan `failed_item` Cokelat, stok keempat barang tetap, tanpa token 401, lalu token dicabut.
+- **Dokumen:**
+  - `docs/api.md` (baru);
+  - bagian REST API di README;
+  - `docs/desain.md` bagian 3 baru (all-or-nothing, kunci berurutan, coba ulang), sehingga nomor bagian lain bergeser;
+  - `docs/presentasi.md`: langkah demo skenario soal (dua jendela atau Postman) dan pertanyaan 19–23.
+
+### Batasan dan hal yang perlu diketahui
+
+- **Deadlock** sungguhan tidak bisa diuji dengan Pest satu koneksi. Pencegahannya dijelaskan dan didemokan dengan dua jendela.
+- **Data `kasir`** bertambah satu penjualan dari uji coba browser (Air mineral 1 + Keripik 1, Rp 12.000), dan ada satu token uji yang sudah dicabut.
+- **Data demo** hanya 4 produk, dan Cokelat stoknya 0. Untuk demo dua jendela, isi dulu stok Cokelat (langkah di `docs/presentasi.md`).
+- **MariaDB XAMPP** beberapa kali mati di sesi ini dan dinyalakan ulang dengan `mysqld --standalone`.
+
+### Saran untuk tahap berikutnya
+
+- **Latihan demo** skenario soal dengan `migrate:fresh --seed`, termasuk Postman.
+- **Temuan review Tahap 9** (halaman `/`, akun demo hanya lokal, teks login, `.env.example`, sisa starter kit) masih menunggu keputusan pemilik: Sonnet, upaya sedang, satu sesi.
+- **Bonus Tahap 7/8** bila waktu masih ada.
+
+---
+
 ## Tahap 9: Review ringan, README, bahan presentasi (24 Nov 2026)
 
 Status: **selesai, disetujui pemilik.** Dokumen di-commit (dd0a76e). Tahap 7 dan 8 (bonus) dilewati atas keputusan pemilik. Kode tidak diubah, tidak ada paket baru, dan logika, angka, serta hak akses tetap.

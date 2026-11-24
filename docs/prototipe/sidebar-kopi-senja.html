@@ -1,0 +1,757 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Kopi Senja</title>
+        <link rel="preconnect" href="https://fonts.googleapis.com" />
+        <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+        <link
+            href="https://fonts.googleapis.com/css2?family=Pixelify+Sans:wght@400;500;600;700&display=swap"
+            rel="stylesheet"
+        />
+        <style>
+            /*
+             * Palet sidebar. Untuk tema lain cukup ganti nilai di blok ini;
+             * semua aturan di bawah hanya membaca variabel.
+             */
+            :root {
+                --sb-bg: #5a3a2a; /* latar sidebar */
+                --sb-border: #3b2418; /* bingkai dan sel bar kosong */
+                --sb-text: #f5e6cf; /* teks dan ikon */
+                --sb-muted: #c9a98a; /* teks sekunder */
+                --sb-accent: #e0a96d; /* karamel: aktif, progress, tombol putar, fokus */
+                --sb-hover: #6d4733; /* latar item saat hover */
+                --sb-active: #8a5a3c; /* latar item aktif */
+                --sb-divider: #7a5239; /* garis putus-putus, bingkai pemutar */
+                --sb-player: #4a2f22; /* kotak pemutar musik */
+
+                --page-bg: #f5e6cf;
+                --page-text: #3b2418;
+
+                --sb-width: 264px;
+                --sb-width-collapsed: 76px;
+                --frame: 3px; /* tebal bingkai */
+                --cut: 6px; /* sudut terpotong */
+                --step: 3px; /* anak tangga di sudut */
+
+                /* Sudut bertangga dua langkah, khas pixel. */
+                --pixel-corners: polygon(
+                    0 var(--cut),
+                    var(--step) var(--cut),
+                    var(--step) var(--step),
+                    var(--cut) var(--step),
+                    var(--cut) 0,
+                    calc(100% - var(--cut)) 0,
+                    calc(100% - var(--cut)) var(--step),
+                    calc(100% - var(--step)) var(--step),
+                    calc(100% - var(--step)) var(--cut),
+                    100% var(--cut),
+                    100% calc(100% - var(--cut)),
+                    calc(100% - var(--step)) calc(100% - var(--cut)),
+                    calc(100% - var(--step)) calc(100% - var(--step)),
+                    calc(100% - var(--cut)) calc(100% - var(--step)),
+                    calc(100% - var(--cut)) 100%,
+                    var(--cut) 100%,
+                    var(--cut) calc(100% - var(--step)),
+                    var(--step) calc(100% - var(--step)),
+                    var(--step) calc(100% - var(--cut)),
+                    0 calc(100% - var(--cut))
+                );
+            }
+
+            * {
+                box-sizing: border-box;
+            }
+
+            html,
+            body {
+                margin: 0;
+                min-height: 100%;
+            }
+
+            body {
+                display: flex;
+                min-height: 100vh;
+                background: var(--page-bg);
+                color: var(--page-text);
+                font-family: 'Pixelify Sans', system-ui, sans-serif;
+            }
+
+            button {
+                font: inherit;
+                color: inherit;
+                background: none;
+                border: 0;
+                border-radius: 0;
+                cursor: pointer;
+            }
+
+            button:focus-visible {
+                outline: 2px solid var(--sb-accent);
+                outline-offset: 2px;
+            }
+
+            svg {
+                display: block;
+            }
+
+            /* Bingkai: lapisan gelap yang ikut terpotong, lalu isi sidebar di dalamnya. */
+            .frame {
+                position: sticky;
+                top: 12px;
+                align-self: flex-start;
+                flex-shrink: 0;
+                width: var(--sb-width);
+                height: calc(100vh - 24px);
+                margin: 12px 0 12px 12px;
+                padding: var(--frame);
+                background: var(--sb-border);
+                clip-path: var(--pixel-corners);
+                transition: width 240ms steps(4);
+            }
+
+            .sidebar {
+                display: flex;
+                flex-direction: column;
+                gap: 16px;
+                height: 100%;
+                padding: 16px 12px 12px;
+                overflow: hidden;
+                background: var(--sb-bg);
+                color: var(--sb-text);
+                clip-path: var(--pixel-corners);
+            }
+
+            /* Kepala: cangkir beruap, nama, sapaan. */
+            .head {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                min-height: 40px;
+            }
+
+            .cup {
+                flex-shrink: 0;
+                width: 40px;
+                height: 40px;
+                color: var(--sb-text);
+            }
+
+            .cup .px-accent {
+                fill: var(--sb-accent);
+            }
+
+            .steam {
+                animation: steam 1.6s steps(5) infinite;
+            }
+
+            .steam-2 {
+                animation-delay: -0.8s;
+            }
+
+            .is-paused .steam {
+                animation-play-state: paused;
+            }
+
+            /* Naik satu sel per langkah; langkah terakhir keluar dari kanvas (hilang). */
+            @keyframes steam {
+                from {
+                    transform: translateY(0);
+                }
+                to {
+                    transform: translateY(-5px);
+                }
+            }
+
+            .brand {
+                display: grid;
+                gap: 2px;
+                min-width: 0;
+            }
+
+            .brand-name {
+                font-size: 20px;
+                font-weight: 600;
+                line-height: 1.1;
+                white-space: nowrap;
+            }
+
+            .greeting {
+                color: var(--sb-muted);
+                font-size: 13px;
+            }
+
+            .divider {
+                margin: 0;
+                border: 0;
+                border-top: 2px dashed var(--sb-divider);
+            }
+
+            /* Menu. */
+            .menu {
+                display: flex;
+                flex-direction: column;
+                gap: 6px;
+                margin: 0;
+                padding: 0;
+                list-style: none;
+            }
+
+            .menu-item {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                width: 100%;
+                min-height: 44px;
+                padding: 8px 10px;
+                border: 2px solid transparent;
+                font-size: 16px;
+                text-align: left;
+            }
+
+            .menu-item:hover {
+                background: var(--sb-hover);
+                animation: bob 400ms steps(2) infinite;
+            }
+
+            .menu-item[aria-current='page'] {
+                background: var(--sb-active);
+                border-color: var(--sb-accent);
+            }
+
+            /* steps(2) dari 0 ke -4px menghasilkan posisi 0 dan -2px: naik-turun 2px. */
+            @keyframes bob {
+                from {
+                    transform: translateY(0);
+                }
+                to {
+                    transform: translateY(-4px);
+                }
+            }
+
+            .icon {
+                flex-shrink: 0;
+                width: 24px;
+                height: 24px;
+            }
+
+            .label {
+                white-space: nowrap;
+            }
+
+            /* Pemutar musik mini. */
+            .player {
+                display: grid;
+                gap: 8px;
+                margin-top: auto;
+                padding: 12px;
+                background: var(--sb-player);
+                border: 2px solid var(--sb-divider);
+            }
+
+            .np-label {
+                margin: 0;
+                color: var(--sb-muted);
+                font-size: 12px;
+            }
+
+            .np-title {
+                margin: 0;
+                font-size: 16px;
+                overflow: hidden;
+                text-overflow: ellipsis;
+                white-space: nowrap;
+            }
+
+            .bar {
+                display: grid;
+                grid-template-columns: repeat(16, 1fr);
+                gap: 2px;
+                height: 8px;
+            }
+
+            .bar span {
+                background: var(--sb-border);
+            }
+
+            .bar span.on {
+                background: var(--sb-accent);
+            }
+
+            .np-row {
+                display: flex;
+                align-items: center;
+                justify-content: space-between;
+                gap: 8px;
+            }
+
+            .time {
+                color: var(--sb-muted);
+                font-size: 13px;
+                font-variant-numeric: tabular-nums;
+            }
+
+            .play {
+                display: grid;
+                place-items: center;
+                width: 36px;
+                height: 36px;
+                background: var(--sb-accent);
+                color: var(--sb-border);
+                border: 2px solid var(--sb-border);
+            }
+
+            .play svg {
+                width: 16px;
+                height: 16px;
+            }
+
+            /* Tombol lipat. */
+            .collapse {
+                display: flex;
+                align-items: center;
+                gap: 12px;
+                min-height: 40px;
+                padding: 6px 10px;
+                color: var(--sb-muted);
+                font-size: 13px;
+            }
+
+            .collapse:hover {
+                color: var(--sb-text);
+                background: var(--sb-hover);
+            }
+
+            .collapse .icon {
+                width: 16px;
+                height: 16px;
+            }
+
+            /* Mode ikon saja. */
+            .frame.is-collapsed {
+                width: var(--sb-width-collapsed);
+            }
+
+            .is-collapsed .sidebar {
+                padding-inline: 8px;
+            }
+
+            .is-collapsed .brand,
+            .is-collapsed .label,
+            .is-collapsed .player,
+            .is-collapsed .collapse-label {
+                display: none;
+            }
+
+            .is-collapsed .head,
+            .is-collapsed .menu-item,
+            .is-collapsed .collapse {
+                justify-content: center;
+                padding-inline: 0;
+            }
+
+            .is-collapsed .collapse .icon {
+                transform: scaleX(-1);
+            }
+
+            /* Pemutar disembunyikan, jadi tombol lipat yang didorong ke dasar. */
+            .is-collapsed .player + .divider {
+                margin-top: auto;
+            }
+
+            /* Konten utama. */
+            .content {
+                flex: 1;
+                padding: 40px 48px;
+            }
+
+            .content h1 {
+                margin: 0 0 8px;
+                font-size: 32px;
+                font-weight: 600;
+            }
+
+            .content p {
+                max-width: 60ch;
+                margin: 0;
+                font-size: 16px;
+                line-height: 1.5;
+            }
+
+            /* Layar kecil: bar bawah berisi ikon saja. */
+            @media (max-width: 767.98px) {
+                body {
+                    flex-direction: column;
+                    padding-bottom: 72px;
+                }
+
+                .frame,
+                .frame.is-collapsed {
+                    position: fixed;
+                    inset: auto 0 0 0;
+                    z-index: 10;
+                    width: auto;
+                    height: auto;
+                    margin: 0;
+                    padding: var(--frame) 0 0;
+                    clip-path: none;
+                }
+
+                .sidebar {
+                    flex-direction: row;
+                    padding: 8px;
+                    clip-path: none;
+                }
+
+                .head,
+                .divider,
+                .player,
+                .collapse,
+                .label {
+                    display: none;
+                }
+
+                nav {
+                    flex: 1;
+                }
+
+                .menu {
+                    flex-direction: row;
+                    justify-content: space-around;
+                }
+
+                .menu-item {
+                    justify-content: center;
+                    width: 48px;
+                    height: 48px;
+                    padding: 0;
+                }
+
+                .content {
+                    padding: 24px 16px;
+                }
+            }
+
+            /* Hormati pengguna yang meminta gerak dikurangi. */
+            @media (prefers-reduced-motion: reduce) {
+                *,
+                *::before,
+                *::after {
+                    animation: none !important;
+                    transition: none !important;
+                }
+            }
+        </style>
+    </head>
+    <body>
+        <div class="frame" id="frame">
+            <aside class="sidebar" aria-label="Menu samping">
+                <header class="head">
+                    <span class="cup" id="cangkir"></span>
+                    <div class="brand">
+                        <span class="brand-name">Kopi Senja</span>
+                        <span class="greeting" id="sapaan">&nbsp;</span>
+                    </div>
+                </header>
+
+                <hr class="divider" />
+
+                <nav aria-label="Menu utama">
+                    <ul class="menu" id="menu"></ul>
+                </nav>
+
+                <section class="player" aria-label="Pemutar musik">
+                    <p class="np-label">sedang diputar</p>
+                    <p class="np-title" id="judul-lagu"></p>
+                    <div
+                        class="bar"
+                        id="bar"
+                        role="progressbar"
+                        aria-label="Posisi lagu"
+                        aria-valuemin="0"
+                    ></div>
+                    <div class="np-row">
+                        <span class="time" id="waktu"></span>
+                        <button class="play" id="putar" type="button"></button>
+                    </div>
+                </section>
+
+                <hr class="divider" />
+
+                <button
+                    class="collapse"
+                    id="lipat"
+                    type="button"
+                    aria-controls="frame"
+                    aria-expanded="true"
+                    aria-label="Ciutkan menu"
+                >
+                    <span class="icon" id="ikon-lipat"></span>
+                    <span class="collapse-label">Ciutkan menu</span>
+                </button>
+            </aside>
+        </div>
+
+        <main class="content">
+            <h1 id="judul"></h1>
+            <p id="keterangan"></p>
+        </main>
+
+        <script>
+            /*
+             * Ikon digambar dari grid teks: '#' = warna teks (currentColor),
+             * 'c' = karamel, '.' = kosong. Satu baris = satu baris piksel.
+             */
+            const ICONS = {
+                kafe: [
+                    '..#..#..',
+                    '.#..#...',
+                    '######..',
+                    '#....###',
+                    '#....#.#',
+                    '#....###',
+                    '.####...',
+                    '########',
+                ],
+                jurnal: [
+                    '.######.',
+                    '##....#.',
+                    '.#.##.#.',
+                    '##....#.',
+                    '.#.##.#.',
+                    '##....#.',
+                    '.######.',
+                    '........',
+                ],
+                kebun: [
+                    '##....##',
+                    '.##..##.',
+                    '..#..#..',
+                    '...##...',
+                    '.######.',
+                    '..####..',
+                    '..####..',
+                    '........',
+                ],
+                playlist: [
+                    '..######',
+                    '..######',
+                    '..#....#',
+                    '..#....#',
+                    '..#....#',
+                    '###..###',
+                    '###..###',
+                    '........',
+                ],
+                pengaturan: [
+                    '...##...',
+                    '.######.',
+                    '.##..##.',
+                    '##....##',
+                    '##....##',
+                    '.##..##.',
+                    '.######.',
+                    '...##...',
+                ],
+                putar: [
+                    '.#......',
+                    '.##.....',
+                    '.###....',
+                    '.####...',
+                    '.####...',
+                    '.###....',
+                    '.##.....',
+                    '.#......',
+                ],
+                jeda: [
+                    '.##..##.',
+                    '.##..##.',
+                    '.##..##.',
+                    '.##..##.',
+                    '.##..##.',
+                    '.##..##.',
+                    '.##..##.',
+                    '.##..##.',
+                ],
+                lipat: [
+                    '...#..#.',
+                    '..#..#..',
+                    '.#..#...',
+                    '#..#....',
+                    '#..#....',
+                    '.#..#...',
+                    '..#..#..',
+                    '...#..#.',
+                ],
+            };
+
+            // Cangkir 10 × 10; baris 0–3 ruang uap, uap ditambahkan terpisah.
+            const CUP = [
+                '..........',
+                '..........',
+                '..........',
+                '..........',
+                '#######...',
+                '#cccccc##.',
+                '#######.#.',
+                '#########.',
+                '.#####....',
+                '########..',
+            ];
+
+            /*
+             * Menu. Untuk menambah item: tambah satu objek di sini dan satu
+             * grid 8 × 8 di ICONS dengan kunci yang sama dengan `id`.
+             */
+            const MENU = [
+                { id: 'kafe', label: 'Kafe', note: 'Meja yang terisi dan pesanan yang sedang diseduh.' },
+                { id: 'jurnal', label: 'Jurnal', note: 'Catatan harian tentang biji kopi, resep, dan tamu.' },
+                { id: 'kebun', label: 'Kebun', note: 'Pot daun mint dan kemangi di teras belakang.' },
+                { id: 'playlist', label: 'Playlist', note: 'Lagu pelan untuk menemani sore di kafe.' },
+                { id: 'pengaturan', label: 'Pengaturan', note: 'Nama kafe, jam buka, dan tampilan.' },
+            ];
+
+            const SONG = { title: 'Hujan di Teras', length: 185 };
+
+            function pixelSvg(rows, extra = '') {
+                const h = rows.length;
+                const w = rows[0].length;
+                let rects = '';
+
+                rows.forEach((row, y) => {
+                    let x = 0;
+
+                    while (x < w) {
+                        const ch = row[x];
+
+                        if (ch === '.') {
+                            x++;
+                            continue;
+                        }
+
+                        let n = 1;
+                        while (x + n < w && row[x + n] === ch) n++;
+
+                        const paint = ch === 'c' ? 'class="px-accent"' : 'fill="currentColor"';
+                        rects += `<rect x="${x}" y="${y}" width="${n}" height="1" ${paint}/>`;
+                        x += n;
+                    }
+                });
+
+                return (
+                    `<svg viewBox="0 0 ${w} ${h}" width="100%" height="100%" ` +
+                    `shape-rendering="crispEdges" aria-hidden="true" focusable="false">` +
+                    rects +
+                    extra +
+                    `</svg>`
+                );
+            }
+
+            const $ = (id) => document.getElementById(id);
+            const frame = $('frame');
+
+            // Cangkir dengan dua piksel uap yang bergantian.
+            $('cangkir').innerHTML = pixelSvg(
+                CUP,
+                '<rect class="steam" x="2" y="3" width="1" height="1" fill="currentColor"/>' +
+                    '<rect class="steam steam-2" x="4" y="3" width="1" height="1" fill="currentColor"/>',
+            );
+
+            // Sapaan menurut jam pengguna.
+            function greet() {
+                const now = new Date();
+                const h = now.getHours();
+                const part = h < 4 ? 'malam' : h < 11 ? 'pagi' : h < 15 ? 'siang' : h < 18 ? 'sore' : 'malam';
+                const hh = String(h).padStart(2, '0');
+                const mm = String(now.getMinutes()).padStart(2, '0');
+                $('sapaan').textContent = `${part}, ${hh}:${mm}`;
+            }
+
+            greet();
+            setInterval(greet, 30_000);
+
+            // Menu dan konten utama.
+            let active = MENU[0].id;
+
+            $('menu').innerHTML = MENU.map(
+                (item) =>
+                    `<li><button class="menu-item" type="button" data-id="${item.id}" ` +
+                    `aria-label="${item.label}" title="${item.label}">` +
+                    `<span class="icon">${pixelSvg(ICONS[item.id])}</span>` +
+                    `<span class="label">${item.label}</span></button></li>`,
+            ).join('');
+
+            function select(id) {
+                active = id;
+                const item = MENU.find((m) => m.id === id);
+
+                document.querySelectorAll('.menu-item').forEach((btn) => {
+                    if (btn.dataset.id === id) btn.setAttribute('aria-current', 'page');
+                    else btn.removeAttribute('aria-current');
+                });
+
+                $('judul').textContent = item.label;
+                $('keterangan').textContent = item.note;
+            }
+
+            $('menu').addEventListener('click', (event) => {
+                const btn = event.target.closest('.menu-item');
+                if (btn) select(btn.dataset.id);
+            });
+
+            select(active);
+
+            // Pemutar musik: progres jalan selama diputar; jeda juga menghentikan uap.
+            let position = 42;
+            let playing = true;
+            const CELLS = 16;
+
+            $('judul-lagu').textContent = SONG.title;
+            $('bar').setAttribute('aria-valuemax', String(SONG.length));
+            $('bar').innerHTML = '<span></span>'.repeat(CELLS);
+
+            const clock = (s) => `${Math.floor(s / 60)}:${String(s % 60).padStart(2, '0')}`;
+
+            function renderPlayer() {
+                const filled = Math.round((position / SONG.length) * CELLS);
+
+                $('bar')
+                    .querySelectorAll('span')
+                    .forEach((cell, i) => cell.classList.toggle('on', i < filled));
+                $('bar').setAttribute('aria-valuenow', String(position));
+                $('bar').setAttribute('aria-valuetext', clock(position));
+                $('waktu').textContent = `${clock(position)} / ${clock(SONG.length)}`;
+
+                $('putar').innerHTML = pixelSvg(playing ? ICONS.jeda : ICONS.putar);
+                $('putar').setAttribute('aria-label', playing ? 'Jeda musik' : 'Putar musik');
+                frame.classList.toggle('is-paused', !playing);
+            }
+
+            $('putar').addEventListener('click', () => {
+                playing = !playing;
+                renderPlayer();
+            });
+
+            setInterval(() => {
+                if (!playing) return;
+                position = position >= SONG.length ? 0 : position + 1;
+                renderPlayer();
+            }, 1000);
+
+            renderPlayer();
+
+            // Tombol lipat: mode ikon saja.
+            $('ikon-lipat').innerHTML = pixelSvg(ICONS.lipat);
+
+            $('lipat').addEventListener('click', () => {
+                const collapsed = frame.classList.toggle('is-collapsed');
+                const label = collapsed ? 'Lebarkan menu' : 'Ciutkan menu';
+
+                $('lipat').setAttribute('aria-expanded', String(!collapsed));
+                $('lipat').setAttribute('aria-label', label);
+                $('lipat').querySelector('.collapse-label').textContent = label;
+            });
+        </script>
+    </body>
+</html>

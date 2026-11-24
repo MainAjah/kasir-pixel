@@ -12,8 +12,14 @@ Naskah demo 5 sampai 7 menit, poin penjelasan per fitur, dan pertanyaan yang mun
 4. **Buka langsung `http://localhost:8000/login`**, bukan `/`. Halaman `/` masih halaman sambutan bawaan Laravel.
 5. **Klik sekali di Beranda** supaya bunyi 8-bit aktif. Browser baru mengizinkan suara setelah ada klik.
 6. **Shift kasir:** seeder sudah membuka shift untuk kasir. Bila layar kasir meminta "Buka shift", isi kas awal (misalnya 100000) lalu klik **Buka shift**.
+7. **Postman (opsional, untuk REST API):**
+   - buat permintaan `POST http://localhost:8000/api/v1/token` dengan akun kasir;
+   - simpan tokennya sebagai Bearer Token;
+   - siapkan `GET /produk`, `POST /keranjang/hitung`, dan `POST /penjualan`.
 
-## Alur demo (5–7 menit)
+   Contoh isinya ada di [api.md](api.md).
+
+## Alur demo (6–8 menit)
 
 | Waktu | Masuk sebagai | Yang dilakukan | Yang dijelaskan |
 | --- | --- | --- | --- |
@@ -22,13 +28,39 @@ Naskah demo 5 sampai 7 menit, poin penjelasan per fitur, dan pertanyaan yang mun
 | 1:10 | Kasir | Pilih **Transaksi**. Cari atau pindai barang (misalnya "Air"), klik kartu produk, ubah jumlah dengan **+**/**−**. Perlihatkan lencana stok di grid. | Harga diambil dari server. Stok diperiksa saat bayar. |
 | 2:00 | Kasir | Pilih **Tunai** → **Pas** → **Proses Pembayaran**. Layar **Transaksi Berhasil** tampil; klik **Cetak Struk** sebentar, lalu **Transaksi Baru**. | Satu transaksi database: nota, rincian, pembayaran, dan mutasi stok sekaligus. |
 | 2:40 | Kasir | Kembali ke **Beranda**. Dalam sekitar 5 detik pelanggan pixel datang dan dilayani; angka kartu Hari Ini naik. Klik pelanggan itu: kartunya menampilkan nomor nota dan barang. | Diorama hanya membaca data (polling 5 detik). |
-| 3:20 | Admin | Menu **Inventaris → Produk**: kartu angka, gambar barang, lencana Aman/Menipis/Habis. Klik ikon **Kartu stok** untuk barang yang baru dijual. | Stok = ledger. Setiap baris punya `balance_after`, dan penjualan tadi muncul sebagai mutasi keluar. |
-| 4:00 | Admin | **Kasir → Riwayat transaksi** → klik **Batalkan** pada penjualan tadi, isi alasan, lalu konfirmasi. Buka **Inventaris → tab Stok Keluar**: mutasinya ditandai dibatalkan. Kartu stok menunjukkan baris pembalik. | Penjualan tidak diedit atau dihapus. Pembatalan adalah baris baru di `sale_voids` dan mutasi pembalik. |
-| 4:50 | Admin | **Laporan → Penjualan**, tab **Hari ini**: angkanya sama dengan kartu Beranda, dan penjualan yang dibatalkan tampil terpisah. Klik **Ekspor CSV**. Sekilas **Laporan → Inventaris**. | Satu sumber angka untuk laporan dan Beranda. |
-| 5:40 | Admin | **Admin → Hak akses**: tabel apa yang bisa dibuka tiap peran. Sekilas **Pengguna**: nonaktifkan, bukan hapus. | Tiga peran, dijaga middleware di server, dan peta ini dites agar sama dengan penjaga sebenarnya. |
-| 6:20 (opsional) | Admin | **Admin → Diorama lab** → **Simulasi pesanan** beberapa kali. | Alat demo untuk mengisi toko tanpa mengetik banyak transaksi. |
+| 3:20 | Kasir + Admin | **Skenario soal ("30% Hard Problem").** Lihat langkahnya di bagian berikut. | Checkout all-or-nothing: satu barang gagal, seluruh keranjang di-rollback. |
+| 4:30 | Admin | Menu **Inventaris → Produk**: kartu angka, gambar barang, lencana Aman/Menipis/Habis. Klik ikon **Kartu stok** untuk barang yang baru dijual. | Stok = ledger. Setiap baris punya `balance_after`. Penjualan yang berhasil muncul sebagai mutasi keluar; percobaan yang di-rollback tidak meninggalkan jejak. |
+| 5:00 | Admin | **Kasir → Riwayat transaksi** → klik **Batalkan** pada penjualan tadi, isi alasan, lalu konfirmasi. Buka **Inventaris → tab Stok Keluar**: mutasinya ditandai dibatalkan. Kartu stok menunjukkan baris pembalik. | Penjualan tidak diedit atau dihapus. Pembatalan adalah baris baru di `sale_voids` dan mutasi pembalik. |
+| 5:50 | Admin | **Laporan → Penjualan**, tab **Hari ini**: angkanya sama dengan kartu Beranda, dan penjualan yang dibatalkan tampil terpisah. Klik **Ekspor CSV**. Sekilas **Laporan → Inventaris**. | Satu sumber angka untuk laporan dan Beranda. |
+| 6:40 | Admin | **Admin → Hak akses**: tabel apa yang bisa dibuka tiap peran. Sekilas **Pengguna**: nonaktifkan, bukan hapus. | Tiga peran, dijaga middleware di server, dan peta ini dites agar sama dengan penjaga sebenarnya. |
+| 7:20 (opsional) | Admin | **Admin → Diorama lab** → **Simulasi pesanan** beberapa kali. | Alat demo untuk mengisi toko tanpa mengetik banyak transaksi. |
 
-**Cadangan bila waktu sempit:** lewati baris 3:20 dan 5:40. Inti demonya: jual, lihat diorama, batalkan, lalu cocokkan laporan.
+**Cadangan bila waktu sempit:** lewati baris 4:30 dan 6:40. Inti demonya: jual, skenario soal (rollback), lihat diorama, batalkan, lalu cocokkan laporan.
+
+### Skenario soal: barang ke-4 habis di tengah checkout
+
+Tujuannya menunjukkan bahwa bila satu barang gagal saat checkout, **seluruh** transaksi keranjang di-rollback dan stok tidak berantakan.
+
+**Cara A, dua jendela browser (paling mudah dilihat):**
+
+1. **Persiapan:** stok **Cokelat batang** di data demo 0. Sebelum demo, isi dulu lewat Admin: **Penyesuaian stok → Koreksi tambah**, misalnya 3 batang.
+
+   **Jendela Kasir:** isi keranjang 4 barang berurutan, yaitu Air mineral, Biskuit, Keripik, lalu **Cokelat** sebagai barang ke-4. Isi uang dengan **Pas**, tetapi **jangan bayar dulu**. Sebutkan stok barang 1–3 yang terlihat di grid.
+2. **Jendela Admin:** **Inventaris → Penyesuaian stok** → pilih barang ke-4 → **Koreksi kurang** sebanyak seluruh stoknya, alasan "dibeli lewat jalur lain". Stoknya sekarang 0.
+3. **Jendela Kasir:** klik **Proses Pembayaran**. Muncul pesan "Stok … tidak cukup", baris barang ke-4 ditandai merah ("Barang ini membatalkan transaksi"), dan keranjang tetap utuh.
+4. **Bukti rollback (jendela Admin):**
+   - buka **Kartu stok** barang 1–3: tidak ada mutasi baru, padahal di dalam transaksi barang-barang itu sempat diproses sebelum barang ke-4 gagal;
+   - **Riwayat transaksi** tidak bertambah.
+5. **Kasir:** hapus barang ke-4 dari keranjang lalu bayar lagi. Kali ini berhasil.
+
+**Cara B, Postman (REST API):**
+
+1. `POST /keranjang/hitung` dengan 4–5 barang. `all_stock_enough: true`.
+2. Habiskan stok barang ke-4 lewat jendela Admin (seperti langkah A2).
+3. `POST /penjualan` dengan keranjang yang sama → **409** dengan `rolled_back: true` dan `failed_item` = barang ke-4.
+4. `GET /produk`: stok barang lain tidak berubah.
+
+Data demo hanya berisi 4 produk. Skenario persis dengan 5 barang ada di tes otomatis `tests/Feature/Api/ApiCheckoutTest.php`, dan bisa ditunjukkan dengan `php artisan test tests/Feature/Api`.
 
 **Hindari saat demo:**
 - halaman `/` (sambutan bawaan Laravel);
@@ -37,7 +69,12 @@ Naskah demo 5 sampai 7 menit, poin penjelasan per fitur, dan pertanyaan yang mun
 
 ## Poin penjelasan per fitur
 
+- **REST API:**
+  - token Bearer untuk Postman, cookie sesi untuk layar kasir;
+  - produk dan stok, hitung total tanpa menyimpan, checkout all-or-nothing (409 bila stok kurang), dan mutasi stok;
+  - hak akses sama dengan aplikasi.
 - **Kasir:**
+  - membayar lewat REST API yang sama dengan Postman;
   - satu kolom untuk cari sekaligus pindai barcode, yang selalu kembali fokus;
   - satuan lain seperti dus tampil sebagai tombol "+ dus";
   - bayar tunai dengan tombol cepat;
@@ -85,7 +122,7 @@ Supaya jejak uang dan stok tetap utuh. Pembatalan menambah baris `sale_voids` be
 Tidak. Browser hanya mengirim barang dan jumlah. `CompleteSale` membaca harga jual dari database, lalu menghitung total di server.
 
 **6. Bagaimana kalau stok kurang saat bayar?**
-Seluruh penjualan dibatalkan dalam satu transaksi database, dan tidak ada data setengah jadi. Stok tidak boleh minus.
+Seluruh penjualan dibatalkan dalam satu transaksi database, dan tidak ada data setengah jadi. Stok tidak boleh minus. API menjawab 409 dan menyebut barang mana yang gagal, dan layar kasir menandai baris itu.
 
 **7. Bagaimana hak akses dijaga?**
 Middleware peran (spatie/laravel-permission) di tiap kelompok rute, dan Gate untuk pos di Beranda. Membuka alamat langsung tetap 403. Ada tes Pest untuk tiap peran, dan halaman Hak akses dites agar sama dengan penjaga sebenarnya.
@@ -106,9 +143,10 @@ Tidak semua. Ada figuran dan pembeli acak supaya toko hidup. Saat diklik, kartun
 Rupiah tidak memakai sen, dan bilangan bulat menghindari galat pembulatan desimal.
 
 **13. Bagaimana pengujiannya?**
-393 tes Pest (database terpisah `kasir_test`) dan 223 tes Vitest. Yang dites antara lain:
+423 tes Pest (database terpisah `kasir_test`) dan 227 tes Vitest. Yang dites antara lain:
 - aturan stok dan simpanan;
 - penjualan dan pembatalan;
+- REST API, termasuk skenario soal 5 barang dengan barang ke-4 habis;
 - laporan yang cocok dengan Beranda;
 - akses 403 per peran;
 - sprite hanya memakai warna palet.
@@ -116,7 +154,7 @@ Rupiah tidak memakai sen, dan bilangan bulat menghindari galat pembulatan desima
 Ditambah tsc, lint, dan Pint.
 
 **14. Kenapa tidak ada QRIS, diskon, atau mode offline?**
-Keputusan ruang lingkup versi tugas: butuh penyedia pembayaran, aturan uang tambahan, atau sinkronisasi yang rumit. Daftar lengkapnya ada di `docs/desain.md` bagian 8.
+Keputusan ruang lingkup versi tugas: butuh penyedia pembayaran, aturan uang tambahan, atau sinkronisasi yang rumit. Daftar lengkapnya ada di `docs/desain.md` bagian 9.
 
 **15. Kenapa ada tiga peran saja, dan apa itu "koperasi"?**
 Dalam tugas ini "koperasi" adalah peran pengelola (admin) yang mengelola seluruh operasional. Kasir hanya melayani penjualan, dan bendahara mengurus anggota dan simpanan.
@@ -126,7 +164,7 @@ Ia tidak bisa masuk, dan sesinya diputus bila sedang berjalan. Data lamanya teta
 
 **17. Apa batasan terbesar aplikasi ini?**
 - tanpa trigger database;
-- keserentakan hanya kunci baris sederhana, tanpa tes beban;
+- deadlock dan beban tinggi tidak diuji dengan banyak koneksi sungguhan (pencegahannya ada, tesnya berurutan);
 - satu koperasi;
 - pembayaran hanya tunai;
 - halaman login dan Settings masih bawaan starter kit.
@@ -137,5 +175,28 @@ Ia tidak bisa masuk, dan sesinya diputus bila sedang berjalan. Data lamanya teta
 - pembayaran dengan saldo simpanan;
 - trigger database untuk ledger.
 
-**19. Dari mana gambar karakter dan barang?**
+**19. Endpoint REST API apa saja, dan bagaimana mengaksesnya?**
+`/api/v1`:
+- `token`;
+- `produk`;
+- `keranjang/hitung` (perhitungan total);
+- `penjualan` (checkout);
+- `penjualan/{id}`;
+- `produk/{id}/mutasi` (mutasi stok, admin).
+
+Klien di luar browser mengambil token Bearer lewat `POST /token` (Laravel Sanctum). Layar kasir yang sudah login memakai cookie sesinya. Hak aksesnya sama dengan aplikasi, dan rinciannya ada di `docs/api.md`.
+
+**20. Apa artinya "all-or-nothing", dan di mana kodenya?**
+`App\Actions\Pos\CompleteSale`: semua langkah checkout ada di satu `DB::transaction` (nota, tiap baris barang, mutasi stok, pembayaran). Bila barang ke-4 gagal, Laravel me-rollback transaksi, sehingga baris dan mutasi barang 1–3 yang sudah ditulis ikut hilang. Tes `ApiCheckoutTest` memeriksa bahwa jumlah nota, baris, pembayaran, dan mutasi tidak bertambah, dan stok kelima barang tetap.
+
+**21. Bagaimana kalau stok berubah di antara "hitung" dan "bayar"?**
+Hasil hitung hanya peringatan. Saat bayar, setiap produk dikunci (`lockForUpdate`) dan saldonya dibaca ulang dari ledger di dalam transaksi. Penjualan lain yang menghabiskan stok pasti terlihat, dan checkout ditolak 409.
+
+**22. Bagaimana mencegah deadlock bila dua kasir checkout bersamaan?**
+Semua produk keranjang dikunci sekaligus menurut urutan id sebelum apa pun ditulis, sehingga setiap transaksi meminta kunci dalam urutan yang sama dan tidak bisa saling menunggu. Bila database tetap melaporkan deadlock, transaksi diulang paling banyak 3 kali; percobaan yang gagal sudah di-rollback. Deadlock sungguhan tidak bisa diuji dengan tes satu koneksi, dan itu dinyatakan sebagai batasan.
+
+**23. Kenapa stok kurang dijawab 409, bukan 422?**
+422 dipakai untuk isian yang salah atau aturan kasir (belum buka shift, uang kurang). Stok yang tidak cukup adalah konflik dengan keadaan data saat ini, karena isiannya sendiri benar. Kode 409 (Conflict) membuat klien tahu ia perlu memperbarui keranjang, dan `failed_item` menunjuk barang mana.
+
+**24. Dari mana gambar karakter dan barang?**
 Sprite toko digambar dari kode. Karakter penjaga (zombie, gurita), ikon menu, dan gambar barang contoh diolah dari gambar pilihan pemilik proyek, dan sebagian mirip karya atau merek pihak lain. Semuanya hanya untuk tugas, tidak dipublikasikan.

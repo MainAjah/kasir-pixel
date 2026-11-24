@@ -55,17 +55,24 @@ function TrashIcon() {
 
 function CartRow({
     line,
+    failed,
     onQty,
     onRemove,
 }: {
     line: CartLine;
+    failed: boolean;
     onQty: (qty: number) => void;
     onRemove: () => void;
 }) {
     const short = line.qty * line.conversion > line.stock_base;
 
     return (
-        <li className="border-b-2 border-dashed border-px-lantai py-2 last:border-b-0">
+        <li
+            className={cn(
+                'border-b-2 border-dashed border-px-lantai py-2 last:border-b-0',
+                failed && '-mx-2 border-l-4 border-l-px-bata bg-px-krem px-2',
+            )}
+        >
             <div className="flex items-start gap-2">
                 <p className="min-w-0 flex-1 text-sm leading-snug font-semibold text-px-tinta">
                     {line.product_name}
@@ -129,10 +136,20 @@ function CartRow({
                 </span>
             </div>
 
-            {short && (
-                <p className="mt-1 inline-block bg-px-bata px-1 text-xs font-semibold text-px-tinta">
-                    Stok tinggal {formatNumber(line.stock_base)} (satuan dasar)
+            {failed ? (
+                <p
+                    role="alert"
+                    className="mt-1 inline-block bg-px-bata px-1 text-xs font-semibold text-px-tinta"
+                >
+                    Barang ini membatalkan transaksi: stoknya tidak cukup.
                 </p>
+            ) : (
+                short && (
+                    <p className="mt-1 inline-block bg-px-bata px-1 text-xs font-semibold text-px-tinta">
+                        Stok tinggal {formatNumber(line.stock_base)} (satuan
+                        dasar)
+                    </p>
+                )
             )}
         </li>
     );
@@ -155,6 +172,7 @@ export default function CartPanel({
     tendered,
     onTenderedChange,
     error,
+    failedProductId = null,
     canPay,
     paying,
     onPay,
@@ -170,6 +188,8 @@ export default function CartPanel({
     tendered: string;
     onTenderedChange: (value: string) => void;
     error: string | null;
+    /** Produk yang membuat checkout gagal (409); barisnya ditandai. */
+    failedProductId?: number | null;
     canPay: boolean;
     paying: boolean;
     onPay: () => void;
@@ -207,6 +227,7 @@ export default function CartPanel({
                             <CartRow
                                 key={l.product_unit_id}
                                 line={l}
+                                failed={l.product_id === failedProductId}
                                 onQty={(qty) => onQty(l.product_unit_id, qty)}
                                 onRemove={() => onRemove(l.product_unit_id)}
                             />

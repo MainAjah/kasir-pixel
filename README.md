@@ -4,11 +4,11 @@ Aplikasi web untuk toko koperasi kecil. Kasir, inventaris, dan simpanan anggota 
 
 Proyek ini dibuat untuk tugas kuliah dengan Laravel. Ini bukan sistem produksi untuk koperasi sungguhan.
 
-- **Backend:** Laravel 13, Fortify (login), spatie/laravel-permission (peran), Pest (tes).
+- **Backend:** Laravel 13, Fortify (login), Sanctum (token REST API), spatie/laravel-permission (peran), Pest (tes).
 - **Frontend:** Inertia + React 19 + TypeScript, Tailwind CSS 4. Diorama digambar dengan Canvas 2D.
 - **Database:** MySQL/MariaDB (XAMPP).
 
-Penjelasan desain dan batasannya ada di [docs/desain.md](docs/desain.md). Naskah demo ada di [docs/presentasi.md](docs/presentasi.md).
+Penjelasan desain dan batasannya ada di [docs/desain.md](docs/desain.md). Naskah demo ada di [docs/presentasi.md](docs/presentasi.md). Dokumentasi REST API ada di [docs/api.md](docs/api.md).
 
 ---
 
@@ -168,6 +168,32 @@ Lalu buka **http://localhost:8000/login**. Setelah masuk, aplikasi membuka Beran
 
 Tanpa server Vite, halaman tampil kosong. Sebagai gantinya, bisa juga `npm run build` sekali, lalu cukup `php artisan serve`.
 
+## REST API
+
+Alamat dasar `http://localhost:8000/api/v1`, format JSON. Layar kasir sendiri membayar lewat API ini.
+
+| Metode | Jalur | Gunanya |
+| --- | --- | --- |
+| `POST` | `/token` | Ambil token Bearer (email dan kata sandi akun) |
+| `GET` | `/produk` | Produk aktif, stok dari ledger, satuan, dan harga |
+| `POST` | `/keranjang/hitung` | Hitung total keranjang dengan harga server, tanpa menyimpan |
+| `POST` | `/penjualan` | Checkout **all-or-nothing**: satu barang gagal berarti seluruh keranjang di-rollback (409) |
+| `GET` | `/penjualan/{id}` | Detail nota |
+| `GET` | `/produk/{id}/mutasi` | Mutasi stok (kartu stok), khusus admin |
+
+Contoh singkat dengan curl:
+
+```bash
+curl -s -X POST http://localhost:8000/api/v1/token \
+  -H "Accept: application/json" -H "Content-Type: application/json" \
+  -d '{"email":"kasir@kasir.test","password":"password","device_name":"curl"}'
+
+curl -s http://localhost:8000/api/v1/produk \
+  -H "Accept: application/json" -H "Authorization: Bearer <token>"
+```
+
+Penjelasan lengkap tiap endpoint, kode galat, dan langkah demo skenario "barang ke-4 habis" ada di [docs/api.md](docs/api.md).
+
 ## Menjalankan tes
 
 ```bash
@@ -183,8 +209,8 @@ npx vp lint
 ./vendor/bin/pint --test
 ```
 
-- Saat ini ada **393 tes Pest** dan **223 tes Vitest**, dan semuanya lulus.
-- Tes Pest mencakup aturan stok, kasir, pembatalan, simpanan, laporan, hak akses per peran (403), dan kecocokan angka Beranda dengan laporan.
+- Saat ini ada **423 tes Pest** dan **227 tes Vitest**, dan semuanya lulus.
+- Tes Pest mencakup aturan stok, kasir, pembatalan, simpanan, laporan, hak akses per peran (403), kecocokan angka Beranda dengan laporan, dan REST API. Untuk REST API, skenario soal "5 barang, barang ke-4 habis, semuanya di-rollback" dites persis di `tests/Feature/Api/ApiCheckoutTest.php`.
 - Catatan: menjalankan Vitest menghapus berkas font milik server Vite. Bila font pixel hilang di browser, hentikan lalu jalankan ulang `npm run dev`.
 
 ## Struktur folder singkat
@@ -192,10 +218,10 @@ npx vp lint
 ```text
 app/
   Actions/        logika bisnis, satu kelas satu aksi
-                  (CompleteSale, VoidSale, AdjustStock, ReceiveStock, PostSaving, laporan)
+                  (CompleteSale, PriceCart, VoidSale, AdjustStock, ReceiveStock, PostSaving, laporan)
   Enums/          peran, jenis mutasi stok, jenis simpanan, pos di Beranda
   Http/
-    Controllers/  controller tipis yang memanggil Action
+    Controllers/  controller tipis yang memanggil Action (Api/ untuk REST API)
     Requests/     validasi isian
   Models/         model Eloquent; ledger memakai Concerns/AppendOnly
   Support/        AccessMap (peta hak akses), periode laporan, penulis CSV
@@ -208,9 +234,9 @@ resources/
     pages/        halaman Inertia (kasir, inventaris, laporan, pengguna, anggota, ...)
     components/   komponen bersama (pixel, kasir, inventaris, beranda, layout)
     diorama/      mesin diorama: engine (loop, jalur, feed), actors, scenes, sprites, render
-routes/           web.php, pos.php, inventory.php, members.php, admin.php
-tests/Feature/    tes Pest
-docs/             skema, rancangan diorama, desain, bahan presentasi
+routes/           web.php, pos.php, inventory.php, members.php, admin.php, api.php (REST API)
+tests/Feature/    tes Pest (Api/ untuk REST API)
+docs/             skema, rancangan diorama, desain, dokumentasi API, bahan presentasi
 ```
 
 ## Desain dan batasan (ringkas)
@@ -218,6 +244,7 @@ docs/             skema, rancangan diorama, desain, bahan presentasi
 - **Stok dan simpanan berbentuk ledger yang hanya bisa ditambah.** Angka stok dan saldo dihitung dari catatan mutasi, bukan dari satu kolom yang ditimpa. Koreksi dibuat sebagai baris baru (pembalik).
 - **Penjualan tidak pernah diedit.** Pembatalan dicatat di tabel terpisah (`sale_voids`), dan stok dikembalikan lewat mutasi baru.
 - **Harga selalu dari server.** Browser hanya mengirim barang dan jumlah.
+- **Checkout all-or-nothing.** Semua langkah checkout ada dalam satu transaksi database; bila satu barang gagal, seluruh keranjang di-rollback. Produk dikunci berurutan supaya dua checkout bersamaan tidak saling mengunci (deadlock).
 - **Batasan:** perlindungan ini ada di tingkat aplikasi (model dan Action), **tanpa trigger database**. Mengubah tabel langsung lewat phpMyAdmin tetap bisa.
 - **Sengaja tidak dibuat untuk versi tugas:** QRIS, diskon, mode offline, SHU, pinjaman, Reverb, dan lainnya. Daftar lengkap beserta alasannya ada di [docs/desain.md](docs/desain.md).
 

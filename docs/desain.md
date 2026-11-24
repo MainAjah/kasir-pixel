@@ -36,27 +36,56 @@ Dokumen ini menjelaskan keputusan desain utama, apa yang sebenarnya menjaganya d
 - **Dampak void:** laporan, kartu "Hari Ini" di Beranda, dan ekspor CSV tidak menghitung penjualan yang punya baris `sale_voids`. Penjualan itu ditampilkan terpisah sebagai "Dibatalkan".
 - **Shift kasir:** satu shift aktif per kasir. Shift yang sudah ditutup tidak boleh diubah, dan selisih kas wajib diberi catatan.
 
-## 3. Harga selalu dari server
+## 3. Checkout all-or-nothing dan REST API (Tahap 10)
 
-- Browser hanya mengirim `product_unit_id` dan jumlah.
-- `CompleteSale` membaca `sell_price` dari database untuk menghitung subtotal dan total. Harga yang dikirim browser, bila ada, diabaikan.
-- Akibatnya, mengubah harga lewat alat pengembang di browser tidak berpengaruh pada nota.
+Ini jawaban atas "30% Hard Problem" di soal: kasir checkout 5 barang, barang ke-4 ternyata habis karena dibeli lewat jalur lain, dan seluruh keranjang harus di-rollback.
 
-## 4. Uang dan pencatatan
+- **Satu transaksi database.** `CompleteSale` menjalankan semua langkah checkout di dalam satu `DB::transaction`:
+  1. kunci shift;
+  2. kunci produk;
+  3. hitung harga;
+  4. tulis nota, baris, dan mutasi stok per barang;
+  5. tulis pembayaran.
+
+  Bila `AdjustStock` menemukan stok barang ke-4 tidak cukup, ia melempar `StockException`. Laravel me-rollback transaksi, sehingga baris nota, rincian, dan mutasi barang 1–3 yang sudah sempat ditulis ikut hilang. Tidak ada data setengah jadi.
+- **Stok dibaca di bawah kunci.** Saldo terakhir dibaca setelah baris produk dikunci (`lockForUpdate`). Penjualan lain yang menghabiskan stok di sela kasir menghitung dan membayar pasti terlihat, dan dua checkout tidak bisa menjual stok yang sama dua kali.
+- **Anti-deadlock: kunci berurutan.**
+  - Sebelum menulis apa pun, semua produk di keranjang dikunci sekaligus **menurut urutan id**.
+  - Karena setiap checkout meminta kunci dalam urutan yang sama, dua checkout bersamaan dengan urutan barang terbalik (misalnya A lalu B, dan B lalu A) tidak saling menunggu.
+  - Urutan barang di nota tetap mengikuti keranjang.
+- **Coba ulang.** Bila database tetap melaporkan deadlock (misalnya pada penguncian nomor nota), transaksi diulang paling banyak 3 kali. Percobaan yang gagal sudah di-rollback seluruhnya, jadi mengulang aman.
+- **REST API** (`routes/api.php`, `app/Http/Controllers/Api/`, dokumentasi di [api.md](api.md)):
+  - produk dan stok;
+  - **hitung total** tanpa menyimpan;
+  - **checkout**;
+  - **mutasi stok**.
+
+  Checkout yang gagal karena stok dijawab **409** dengan `rolled_back: true` dan `failed_item` (barang mana, tersedia berapa, diminta berapa).
+- **Layar kasir memakai API yang sama.** Tombol Proses Pembayaran memanggil `POST /api/v1/penjualan` dengan cookie sesi kasir (Sanctum stateful). Klien lain seperti Postman memakai token Bearer. Bila gagal, baris barang yang membatalkan transaksi ditandai merah dan keranjang tetap utuh.
+- **Satu sumber harga.** `App\Actions\Pos\PriceCart` dipakai oleh endpoint hitung dan oleh checkout, jadi angka "hitung" dan "bayar" pasti sama.
+
+## 4. Harga selalu dari server
+
+- Browser atau klien API hanya mengirim `product_unit_id` dan jumlah.
+- `PriceCart` (dipakai `CompleteSale`) membaca `sell_price` dari database untuk menghitung subtotal dan total. Harga yang dikirim klien, bila ada, diabaikan.
+- Akibatnya, mengubah harga lewat alat pengembang di browser atau lewat Postman tidak berpengaruh pada nota.
+
+## 5. Uang dan pencatatan
 
 - Uang disimpan sebagai **bilangan bulat rupiah**, tanpa desimal, sehingga tidak ada galat pembulatan.
 - Tabel transaksi menyimpan `created_by`. Data master (produk, pengguna, supplier) dinonaktifkan atau dihapus lunak, bukan dihapus permanen.
 
-## 5. Hak akses
+## 6. Hak akses
 
 - **Tiga peran tetap** lewat spatie/laravel-permission: admin, kasir, bendahara.
 - **Penjagaan di server:**
   - middleware `role:` di setiap kelompok rute (`routes/pos.php`, `inventory.php`, `members.php`, `admin.php`);
+  - REST API memakai `auth:sanctum` ditambah middleware peran yang sama (`routes/api.php`);
   - Gate untuk pos di Beranda.
 - **Pengguna nonaktif** tidak bisa masuk, dan sesinya diputus bila sedang berjalan.
 - **Halaman Hak akses** menampilkan peta dari `App\Support\AccessMap`. Tes Pest memastikan peta itu sama dengan penjaga sebenarnya: peran yang tercantum bisa membuka, dan peran lain mendapat 403.
 
-## 6. Diorama
+## 7. Diorama
 
 - **Prinsip:** data lebih dulu, animasi mengikuti data. Diorama **hanya membaca**, tidak pernah mengubah data.
 - **Sumber peristiwa:** layar Beranda menanyakan peristiwa baru ke `/beranda/peristiwa` setiap **5 detik** (polling, hanya baca), lalu memutar pelanggan sesuai penjualan yang terjadi. Rak diisi dari stok ledger.
@@ -70,10 +99,12 @@ Dokumen ini menjelaskan keputusan desain utama, apa yang sebenarnya menjaganya d
 - **Pelanggan bukan sungguhan:** agar toko tidak sepi, ada juga pembeli dari peristiwa acak dan figuran yang hanya melihat-lihat. Saat diklik, kartunya menandai "bukan transaksi nyata" atau "Hanya melihat-lihat". Pembeli dari penjualan sungguhan menampilkan nomor nota, barang, dan total.
 - **Bunyi 8-bit** dibuat dari kode (Web Audio). Atas keputusan pemilik, bunyi selalu menyala tanpa tombol senyap, dan mode hemat daya dibuang. Ini menyimpang dari rencana awal di `claude.md`.
 
-## 7. Batasan yang perlu diketahui
+## 8. Batasan yang perlu diketahui
 
 - **Perlindungan hanya di tingkat aplikasi.** `AppendOnly` dan Action menjaga data selama perubahan lewat aplikasi (Eloquent). **Tidak ada trigger database**, jadi kueri SQL langsung atau mengedit tabel lewat phpMyAdmin tetap bisa mengubah atau menghapus ledger. Untuk produksi, langkah berikutnya adalah trigger atau hak akses database yang menolak `UPDATE`/`DELETE` pada tabel ledger.
-- **Keserentakan sederhana.** Beberapa Action mengunci baris dengan `lockForUpdate`, misalnya shift saat menjual atau membatalkan, dan anggota saat menulis simpanan. Tetapi tidak ada strategi anti-deadlock dan tidak ada tes beban atau keserentakan.
+- **Keserentakan diuji secara logika, bukan secara beban.**
+  - Checkout mengunci produk berurutan dan mengulang bila deadlock (bagian 3). Action lain mengunci baris dengan `lockForUpdate`, misalnya shift saat membatalkan dan anggota saat menulis simpanan.
+  - Tes Pest memakai satu koneksi database, jadi deadlock sungguhan dan beban tinggi tidak bisa diuji otomatis. Skenario "stok habis dibeli jalur lain" dites secara berurutan (penjualan lain terjadi di antara hitung dan bayar), dan bisa didemokan dengan dua jendela browser.
 - **Satu koperasi**, tidak multi tenant.
 - **Polling, bukan siaran langsung.** Penjualan baru muncul di diorama Beranda paling lambat sekitar 5 detik setelah dibayar.
 - **Tanpa tombol senyap dan tanpa mode hemat daya** (keputusan pemilik). Bunyi hanya bisa dimatikan lewat pengaturan suara perangkat atau tab browser.
@@ -81,7 +112,7 @@ Dokumen ini menjelaskan keputusan desain utama, apa yang sebenarnya menjaganya d
 - **Halaman bawaan starter kit** (login, lupa sandi, Settings) belum diterjemahkan. Halaman awal `/` masih halaman sambutan bawaan Laravel; aplikasinya dimulai dari `/login`.
 - **Halaman Anggota** berfungsi, tetapi belum diberi tema pixel karena pos Koperasi ditunda.
 
-## 8. Yang sengaja tidak dibuat (keputusan versi tugas)
+## 9. Yang sengaja tidak dibuat (keputusan versi tugas)
 
 Daftar ini keputusan ruang lingkup, bukan fitur yang lupa dibuat. Satu-satunya persyaratan tugas adalah Laravel, jadi waktu dipakai untuk inti yang benar dan diorama.
 
@@ -93,7 +124,7 @@ Daftar ini keputusan ruang lingkup, bukan fitur yang lupa dibuat. Satu-satunya p
 | Struk via WhatsApp | Butuh layanan pihak ketiga |
 | Retur setelah shift tutup, Stock Opname, multi gudang | Fitur gudang lanjutan; koreksi cukup lewat Penyesuaian stok |
 | Menu Pembelian/PO dan Pengaturan | Barang masuk dicatat langsung dari supplier |
-| Trigger database, penguncian anti-deadlock, tes keserentakan | Disederhanakan untuk tugas (lihat Batasan) |
+| Trigger database, tes beban dan keserentakan dengan banyak koneksi | Disederhanakan untuk tugas (lihat Batasan). Penguncian anti-deadlock di checkout **dibuat** di Tahap 10. |
 | SHU dan pinjaman (Tahap 7), Reverb dengan layar diorama terpisah (Tahap 8) | Bonus, sengaja dilewati |
 | Modul RAT, adegan gudang dan balai di diorama | Fase lanjutan di rencana awal |
 | Pos Koperasi di diorama | Ditunda; anggota dan simpanan dibuka lewat menu Anggota |

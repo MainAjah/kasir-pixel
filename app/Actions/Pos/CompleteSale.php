@@ -9,6 +9,7 @@ use App\Events\SaleCompleted;
 use App\Exceptions\PosException;
 use App\Models\CashShift;
 use App\Models\Member;
+use App\Models\Product;
 use App\Models\ProductUnit;
 use App\Models\Sale;
 use App\Models\User;
@@ -17,19 +18,31 @@ use Illuminate\Support\Facades\DB;
 /**
  * Selesaikan penjualan tunai dalam satu transaksi database (docs/skema.md K1-K3).
  *
- * Browser hanya mengirim satuan dan jumlah; harga selalu dibaca dari server.
- * Stok kurang (StockException dari AdjustStock) membatalkan seluruh penjualan.
+ * Browser hanya mengirim satuan dan jumlah; harga selalu dibaca dari server (PriceCart).
+ * Stok kurang (StockException dari AdjustStock) membatalkan seluruh penjualan:
+ * all-or-nothing, tidak ada nota, baris, pembayaran, atau mutasi yang tersisa.
+ *
+ * Tahap 10: semua produk di keranjang dikunci sekaligus menurut urutan id sebelum
+ * apa pun ditulis, supaya dua checkout bersamaan dengan urutan barang berbeda tidak
+ * saling mengunci (deadlock). Bila database tetap melaporkan deadlock, transaksi
+ * diulang (paling banyak 3 kali); percobaan yang gagal sudah di-rollback seluruhnya.
  */
 class CompleteSale
 {
-    public function __construct(private AdjustStock $adjustStock) {}
+    /** Berapa kali transaksi dicoba bila database melaporkan deadlock. */
+    private const ATTEMPTS = 3;
+
+    public function __construct(
+        private AdjustStock $adjustStock,
+        private PriceCart $priceCart,
+    ) {}
 
     /**
      * @param  array<int, array{product_unit_id: int|string, qty: int|string}>  $items
      */
     public function handle(User $cashier, array $items, int $tendered, ?int $memberId = null): Sale
     {
-        $lines = $this->mergeLines($items);
+        $lines = $this->priceCart->lines($items);
 
         return DB::transaction(function () use ($cashier, $lines, $tendered, $memberId) {
             // Kunci baris shift: tidak bisa bersamaan dengan penutupan shift.
@@ -48,30 +61,10 @@ class CompleteSale
                 }
             }
 
-            $units = ProductUnit::with('product')->whereIn('id', array_keys($lines))->get()->keyBy('id');
+            $this->lockProducts(array_keys($lines));
 
-            $total = 0;
-            $prepared = [];
+            ['lines' => $prepared, 'total' => $total] = $this->priceCart->price($lines);
 
-            foreach ($lines as $unitId => $qty) {
-                $unit = $units->get($unitId);
-                $product = $unit?->product;
-
-                if ($unit === null || $product === null) {
-                    throw PosException::invalid('Ada barang yang tidak ditemukan atau sudah dihapus.');
-                }
-                if (! $product->is_active) {
-                    throw PosException::invalid("Produk {$product->name} sedang nonaktif.");
-                }
-
-                $lineTotal = $qty * $unit->sell_price;
-                $total += $lineTotal;
-                $prepared[] = compact('unit', 'product', 'qty', 'lineTotal');
-            }
-
-            if ($total <= 0) {
-                throw PosException::invalid('Total penjualan harus lebih dari nol.');
-            }
             if ($tendered < $total) {
                 throw PosException::invalid('Uang diterima kurang dari total belanja.');
             }
@@ -121,35 +114,22 @@ class CompleteSale
             SaleCompleted::dispatch($sale->id, $sale->number, $total, $eventItems, $cashier->id, $cashier->name);
 
             return $sale->load(['items', 'payments']);
-        });
+        }, self::ATTEMPTS);
     }
 
     /**
-     * Gabungkan baris dengan satuan sama dan pastikan jumlahnya bilangan bulat positif.
+     * Kunci semua produk keranjang sekaligus, selalu menurut urutan id. Setiap checkout
+     * meminta kunci dalam urutan yang sama, jadi tidak ada dua transaksi yang saling
+     * menunggu kunci milik yang lain. AdjustStock mengunci ulang produk yang sama di
+     * transaksi ini; kunci itu sudah dipegang sehingga tidak menunggu.
      *
-     * @param  array<int, array<string, mixed>>  $items
-     * @return array<int, int> product_unit_id => qty
+     * @param  list<int>  $unitIds
      */
-    private function mergeLines(array $items): array
+    private function lockProducts(array $unitIds): void
     {
-        if ($items === []) {
-            throw PosException::invalid('Keranjang kosong.');
-        }
+        $productIds = ProductUnit::whereIn('id', $unitIds)->pluck('product_id')->unique()->sort()->values();
 
-        $lines = [];
-
-        foreach ($items as $row) {
-            $unitId = filter_var($row['product_unit_id'] ?? null, FILTER_VALIDATE_INT);
-            $qty = filter_var($row['qty'] ?? null, FILTER_VALIDATE_INT);
-
-            if ($unitId === false || $qty === false || $qty < 1) {
-                throw PosException::invalid('Jumlah barang harus bilangan bulat minimal 1.');
-            }
-
-            $lines[$unitId] = ($lines[$unitId] ?? 0) + $qty;
-        }
-
-        return $lines;
+        Product::whereIn('id', $productIds)->orderBy('id')->lockForUpdate()->get(['id']);
     }
 
     /** Nomor INV-yyyymmdd-nnnn: urut per hari (tanggal WIB), dihitung di dalam transaksi. */

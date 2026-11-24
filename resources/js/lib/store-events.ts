@@ -52,7 +52,8 @@ export function onStoreEvent<K extends StoreEventName>(
     return () => bus.removeEventListener(name, listener);
 }
 
-function xsrfToken(): string {
+/** Token CSRF dari cookie XSRF-TOKEN; dipakai juga oleh panggilan REST API dari layar kasir. */
+export function xsrfToken(): string {
     const match = document.cookie.match(/(?:^|;\s*)XSRF-TOKEN=([^;]*)/);
 
     return match ? decodeURIComponent(match[1]) : '';

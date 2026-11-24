@@ -108,7 +108,7 @@ class AdjustStock
             $balanceAfter = $previous + $qty;
 
             if ($balanceAfter < 0) {
-                throw StockException::insufficient($locked->name, $previous, abs($qty));
+                throw StockException::insufficient($locked->name, $previous, abs($qty), $locked->id);
             }
 
             return StockMovement::create([

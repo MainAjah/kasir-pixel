@@ -4,6 +4,7 @@ import { toast } from 'sonner';
 import LookupController from '@/actions/App/Http/Controllers/Pos/LookupController';
 import SaleController from '@/actions/App/Http/Controllers/Pos/SaleController';
 import ShiftController from '@/actions/App/Http/Controllers/Pos/ShiftController';
+import { checkout } from '@/lib/checkout';
 import { formatRupiah } from '@/lib/format';
 import { emitStoreEvent } from '@/lib/store-events';
 import type { MemberHit } from '@/types';
@@ -36,7 +37,8 @@ const SHIFT_LINK =
  * Layar kasir bertema pixel (Tahap 5E-1): grid produk di kiri, keranjang dan
  * pembayaran di kanan, potret kasir dengan balon total di kiri bawah. Logika
  * jual tidak berubah: yang dikirim hanya satuan dan jumlah, harga dihitung ulang
- * server.
+ * server. Tahap 10: bayar lewat REST API (POST /api/v1/penjualan); bila satu
+ * barang gagal, seluruh transaksi dibatalkan dan baris barang itu ditandai.
  */
 export default function PosScreen({
     shift,
@@ -54,6 +56,8 @@ export default function PosScreen({
     const [error, setError] = useState<string | null>(null);
     const [paying, setPaying] = useState(false);
     const [member, setMember] = useState<MemberHit | null>(null);
+    // Produk yang membuat checkout terakhir gagal (409), untuk menandai barisnya.
+    const [failedProductId, setFailedProductId] = useState<number | null>(null);
 
     const scanRef = useRef<HTMLInputElement>(null);
     const cartEmptyRef = useRef(true);
@@ -124,6 +128,7 @@ export default function PosScreen({
             });
 
             setError(null);
+            setFailedProductId(null);
             setCart((prev) => {
                 const found = prev.find(
                     (l) => l.product_unit_id === unit.product_unit_id,
@@ -205,6 +210,7 @@ export default function PosScreen({
     }
 
     function setQty(unitId: number, qty: number) {
+        setFailedProductId(null);
         setCart((prev) =>
             prev.map((l) =>
                 l.product_unit_id === unitId
@@ -215,6 +221,7 @@ export default function PosScreen({
     }
 
     function removeLine(unitId: number) {
+        setFailedProductId(null);
         setCart((prev) => prev.filter((l) => l.product_unit_id !== unitId));
         focusScan();
     }
@@ -223,44 +230,58 @@ export default function PosScreen({
         setCart([]);
         setTendered('');
         setError(null);
+        setFailedProductId(null);
         focusScan();
     }
 
-    function pay() {
+    async function pay() {
         if (!canPay) {
             return;
         }
 
         setPaying(true);
         setError(null);
+        setFailedProductId(null);
 
-        router.post(
-            SaleController.store.url(),
-            {
-                // Hanya satuan dan jumlah; harga dihitung ulang oleh server.
-                items: cart.map((l) => ({
-                    product_unit_id: l.product_unit_id,
-                    qty: l.qty,
-                })),
-                tendered: Number(tendered) || 0,
-                member_id: member?.id ?? null,
-            },
-            {
-                preserveScroll: true,
-                onError: (errors) => {
-                    setError(
-                        errors.cart ??
-                            errors.tendered ??
-                            Object.values(errors)[0] ??
-                            'Penjualan gagal disimpan.',
-                    );
-                },
-                onFinish: () => {
-                    setPaying(false);
-                    focusScan();
-                },
-            },
-        );
+        const result = await checkout({
+            // Hanya satuan dan jumlah; harga dihitung ulang oleh server.
+            items: cart.map((l) => ({
+                product_unit_id: l.product_unit_id,
+                qty: l.qty,
+            })),
+            tendered: Number(tendered) || 0,
+            member_id: member?.id ?? null,
+        });
+
+        if (result.ok) {
+            const { sale } = result;
+
+            // Struk lalu kartu "Transaksi Berhasil" dan diorama, lewat flash yang
+            // sama dengan alur lama (StoreEventBridge dan halaman struk).
+            router.visit(sale.receipt_url, {
+                onSuccess: () =>
+                    router.flash('store_event', {
+                        name: 'sale.completed',
+                        detail: {
+                            number: sale.number,
+                            total: sale.total,
+                            items: sale.items.map((i) => ({
+                                name: i.name,
+                                unit: i.unit,
+                                qty: i.qty,
+                            })),
+                        },
+                    }),
+            });
+
+            return;
+        }
+
+        // Gagal: seluruh transaksi sudah dibatalkan server, keranjang tetap utuh.
+        setError(result.message);
+        setFailedProductId(result.failedProductId);
+        setPaying(false);
+        focusScan();
     }
 
     return (
@@ -321,9 +342,10 @@ export default function PosScreen({
                 tendered={tendered}
                 onTenderedChange={setTendered}
                 error={error}
+                failedProductId={failedProductId}
                 canPay={canPay}
                 paying={paying}
-                onPay={pay}
+                onPay={() => void pay()}
             />
         </div>
     );

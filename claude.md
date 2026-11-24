@@ -28,6 +28,19 @@ Proyek ini untuk tugas kuliah, bukan koperasi sungguhan, dan satu-satunya persya
 2. **Lapis 2, diorama (Tahap 5):** pelanggan pixel berjalan menyusuri toko dan antre, penjaga kasir bergerak saat scan, rak terisi sesuai stok nyata, siang dan malam, klik pelanggan untuk melihat barang yang dibelinya.
 3. **Lapis 3, bonus (Tahap 6 sampai 9):** data contoh dan tombol "simulasi pesanan" untuk demo (dikerjakan lebih dulu), SHU dan pinjaman sederhana, Reverb dengan layar diorama terpisah, lalu review ringan dan bahan presentasi.
 
+**Arti "koperasi" (diputuskan):** dalam tugas ini "koperasi" adalah peran pengelola (admin) yang mengelola seluruh operasional aplikasi, sedangkan kasir hanya melayani penjualan. Fitur peran koperasi/admin: mengelola akun pengguna, mengelola produk dan kategori, mengelola stok, mengelola supplier, melihat seluruh transaksi, melihat laporan penjualan dan inventaris, dan mengatur hak akses. Anggota, simpanan, SHU, dan pinjaman tetap bonus (Tahap 7), bukan inti. Yang masih kurang dari rencana awal dan ditambahkan: Tahap 6B (kelola pengguna, hak akses, supplier) dan Tahap 6C (laporan penjualan dan inventaris, ringkasan di dasbor). Nama peran di layar boleh "Koperasi" atau "Admin", mudah diganti kapan saja.
+
+**Arah visual antarmuka (disepakati, berlaku untuk 5D, 5E, 5F):** konsepnya mengikuti gaya game manajemen toko isometrik (diorama besar, balon ucapan, bar status), tetapi semua sprite, ikon, dan karakter dibuat sendiri dan memakai diorama serta 24 warna palet yang sudah ada. Tidak ada aset dari game lain yang disalin.
+
+- **Dasbor (Beranda), semua peran:** diorama toko isometrik buatan kita sendiri memenuhi layar, dengan konsep seperti game manajemen toko. Di kiri atas ada satu kartu kecil "Hari Ini" (penjualan, transaksi, stok menipis), tanpa bar atas dan bawah. Menu ikon di sisi kiri untuk halaman biasa (Produk, Stok, Laporan, Pengguna). Dua pos untuk sekarang: Kasir dan Inventaris. Pos Koperasi (anggota, simpanan, pinjaman, SHU) ditunda.
+- **Halaman kasir:** mengikuti foto referensi. Kerangka dengan menu samping dan header judul beserta tanggal dan jam. Kolom cari produk dengan tab kategori, grid produk dengan lencana stok, keranjang dengan tombol plus dan minus, subtotal, total besar, tombol Tunai dan Simpanan anggota, lalu Proses Pembayaran. Potret kasir yang sudah ada di kiri bawah dengan balon total belanja. Layar "Transaksi Berhasil" dengan Cetak Struk dan Transaksi Baru. Riwayat transaksi dengan tab Semua, Hari Ini, 7 Hari, Bulanan dan lencana Selesai/Batal. Warna tetap dari palet kita, dan bila tidak cocok baru dicari lagi. Dibuang: QRIS, diskon, Unduh PDF, tombol Lainnya, dan halaman Barcode/Scan terpisah. Kolom pindai barcode di kasir tetap ada.
+- **Inventaris dan halaman tabel:** kartu angka di atas (total produk, stok tersedia, stok menipis, stok habis), tab (Daftar Barang, Stok Masuk, Stok Keluar), tabel dengan lencana status stok dan ikon aksi, pagination, dan potret penjaga Inventaris yang sudah ada di kanan bawah. Barang masuk menampilkan detail penerimaan dengan supplier, tanggal, dan daftar item. Tidak dibuat: Stock Opname, menu Pembelian, menu Pengaturan, menu Koperasi (ditunda).
+- **Gaya bersama:** bingkai tebal bersudut kotak dengan sisi bawah dan kanan lebih tebal, font pixel hanya untuk judul, angka besar, dan tombol, font biasa untuk tabel dan isian, hanya warna dari palet diorama.
+- **Syarat persetujuan:** tiap langkah visual ditampilkan di browser dan menunggu persetujuan pengguna sebelum lanjut.
+- **Cara kerja tombol pos:** tiap pos (Kasir, Inventaris) dijaga satu karakter di diorama dan punya tombol berlabel di bawahnya (contoh: "Kasir, Penjualan dan Transaksi"). Tidak memakai balon. Tombol diklik, lalu karakter muncul besar sebagai petugas yang menyapa (potret yang sama diperbesar, tanpa ekspresi tambahan) dengan pilihan fitur pos itu. Pilihan diklik, lalu masuk ke halaman yang sesuai. Pos Kasir berisi Transaksi, Riwayat transaksi, Laporan penjualan. Pos Inventaris berisi Stok barang, Barang masuk, Penyesuaian stok, Supplier.
+- **Akses per peran:** semua peran bisa melihat diorama, tetapi hanya bisa membuka pos sesuai haknya. Kasir hanya bisa membuka tombol Kasir. Tombol pos lain ditolak dengan pesan singkat di diorama, dan penolakan juga dijaga di sisi server lewat hak akses, bukan hanya disembunyikan di tampilan.
+- **Aksesibilitas:** tombol pos adalah tombol biasa yang bisa dipilih dengan keyboard, agar tetap bisa dipakai tanpa mouse dan di layar kecil.
+
 **Dipertahankan:** ledger stok dan simpanan yang hanya bisa ditambah, `balance_after`, baris pembalik untuk koreksi, penjualan yang tidak pernah diedit.
 
 **Dibuang untuk versi tugas:** trigger database, kolom gudang, jalur retur setelah shift tutup, penguncian anti-deadlock, `client_uuid`, tes keserentakan stok, mode offline, QRIS, WhatsApp, modul RAT, adegan gudang dan balai, serta plugin laravel-boost.
@@ -189,9 +202,13 @@ Model kuat dipakai hanya untuk bagian yang mahal kalau salah (uang, stok, simpan
 | 5A | Rancang diorama: adegan, grid, jalur jalan, state machine aktor, daftar sprite, palet warna (plan mode, belum ada kode) | Opus | tinggi |
 | 5B | Mesin diorama: game loop, jalur jalan pelanggan, state aktor | Sonnet | tinggi |
 | 5C | Sprite dan animasi: pelanggan, penjaga kasir, rak, scanner, kantong, dengan halaman pratinjau berskala 4x | Opus | tinggi |
-| 5D | Suasana dan hubungan data: siang dan malam, bunyi, rak terisi sesuai stok nyata | Sonnet | tinggi |
-| 5E | Tema pixel untuk seluruh antarmuka: font, warna, komponen, gerak (pakai skill desain) | Sonnet | tinggi |
-| 6 | Data contoh dan tombol "simulasi pesanan" untuk demo | Haiku | rendah |
+| 5D-1 | Beranda: diorama memenuhi layar dengan data nyata (rak terisi sesuai stok), kartu "Hari Ini" di kiri atas, endpoint baca-saja dengan polling 5 detik untuk memutar penjualan, siang/senja/malam dari jam browser | Sonnet | tinggi |
+| 5D-2 | Tombol pos dan karakter besar: tombol berlabel Kasir dan Inventaris di bawah karakter penjaga (tanpa balon), klik memunculkan karakter besar (potret diperbesar, tanpa ekspresi) dengan pilihan fitur, akses per peran dijaga di server, bunyi dan tombol senyap, mode hemat daya, klik pelanggan | Sonnet | tinggi |
+| 5E-1 | Tema pixel, bagian 1: kerangka semua halaman (menu samping, header), halaman kasir, layar Transaksi Berhasil, riwayat transaksi, dengan potret kasir (pakai skill desain) | Sonnet | tinggi |
+| 5E-2 | Tema pixel, bagian 2: inventaris, barang masuk, supplier, laporan (6C), pengguna, hak akses, dengan potret penjaga Inventaris (pakai skill desain) | Sonnet | tinggi |
+| 6 | Data contoh dan tombol "simulasi pesanan" untuk demo (dikerjakan sebelum 5D) | Sonnet | sedang |
+| 6B | Peran koperasi/admin: kelola pengguna dan hak akses, supplier (data master, dihubungkan ke stok masuk) | Sonnet | Medium |
+| 6C | Laporan penjualan dan inventaris (filter tanggal, ekspor CSV) dan ringkasan angka di dasbor | Sonnet | Medium |
 | 7 | Bonus: SHU dan pinjaman sederhana | Sonnet | sedang |
 | 8 | Bonus: Reverb dan layar diorama terpisah | Sonnet | sedang |
 | 9 | Review ringan, README, bahan presentasi | Sonnet | sedang |
