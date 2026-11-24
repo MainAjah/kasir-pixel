@@ -1,5 +1,61 @@
 # PROGRESS
 
+## Tahap 9: Review ringan, README, bahan presentasi (24 Nov 2026)
+
+Status: **selesai, disetujui pemilik.** Dokumen di-commit (dd0a76e). Tahap 7 dan 8 (bonus) dilewati atas keputusan pemilik. Kode tidak diubah, tidak ada paket baru, dan logika, angka, serta hak akses tetap.
+
+### Yang sudah selesai
+
+- **Review ringan (hanya membaca):**
+  - Pest 393 lulus (`kasir_test`), Vitest 223 lulus;
+  - tsc, Pint, dan lint bersih; 2 peringatan lint hanya di `docs/referensi-karakter/alat/*.js`.
+- **`README.md`:**
+  - gambaran dan tiga peran, fitur per peran;
+  - kebutuhan sistem;
+  - instal dari nol di XAMPP/MariaDB, akun demo dengan peringatan;
+  - menjalankan aplikasi dan tes, struktur folder, catatan aset.
+- **`docs/desain.md`:**
+  - ledger hanya-tambah (`AppendOnly`), void di `sale_voids`, harga dari server, uang bilangan bulat, hak akses, diorama;
+  - batasan yang jujur: tanpa trigger database, keserentakan sederhana, polling 5 detik, bunyi tanpa tombol senyap;
+  - tabel hal yang sengaja tidak dibuat.
+- **`docs/presentasi.md`:** persiapan, alur demo sekitar 6 menit (kasir lalu admin), poin per fitur, dan 19 pertanyaan dosen beserta jawabannya.
+
+### Temuan review yang belum diperbaiki (menunggu keputusan pemilik)
+
+| Keparahan | Temuan |
+| --- | --- |
+| Sedang | Halaman `/` masih sambutan bawaan Laravel (bahasa Inggris). Naskah demo memakai `/login`. |
+| Sedang | `DatabaseSeeder` membuat 3 akun demo bersandi `password` di semua lingkungan (data contoh sudah dibatasi `local`). |
+| Sedang | Karakter (zombie, gurita) dan gambar barang tampak dari karya/merek lain; dicatat sebagai aset khusus tugas. |
+| Rendah | Login, lupa sandi, dan Settings masih bawaan starter kit berbahasa Inggris; Appearance tidak berpengaruh. |
+| Rendah | Tombol "Simpanan anggota" di kasir "segera hadir"; halaman Anggota belum bertema pixel. |
+| Rendah | 10 berkas sisa starter kit tidak terpakai (`nav-main`, `nav-footer`, beberapa `ui/*` dan layout). |
+| Rendah | `.env.example` masih `APP_NAME=Laravel`, `DB_DATABASE=_scaffold` (dijelaskan di README). |
+
+Tidak ditemukan rahasia yang ter-commit (`.env` di-ignore) dan tidak ada rute aplikasi tanpa penjagaan.
+
+### Catatan
+
+- MySQL XAMPP sempat mati sehingga Pest menggantung. Dinyalakan lagi dengan `mysqld --standalone`, lalu tes diulang dan lulus.
+- Alur penjualan dan pembatalan di naskah demo tidak dicoba di browser supaya database `kasir` tidak berubah. Label tombolnya sudah dicocokkan dengan kode.
+
+### Saran untuk tahap berikutnya
+
+Semua tahap inti dan Tahap 9 selesai.
+
+- **Pilihan kecil sebelum presentasi** (Sonnet, upaya sedang, satu sesi):
+  - arahkan `/` ke login;
+  - batasi akun demo ke `local`;
+  - terjemahkan teks login;
+  - rapikan `.env.example`;
+  - hapus sisa starter kit.
+
+  Semuanya perlu izin satu per satu.
+- **Bila waktu masih ada:** bonus Tahap 7 (SHU dan pinjaman, Sonnet upaya sedang, plan mode dulu) atau Tahap 8 (Reverb).
+- **Latihan demo** sekali dengan `migrate:fresh --seed`.
+
+---
+
 ## Tahap 5E-2: Tema pixel bagian 2, inventaris dan halaman tabel (23 Nov 2026)
 
 Status: **selesai, ketiga langkah disetujui pemilik, sudah di-commit (746871a).** Tidak ada migration, tidak ada paket npm atau composer baru, dan tidak ada perubahan aturan uang, stok, atau hak akses. Server hanya mendapat bacaan baru: kartu angka, daftar Stok Keluar, detail penerimaan, dan `image_url`. Semua penulisan stok tetap lewat `AdjustStock` dan `ReceiveStock` yang tidak disentuh.
