@@ -27,7 +27,7 @@ import type {
     TimeOfDay,
     WallDecor,
 } from '../sprites/decor-sprite';
-import { C } from '../sprites/palette';
+import { C, M } from '../sprites/palette';
 import type { PixelMatrix } from '../sprites/pixels';
 import { VENDING_HEIGHT } from '../sprites/vending-sprite';
 import { leftDot } from './pixel';
@@ -40,11 +40,13 @@ const LAMP_SIZE = { width: 7, height: 9 } as const;
 /**
  * Warna latar di luar ruangan setelah lapisan malam (sama dengan piksel pojok
  * kanvas). Dipakai untuk mengisi layar di sekeliling kanvas di Beranda supaya
- * kanvas menyatu dengan layar. Tahap 5F: latar biru malam (sama dengan warna
- * lapisan malam, jadi tetap sama di semua waktu); kegelapan malam di sekeliling
- * balok dibawa oleh vinyet di Beranda.
+ * kanvas menyatu dengan layar. Tahap 5G: latar gelap hangat (palet bahan); saat
+ * senja dan malam bercampur dengan biru malam seperti seluruh kanvas.
  */
-export function backdropColor(time: TimeOfDay, base: string = C(24)): string {
+export function backdropColor(
+    time: TimeOfDay,
+    base: string = M('latar'),
+): string {
     const a = NIGHT_ALPHA * NIGHT_STRENGTH[time];
     const mix = (from: string, to: string, shift: number) => {
         const f = (parseInt(from.slice(1), 16) >> shift) & 255;
@@ -60,6 +62,23 @@ export function backdropColor(time: TimeOfDay, base: string = C(24)): string {
     return `#${hex}`;
 }
 
+/**
+ * Rona hangat Beranda (Tahap 5G, konsep v4 "senja keemasan"): lapisan oranye
+ * lembut bercampur soft-light di atas diorama saat siang dan senja; malam tidak
+ * (kehangatan malam dari kolam cahaya lampu). Efek, bukan sprite.
+ */
+export const WARM_TINT: Record<TimeOfDay, number> = {
+    siang: 0.22,
+    senja: 0.32,
+    malam: 0,
+};
+
+export function warmTint(time: TimeOfDay): string | null {
+    return WARM_TINT[time] > 0
+        ? `rgba(240, 140, 90, ${WARM_TINT[time]})`
+        : null;
+}
+
 /** Kepekatan vinyet di sudut layar Beranda menurut waktu (Tahap 5F). */
 export const VIGNETTE_ALPHA: Record<TimeOfDay, number> = {
     siang: 0.5,
@@ -72,7 +91,8 @@ export const VIGNETTE_ALPHA: Record<TimeOfDay, number> = {
  * sudut gelap kebiruan, lebih pekat saat senja dan malam.
  */
 export function vignette(time: TimeOfDay): string {
-    const ink = '14, 15, 36';
+    // Gelap hangat (Tahap 5G), senada dengan latar.
+    const ink = '18, 11, 13';
 
     return `radial-gradient(ellipse 75% 70% at 50% 48%, rgba(${ink}, 0) 55%, rgba(${ink}, ${VIGNETTE_ALPHA[time]}) 100%)`;
 }

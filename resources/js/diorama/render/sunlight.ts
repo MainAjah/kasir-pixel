@@ -26,6 +26,8 @@ const fl = Math.floor;
 /** Warna cahaya (RGB): kuning lampu dan oranye kunyit dari palet. */
 const LAMP_RGB = '255, 233, 168';
 const DUSK_RGB = '232, 155, 79';
+/** Siang keemasan (Tahap 5G, konsep v4). */
+const GOLD_RGB = '255, 205, 140';
 
 /**
  * Arah sinar matahari per waktu: satu piksel turun di jendela = ki satuan searah
@@ -38,7 +40,7 @@ export const SUN: Record<
 > = {
     // Siang: jatuh di lantai kosong di samping penjaga Inventaris (tile 11,1–2),
     // tidak tertutup meja. Senja: lebih panjang ke tengah ruangan, sebagian di balik meja.
-    siang: { ki: -0.15, kj: 1.3, rgb: LAMP_RGB, patch: 0.6, shaft: 0.22 },
+    siang: { ki: -0.15, kj: 1.3, rgb: GOLD_RGB, patch: 0.6, shaft: 0.22 },
     senja: { ki: -0.35, kj: 2.4, rgb: DUSK_RGB, patch: 0.5, shaft: 0.22 },
     malam: null,
 };

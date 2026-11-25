@@ -21,9 +21,9 @@ import { BASE_H } from '../sprites/room-sprite';
 
 const T = 32;
 
-/** Warna bayangan efek: biru malam yang lebih gelap dari latar. */
-export const SHADOW_INK = '#0e0f24';
-const INK_RGB = '14, 15, 36';
+/** Warna bayangan efek: gelap hangat, lebih gelap dari latar (Tahap 5G). */
+export const SHADOW_INK = '#140b0d';
+const INK_RGB = '20, 11, 13';
 
 const ink = (alpha: number) => `rgba(${INK_RGB}, ${alpha})`;
 

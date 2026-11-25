@@ -1,8 +1,74 @@
 # PROGRESS
 
+## Tahap 5G: Konsep v4 "cozy elegan" di diorama aplikasi (25 Nov 2026)
+
+Status: **kedua langkah selesai dan disetujui pemilik; di-commit tanpa baris Co-Authored-By, belum di-push.**
+
+### Asal-usul
+
+- **Gambar konsep:** pemilik meminta konsep toko bergaya "cozy elegan". Higgsfield tidak bisa dipakai (paket Free, 0 kredit), jadi atas pilihan pemilik dibuat mockup pixel dari mesin diorama yang sama.
+  - Hasilnya empat gambar 1920 × 1080: `docs/referensi-diorama/cozy-elegan/v1.png`–`v4.png`.
+  - Pembuatnya `mockup.html`, yang dibuka lewat server Vite proyek dan bukan kode aplikasi.
+- **Pilihan pemilik:** **v4** (mawar berdebu dan walnut, senja keemasan), **tanpa karpet di jalur kasir**, diterapkan ke diorama Beranda yang sebenarnya.
+- **Keputusan pemilik:**
+  - **palet bahan** ditambahkan; 24 warna lama tetap untuk karakter, barang, dan hiasan;
+  - **rona hangat halus** siang dan senja;
+  - **Tahap 5F di-commit dulu** (`e7ace4c`).
+
+### Yang sudah selesai
+
+- **Palet bahan** (`diorama/sprites/palette.ts`): `MATERIAL` berisi 23 warna:
+  - walnut (7 nada), kuningan (2);
+  - marmer, ivory, wainscot, panel, krem bayangan;
+  - mawar, burgundi (2);
+  - isi rak: madu, sage, kaca, kaca gelap, mawar muda;
+  - latar.
+
+  Fungsi pendukung: `M()`, `isMaterialColor`, dan `isSceneColor` (palet 24 atau bahan). `isPaletteColor` tetap 24 warna untuk karakter, barang, dan hiasan.
+- **Langkah 1, ruangan** (`room-sprite.ts`):
+  - dinding kiri mawar berdebu, dinding kanan ivory;
+  - wainscot putih berpanel dengan lis kuningan, mahkota putih bergaris kuningan, dan plint walnut;
+  - **lantai papan walnut** (`floorColorAt`): tiga nada, sambungan selang-seling, nat, dan serat; menggantikan ubin mint dan krem;
+  - **inlay herringbone** krem dan burgundi berbingkai kuningan di depan pintu (`inlayRect`), menggantikan keset hijau;
+  - **karpet di jalur kasir dihapus** (`drawRug` dibuang), dan antrean tetap berjalan di lantai papan;
+  - alas balok berlis kuningan dan bata walnut;
+  - kusen pintu walnut bergaris kuningan, gagang kuningan;
+  - **latar, vinyet, dan bayangan efek** kini gelap hangat (`backdropColor`, `vignette`, `SHADOW_INK`).
+- **Langkah 2, perabot dan cahaya:**
+  - **rak:** badan dan papan walnut, lis kuningan di tepi atas depan, isi redup (`PRODUCTS`: burgundi, madu, sage, kaca, mawar muda, marmer); jumlah isi tetap mengikuti stok;
+  - **meja kasir:** permukaan marmer, badan walnut berpanel, lis kuningan, kaki walnut gelap; bangku berdudukan walnut dengan kaki kuningan; komputer, scanner, laci, struk, dan layar tetap;
+  - **vending → kulkas:** dua berbadan krem enamel, satu bening kebiruan, tutup walnut, kaca bening; papan "MINUM", lampu kedip, botol, dan tombol tetap;
+  - **rona hangat** (`lighting.ts` `warmTint`): lapisan oranye soft-light di Beranda, siang 0,22 dan senja 0,32, malam tidak ada; tidak menangkap klik;
+  - **sinar matahari siang** lebih keemasan (posisi tetap).
+- **Tes:**
+  - **baru:** lantai tanpa karpet di jalur antrean, inlay di depan pintu, pola papan, palet bahan pada rak, meja, kulkas, dan ruangan, serta rona hangat;
+  - **disesuaikan:** latar, dan gagang pintu kuningan.
+  - **Hasil:** Vitest 249 lulus, Pest 423 lulus; `npm run build`, tsc, lint, dan Pint bersih.
+- **Dicoba di browser** (1093 × 614, `?waktu=siang|senja|malam`):
+  - tampilan sesuai v4;
+  - klik pelanggan menampilkan kartunya;
+  - pos Kasir dan Inventaris terbuka;
+  - konsol bersih di tab baru.
+
+### Batasan dan hal yang perlu diketahui
+
+- **Bentuk isi rak** masih "barang berdiri" dari sprite lama, hanya warnanya yang diganti. Papan "MINUM" tetap ada.
+- **Rak terlihat cukup kosong** karena isinya mengikuti stok contoh yang sedikit.
+- **Proses Vite menumpuk di Windows:** menghentikan tugas latar tidak mematikan proses anaknya. Empat proses lama sudah dimatikan dengan `taskkill /T`.
+- **MariaDB XAMPP** mati tiap kali sesi berganti, lalu dinyalakan ulang dengan `mysqld --standalone`.
+
+### Saran untuk tahap berikutnya
+
+- **Pemilik mencoba di browsernya**, termasuk FPS di DevTools Performance (siang dan malam). Setelah setuju, push `e7ace4c` (5F) dan commit 5G ke GitHub.
+- **Bila ingin dipoles** (Sonnet, upaya sedang; perlu persetujuan karena mengubah sprite):
+  - isi rak berbentuk toples, botol, dan kaleng sungguhan;
+  - papan kulkas tanpa tulisan "MINUM".
+
+---
+
 ## Tahap 5F: Diorama toko 2.5D bergaya HD-2D (25 Nov 2026)
 
-Status: **ketiga langkah selesai; di-commit atas izin pemilik sebelum Tahap 5G (tanpa baris Co-Authored-By), belum di-push.** Pengukuran FPS di browser pemilik masih ditunggu.
+Status: **ketiga langkah selesai; di-commit atas izin pemilik sebelum Tahap 5G (`e7ace4c`, tanpa baris Co-Authored-By), belum di-push.** Pengukuran FPS di browser pemilik masih ditunggu.
 
 ### Keputusan pemilik
 

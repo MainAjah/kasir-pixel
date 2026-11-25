@@ -1,0 +1,527 @@
+<!doctype html>
+<html lang="id">
+    <head>
+        <meta charset="utf-8" />
+        <meta name="viewport" content="width=device-width, initial-scale=1" />
+        <title>Mockup cozy elegan</title>
+        <style>
+            body {
+                margin: 0;
+                background: #15121a;
+                color: #efe6d6;
+                font: 14px system-ui, sans-serif;
+            }
+            main {
+                display: grid;
+                gap: 16px;
+                padding: 16px;
+            }
+            figure {
+                margin: 0;
+            }
+            canvas {
+                display: block;
+                width: 100%;
+                max-width: 1920px;
+                height: auto;
+            }
+            figcaption {
+                padding: 6px 0;
+                opacity: 0.8;
+            }
+        </style>
+    </head>
+    <body>
+        <!--
+            Mockup konsep "cozy elegan" (bukan kode aplikasi). Dibuka lewat server Vite
+            proyek: http://[::1]:5173/docs/referensi-diorama/cozy-elegan/mockup.html
+            Memakai mesin diorama yang sama (denah, karakter, rak, meja), lalu bahan
+            dan warna diganti hanya di halaman ini. Tambahkan ?simpan=1 untuk
+            mengirim v1.png..v4.png ke penerima lokal (127.0.0.1:8765).
+        -->
+        <main id="hasil"></main>
+        <script type="module">
+            import { DioramaWorld } from '/resources/js/diorama/engine/world.ts';
+            import { PlaceholderRenderer } from '/resources/js/diorama/render/placeholder-renderer.ts';
+            import { loadReferences } from '/resources/js/diorama/sprites/reference-loader.ts';
+            import {
+                CANVAS_H,
+                CANVAS_W,
+                HALF_H,
+                HALF_W,
+                ORIGIN,
+                WALL_H,
+                tileTop,
+            } from '/resources/js/diorama/engine/iso.ts';
+            import {
+                BASE_H,
+                baseFaceColor,
+                doorRowsOf,
+                drawDoorGlass,
+            } from '/resources/js/diorama/sprites/room-sprite.ts';
+            import { drawWallDecor } from '/resources/js/diorama/render/lighting.ts';
+            import {
+                drawAmbientOcclusion,
+                drawBlockShadow,
+                drawFurnitureShadows,
+            } from '/resources/js/diorama/render/depth.ts';
+            import {
+                SUN,
+                drawLampPools,
+                drawSunlight,
+            } from '/resources/js/diorama/render/sunlight.ts';
+
+            const T = 32;
+            const fl = Math.floor;
+            const OUT_W = 1920;
+            const OUT_H = 1080;
+            const SCALE = 2;
+
+            // ---- Bahan bersama -------------------------------------------------
+            const WALNUT = ['#6e4a33', '#7a553c', '#64432f'];
+            const OAK = ['#a87f57', '#b48b62', '#9c744e'];
+            const BRASS = '#c49a52';
+            const BRASS_DARK = '#8f6d36';
+
+            /** Rak walnut berlis kuningan, isi toples, botol kaca, kaleng teh, roti, kado. */
+            const SHELF = {
+                '#f7f1e3': '#5c3c2a', // tutup rak
+                '#7a5c4b': '#4a2f22', // sisi kiri
+                '#8d5a3f': '#3a2419', // sisi kanan dan lis
+                '#e8907e': '#9a4a55', // burgundi
+                '#c2675a': '#7a3340',
+                '#f6c56b': '#d8b878', // toples madu
+                '#e89b4f': '#b8925a',
+                '#a7d7a5': '#aebca4', // kaleng sage
+                '#6fae7b': '#7f9478',
+                '#9fd3e6': '#cfe0dc', // botol kaca
+                '#6a9fc4': '#97b2ac',
+                '#f4b6c2': '#d9b2b0', // kado merah muda
+                '#c9b6e4': '#b8a9c2',
+                '#8f88a8': BRASS, // logam jadi kuningan
+                '#fdf8f0': '#f3ecdf',
+            };
+
+            /** Meja walnut bermarmer krem, lis kuningan. */
+            const COUNTER = {
+                '#fdf8f0': '#efe8dd', // permukaan marmer
+                '#f6c56b': '#5e3d2c', // depan walnut
+                '#e89b4f': '#4a2f22', // sisi walnut
+                '#8f88a8': BRASS, // lis dan logam
+                '#5b5470': '#2f1f18', // kaki
+            };
+
+            /** Kulkas kaca: badan krem enamel berbingkai walnut, kaca bening. */
+            const FRIDGE_CREAM = {
+                '#e8907e': '#efe5d3',
+                '#c2675a': '#d6c9b2',
+                '#a7d7a5': '#efe5d3',
+                '#6fae7b': '#d6c9b2',
+                '#9fd3e6': '#d7e8e4', // kaca
+                '#f7f1e3': '#5c3c2a', // tutup
+                '#ffe9a8': '#f6e3b4', // papan menyala
+                '#8f88a8': BRASS,
+            };
+            const FRIDGE_GLASS = {
+                ...FRIDGE_CREAM,
+                '#9fd3e6': '#d7e8e4',
+                '#6a9fc4': '#b9cfca',
+            };
+
+            const VARIANTS = [
+                {
+                    file: 'v1.png',
+                    title: 'v1 · Golden hour: sage dan krem, lantai walnut',
+                    seed: 21,
+                    time: 'siang',
+                    backdrop: '#1d1820',
+                    wallLeft: '#9fb096',
+                    wallRight: '#efe2c8',
+                    wainscot: '#f5f0e6',
+                    panel: '#e1d6c3',
+                    floor: WALNUT,
+                    seam: '#3e2a1f',
+                    grain: '#5a3b29',
+                    inlay: ['#eadfc6', '#2e4a3b'],
+                    runner: ['#7b2f3a', '#5f2330'],
+                    sun: { ki: -0.35, kj: 2.6, rgb: '255, 196, 120', patch: 0.6, shaft: 0.26 },
+                    grade: { color: 'rgba(255, 170, 90, 0.32)', op: 'soft-light' },
+                    bloom: 0.55,
+                },
+                {
+                    file: 'v2.png',
+                    title: 'v2 · Malam hangat: lampu kuningan, toko masih buka',
+                    seed: 34,
+                    time: 'malam',
+                    backdrop: '#16121a',
+                    wallLeft: '#8a9b84',
+                    wallRight: '#e4d6bb',
+                    wainscot: '#ebe4d6',
+                    panel: '#d3c7b2',
+                    floor: WALNUT,
+                    seam: '#3a271d',
+                    grain: '#553826',
+                    inlay: ['#e2d6bb', '#2b4537'],
+                    runner: ['#73293a', '#561e2b'],
+                    sun: null,
+                    grade: { color: 'rgba(52, 36, 58, 0.5)', op: 'multiply' },
+                    bloom: 0.95,
+                },
+                {
+                    file: 'v3.png',
+                    title: 'v3 · Hijau hutan dan ek terang, siang cerah',
+                    seed: 47,
+                    time: 'siang',
+                    backdrop: '#191d1b',
+                    wallLeft: '#3f5a47',
+                    wallRight: '#efe6d2',
+                    wainscot: '#f6f2e9',
+                    panel: '#e3dacb',
+                    floor: OAK,
+                    seam: '#6a4b33',
+                    grain: '#8c6644',
+                    inlay: ['#f0e6cf', '#2e4a3b'],
+                    runner: ['#2f4a3b', '#24392d'],
+                    sun: { ki: -0.2, kj: 1.6, rgb: '255, 233, 168', patch: 0.55, shaft: 0.22 },
+                    grade: { color: 'rgba(255, 220, 150, 0.18)', op: 'soft-light' },
+                    bloom: 0.5,
+                },
+                {
+                    file: 'v4.png',
+                    title: 'v4 · Mawar berdebu dan walnut, senja keemasan',
+                    seed: 58,
+                    time: 'siang',
+                    backdrop: '#1f171a',
+                    wallLeft: '#c49f9b',
+                    wallRight: '#f2e8da',
+                    wainscot: '#f7f1e7',
+                    panel: '#e6d9c8',
+                    floor: WALNUT,
+                    seam: '#3e2a1f',
+                    grain: '#5a3b29',
+                    inlay: ['#f1e5cf', '#6e2e3a'],
+                    runner: ['#2f4a4a', '#223838'],
+                    sun: { ki: -0.55, kj: 3.2, rgb: '240, 160, 90', patch: 0.55, shaft: 0.28 },
+                    grade: { color: 'rgba(240, 140, 90, 0.34)', op: 'soft-light' },
+                    bloom: 0.65,
+                },
+            ];
+
+            // ---- Ruangan cozy elegan (latar) -----------------------------------
+
+            function hash(a, b) {
+                return ((a * 73856093) ^ (b * 19349663)) >>> 0;
+            }
+
+            function drawBase(ctx, scene, v) {
+                const a = scene.width * T;
+                const b = scene.height * T;
+                const left = { lip: BRASS, lipShadow: BRASS_DARK, brick: '#5e3d2c', brickLight: '#6b4733', mortar: '#3f281d' };
+                const right = { lip: BRASS_DARK, lipShadow: '#2f1f18', brick: '#4a2f22', brickLight: '#563828', mortar: '#2f1f18' };
+                const edge = '#120e10';
+                const col = (x, top, face, u) => {
+                    for (let d = 0; d <= BASE_H; d++) {
+                        ctx.fillStyle = baseFaceColor(face, edge, u, d);
+                        ctx.fillRect(x, top + d, 1, 1);
+                    }
+                };
+                for (let i = 0; i < a; i++) col(ORIGIN.x - b + i, ORIGIN.y + fl(b / 2) + fl(i / 2), left, i);
+                for (let j = 0; j < b; j++) col(ORIGIN.x + a - b + j, ORIGIN.y + fl((a + b) / 2) - fl(j / 2), right, j);
+            }
+
+            /** Warna satu titik lantai (ruang lantai): papan, inlay herringbone, atau karpet. */
+            function floorColor(scene, v, i, j, doorRows, rugTiles) {
+                // Inlay herringbone krem dan hijau di dekat pintu masuk.
+                const inlayJ0 = (doorRows[0] - 0.5) * T;
+                const inlayJ1 = (doorRows[1] + 1.5) * T;
+                if (i >= 4 && i < 76 && j >= inlayJ0 && j < inlayJ1) {
+                    const border = i < 7 || i >= 73 || j < inlayJ0 + 3 || j >= inlayJ1 - 3;
+                    if (border) return BRASS;
+                    const u = i - 7;
+                    const w = j - inlayJ0 - 3;
+                    const band = fl(u / 8);
+                    const slope = band % 2 === 0 ? u % 8 : 7 - (u % 8);
+                    const step = fl((w + slope) / 6);
+                    return step % 2 === 0 ? v.inlay[0] : v.inlay[1];
+                }
+
+                // Karpet panjang di jalur antrean.
+                const tile = `${fl(i / T)},${fl(j / T)}`;
+                if (rugTiles.has(tile)) {
+                    const jj = j % T;
+                    if (jj >= 3 && jj < T - 3) {
+                        const e = Math.min(jj - 3, T - 4 - jj);
+                        if (e < 1) return '#2a1a17';
+                        if (e < 3) return BRASS;
+                        return (i + Math.abs((jj % 8) - 4)) % 10 === 0 ? v.runner[1] : v.runner[0];
+                    }
+                }
+
+                // Papan kayu searah gx, lebar 8, sambungan selang-seling.
+                const p = fl(j / 8);
+                const off = (p * 19) % 48;
+                const board = fl((i + off) / 48);
+                if (j % 8 === 0 || (i + off) % 48 === 0) return v.seam;
+                if ((i * 3 + p * 7) % 23 === 0 || (i + p * 5) % 31 === 0) return v.grain;
+                return v.floor[hash(p, board) % 3];
+            }
+
+            function drawFloor(ctx, scene, v) {
+                const doorRows = doorRowsOf(scene);
+                const rugTiles = new Set(scene.queueSlots.map((s) => `${s.gx},${s.gy}`));
+                const a = scene.width * T;
+                const b = scene.height * T;
+                for (let j = 0; j < b; j++) {
+                    for (let i = 0; i < a; i++) {
+                        ctx.fillStyle = floorColor(scene, v, i, j, doorRows, rugTiles);
+                        ctx.fillRect(ORIGIN.x + i - j, ORIGIN.y + fl((i + j) / 2), 1, 1);
+                    }
+                }
+            }
+
+            /** Satu kolom dinding: wainscot putih berpanel, lis kuningan, mahkota putih, plint walnut. */
+            function wallColumn(ctx, x, base, color, v, k) {
+                ctx.fillStyle = color;
+                ctx.fillRect(x, base - WALL_H, 1, WALL_H);
+                ctx.fillStyle = v.wainscot;
+                ctx.fillRect(x, base - 30, 1, 22);
+                if (k % 16 === 0 || k % 16 === 1) {
+                    ctx.fillStyle = v.panel;
+                    ctx.fillRect(x, base - 27, 1, 16);
+                }
+                ctx.fillStyle = BRASS;
+                ctx.fillRect(x, base - 31, 1, 1);
+                ctx.fillStyle = v.wainscot;
+                ctx.fillRect(x, base - WALL_H, 1, 4);
+                ctx.fillStyle = BRASS;
+                ctx.fillRect(x, base - WALL_H + 4, 1, 1);
+                ctx.fillStyle = '#3a2419';
+                ctx.fillRect(x, base - 8, 1, 8);
+            }
+
+            function drawWalls(ctx, scene, v, time) {
+                const doorRows = doorRowsOf(scene);
+                const [doorTop, doorBottom] = [Math.min(...doorRows), Math.max(...doorRows)];
+                for (let gy = 0; gy < scene.height; gy++) {
+                    const { x: cx, y: ty } = tileTop(0, gy);
+                    for (let i = 0; i < HALF_W; i++) {
+                        const x = cx - HALF_W + i;
+                        const base = ty + HALF_H - fl(i / 2);
+                        if (doorRows.includes(gy)) {
+                            const post = (gy === doorBottom && i < 3) || (gy === doorTop && i > HALF_W - 4);
+                            ctx.fillStyle = '#4a2f22';
+                            ctx.fillRect(x, base - WALL_H, 1, 10);
+                            ctx.fillStyle = BRASS;
+                            ctx.fillRect(x, base - WALL_H + 9, 1, 1);
+                            if (post || i % 16 === 0) {
+                                ctx.fillStyle = '#4a2f22';
+                                ctx.fillRect(x, base - WALL_H + 10, 1, WALL_H - 10);
+                            }
+                            continue;
+                        }
+                        wallColumn(ctx, x, base, v.wallLeft, v, gy * HALF_W + i);
+                    }
+                }
+                drawDoorGlass(ctx, scene, time, { door: { frame: '#4a2f22', glass: '#d7e8e4', shine: '#fdf8f0', handle: BRASS } });
+                for (let gx = 0; gx < scene.width; gx++) {
+                    const { x: cx, y: ty } = tileTop(gx, 0);
+                    for (let i = 0; i < HALF_W; i++) {
+                        wallColumn(ctx, cx + i, ty + fl(i / 2), v.wallRight, v, gx * HALF_W + i);
+                    }
+                }
+            }
+
+            function background(scene, v) {
+                const c = document.createElement('canvas');
+                c.width = CANVAS_W;
+                c.height = CANVAS_H;
+                const ctx = c.getContext('2d');
+                ctx.fillStyle = v.backdrop;
+                ctx.fillRect(0, 0, CANVAS_W, CANVAS_H);
+                drawBlockShadow(ctx, scene);
+                drawBase(ctx, scene, v);
+                drawFloor(ctx, scene, v);
+                drawWalls(ctx, scene, v, v.time);
+                drawAmbientOcclusion(ctx, scene, v.time === 'malam' ? 0.8 : 1);
+                drawFurnitureShadows(ctx, scene, v.time === 'malam' ? 0.8 : 1);
+                drawWallDecor(ctx, v.time);
+                if (v.sun) {
+                    const keep = SUN.siang;
+                    SUN.siang = v.sun;
+                    drawSunlight(ctx, scene, 'siang');
+                    SUN.siang = keep;
+                }
+                if (v.time === 'malam') {
+                    drawLampPools(ctx, scene, 'malam');
+                }
+                return c;
+            }
+
+            // ---- Ganti warna perabot per piksel ---------------------------------
+            // Sprite rak, meja, dan vending sebagian digambar lewat cache, jadi warnanya
+            // ditukar setelah digambar: tiap potongan perabot ke kanvas sementara,
+            // warna palet yang persis sama diganti bahan baru, lalu ditempel.
+
+            const rgb = (hex) => parseInt(hex.slice(1), 16);
+            const lookups = new Map();
+
+            function lookupOf(map) {
+                if (!lookups.has(map)) {
+                    lookups.set(map, new Map(Object.entries(map).map(([from, to]) => [rgb(from), rgb(to)])));
+                }
+                return lookups.get(map);
+            }
+
+            function recolorPixels(ctx, map) {
+                const table = lookupOf(map);
+                if (table.size === 0) return;
+                const img = ctx.getImageData(0, 0, CANVAS_W, CANVAS_H);
+                const d = img.data;
+                for (let p = 0; p < d.length; p += 4) {
+                    if (d[p + 3] === 0) continue;
+                    const to = table.get((d[p] << 16) | (d[p + 1] << 8) | d[p + 2]);
+                    if (to !== undefined) {
+                        d[p] = (to >> 16) & 255;
+                        d[p + 1] = (to >> 8) & 255;
+                        d[p + 2] = to & 255;
+                    }
+                }
+                ctx.putImageData(img, 0, 0);
+            }
+
+            function furnitureMap(item) {
+                if (item.kind === 'rak') return SHELF;
+                if (item.kind === 'meja_kasir' || item.kind === 'bangku') return COUNTER;
+                if (item.kind === 'vending') return item.id === 'vending-biru' ? FRIDGE_GLASS : FRIDGE_CREAM;
+                return {};
+            }
+
+            // ---- Satu variasi --------------------------------------------------
+
+            function renderVariant(v) {
+                // Toko hidup: beberapa pembeli datang bergiliran (peristiwa jualan
+                // tiruan, hanya di halaman ini) dan pengunjung yang melihat-lihat.
+                const world = new DioramaWorld({ seed: v.seed, autoBackground: true });
+                world.spawnBackground();
+                for (let k = 0; k < 640; k++) {
+                    if (k % 140 === 0 && k < 560) {
+                        world.handle({
+                            type: 'sale.completed',
+                            number: `INV-CONTOH-${k}`,
+                            total: 24000,
+                            items: [{ name: 'Teh celup', unit: 'kotak', qty: 1 }],
+                        });
+                    }
+                    if (k === 300) world.spawnBackground();
+                    world.update(1 / 30);
+                }
+
+                const renderer = new PlaceholderRenderer(world.scene);
+                const bg = background(world.scene, v);
+                renderer.backgroundCanvas = () => bg;
+                const drawSlice = renderer.drawFurnitureSlice.bind(renderer);
+                const tmp = document.createElement('canvas');
+                tmp.width = CANVAS_W;
+                tmp.height = CANVAS_H;
+                const tctx = tmp.getContext('2d', { willReadFrequently: true });
+                renderer.drawFurnitureSlice = (c, w, item, ...rest) => {
+                    tctx.clearRect(0, 0, CANVAS_W, CANVAS_H);
+                    tctx.imageSmoothingEnabled = false;
+                    drawSlice(tctx, w, item, ...rest);
+                    recolorPixels(tctx, furnitureMap(item));
+                    c.drawImage(tmp, 0, 0);
+                };
+
+                const base = document.createElement('canvas');
+                base.width = CANVAS_W;
+                base.height = CANVAS_H;
+                const bctx = base.getContext('2d');
+                renderer.render(bctx, world, { timeOfDay: 'siang' });
+
+                const glow = document.createElement('canvas');
+                glow.width = CANVAS_W / 4;
+                glow.height = CANVAS_H / 4;
+                renderer.renderGlow(glow.getContext('2d'), world, { timeOfDay: v.time === 'malam' ? 'malam' : 'senja' });
+
+                const out = document.createElement('canvas');
+                out.width = OUT_W;
+                out.height = OUT_H;
+                const ctx = out.getContext('2d');
+                ctx.fillStyle = v.backdrop;
+                ctx.fillRect(0, 0, OUT_W, OUT_H);
+                const dw = CANVAS_W * SCALE;
+                const dh = CANVAS_H * SCALE;
+                const ox = (OUT_W - dw) / 2;
+                const oy = (OUT_H - dh) / 2;
+                ctx.imageSmoothingEnabled = false;
+                ctx.drawImage(base, ox, oy, dw, dh);
+
+                // Pewarnaan suasana (golden hour atau malam).
+                ctx.save();
+                ctx.globalCompositeOperation = v.grade.op;
+                ctx.fillStyle = v.grade.color;
+                ctx.fillRect(0, 0, OUT_W, OUT_H);
+                ctx.restore();
+
+                // Bloom.
+                ctx.save();
+                ctx.imageSmoothingEnabled = true;
+                ctx.globalCompositeOperation = 'screen';
+                ctx.globalAlpha = v.bloom;
+                ctx.filter = 'blur(10px)';
+                ctx.drawImage(glow, ox, oy, dw, dh);
+                ctx.restore();
+
+                // Tilt-shift: salinan buram di tepi atas dan bawah.
+                const blur = document.createElement('canvas');
+                blur.width = OUT_W;
+                blur.height = OUT_H;
+                const bl = blur.getContext('2d');
+                bl.filter = 'blur(3px)';
+                bl.drawImage(out, 0, 0);
+                bl.filter = 'none';
+                bl.globalCompositeOperation = 'destination-in';
+                const mask = bl.createLinearGradient(0, 0, 0, OUT_H);
+                mask.addColorStop(0, 'rgba(0,0,0,1)');
+                mask.addColorStop(0.2, 'rgba(0,0,0,0.6)');
+                mask.addColorStop(0.32, 'rgba(0,0,0,0)');
+                mask.addColorStop(0.72, 'rgba(0,0,0,0)');
+                mask.addColorStop(0.86, 'rgba(0,0,0,0.6)');
+                mask.addColorStop(1, 'rgba(0,0,0,1)');
+                bl.fillStyle = mask;
+                bl.fillRect(0, 0, OUT_W, OUT_H);
+                ctx.drawImage(blur, 0, 0);
+
+                // Vinyet.
+                const vig = ctx.createRadialGradient(OUT_W / 2, OUT_H * 0.48, OUT_H * 0.35, OUT_W / 2, OUT_H * 0.48, OUT_W * 0.62);
+                vig.addColorStop(0, 'rgba(10, 8, 12, 0)');
+                vig.addColorStop(1, `rgba(10, 8, 12, ${v.time === 'malam' ? 0.75 : 0.6})`);
+                ctx.fillStyle = vig;
+                ctx.fillRect(0, 0, OUT_W, OUT_H);
+
+                return out;
+            }
+
+            async function simpan(canvas, file) {
+                const blob = await new Promise((res) => canvas.toBlob(res, 'image/png'));
+                const r = await fetch(`http://127.0.0.1:8765/simpan?nama=${file}`, { method: 'POST', body: blob });
+                return r.text();
+            }
+
+            await loadReferences();
+            const hasil = document.getElementById('hasil');
+            const laporan = [];
+            const kirim = new URLSearchParams(location.search).has('simpan');
+            for (const v of VARIANTS) {
+                const out = renderVariant(v);
+                const fig = document.createElement('figure');
+                const cap = document.createElement('figcaption');
+                cap.textContent = v.title;
+                fig.append(out, cap);
+                hasil.append(fig);
+                laporan.push(kirim ? await simpan(out, v.file) : `${v.file} siap`);
+            }
+            window.__mockup = laporan;
+        </script>
+    </body>
+</html>

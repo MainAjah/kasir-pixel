@@ -1,8 +1,18 @@
 import { describe, expect, it } from 'vite-plus/test';
 import { CANVAS_H, CANVAS_W, tileTop } from '../engine/iso';
 import { STORE_SCENE } from '../scenes/store-scene';
-import { isPaletteColor } from './palette';
-import { BASE_H, ROOM_SCHEME, baseFaceColor, drawRoom } from './room-sprite';
+import { M, isSceneColor } from './palette';
+import {
+    BASE_H,
+    PLANK_W,
+    ROOM_SCHEME,
+    baseFaceColor,
+    drawRoom,
+    floorColorAt,
+    inlayRect,
+} from './room-sprite';
+
+const T = 32;
 
 /** Konteks kanvas palsu: mencatat warna terakhir tiap piksel. */
 function paint() {
@@ -28,27 +38,95 @@ function paint() {
     return pixels;
 }
 
-describe('lantai, dinding, dan pintu', () => {
-    it('hanya memakai palet 24 warna', () => {
+describe('lantai, dinding, dan pintu (Tahap 5G, konsep v4)', () => {
+    it('hanya memakai palet 24 ditambah palet bahan', () => {
         const used = new Set(paint().values());
 
-        expect([...used].filter((c) => !isPaletteColor(c))).toEqual([]);
+        expect([...used].filter((c) => !isSceneColor(c))).toEqual([]);
     });
 
-    it('dinding lavender (berpintu) dan biru langit, lantai mint dan krem', () => {
+    it('dinding mawar (berpintu) dan ivory berwainscot, lantai papan walnut', () => {
         const used = new Set(paint().values());
 
         for (const color of [
             ROOM_SCHEME.wallLeft,
             ROOM_SCHEME.wallRight,
-            ROOM_SCHEME.floor.a,
-            ROOM_SCHEME.floor.b,
+            ROOM_SCHEME.wainscot,
+            ROOM_SCHEME.rail,
+            ...ROOM_SCHEME.floor.planks,
+            ROOM_SCHEME.floor.seam,
         ]) {
             expect(used.has(color)).toBe(true);
         }
 
-        expect(ROOM_SCHEME.wallLeft).toBe('#c9b6e4');
-        expect(ROOM_SCHEME.wallRight).toBe('#9fd3e6');
+        expect(ROOM_SCHEME.wallLeft).toBe(M('mawar'));
+        expect(ROOM_SCHEME.wallRight).toBe(M('ivory'));
+    });
+
+    it('tanpa karpet di jalur kasir: tile antrean hanya papan kayu', () => {
+        const inlay = inlayRect(STORE_SCENE);
+        const wood = new Set([
+            ...ROOM_SCHEME.floor.planks,
+            ROOM_SCHEME.floor.seam,
+            ROOM_SCHEME.floor.grain,
+        ]);
+
+        for (const slot of STORE_SCENE.queueSlots) {
+            for (let i = 0; i < T; i++) {
+                for (let j = 0; j < T; j++) {
+                    const color = floorColorAt(
+                        ROOM_SCHEME,
+                        inlay,
+                        slot.gx * T + i,
+                        slot.gy * T + j,
+                    );
+
+                    expect(wood.has(color)).toBe(true);
+                }
+            }
+        }
+    });
+
+    it('inlay herringbone berbingkai kuningan di depan pintu masuk', () => {
+        const inlay = inlayRect(STORE_SCENE);
+        const colors = new Set<string>();
+
+        for (let i = inlay.i0; i < inlay.i1; i++) {
+            for (let j = inlay.j0; j < inlay.j1; j++) {
+                colors.add(floorColorAt(ROOM_SCHEME, inlay, i, j));
+            }
+        }
+
+        expect(colors).toEqual(
+            new Set([
+                ROOM_SCHEME.inlay.light,
+                ROOM_SCHEME.inlay.dark,
+                ROOM_SCHEME.inlay.frame,
+            ]),
+        );
+        // Menempel ke dinding kiri, di sekitar baris pintu.
+        expect(inlay.i0).toBeLessThan(T);
+        expect(inlay.j0).toBeLessThan((STORE_SCENE.door.inside.gy - 1) * T);
+        expect(inlay.j1).toBeGreaterThan((STORE_SCENE.door.inside.gy + 1) * T);
+    });
+
+    it('papan: nat di tiap batas papan dan sambungan ujung selang-seling', () => {
+        const inlay = inlayRect(STORE_SCENE);
+        const at = (i: number, j: number) =>
+            floorColorAt(ROOM_SCHEME, inlay, i, j);
+
+        // Jauh dari inlay: tepi papan (j kelipatan PLANK_W) selalu nat.
+        for (let i = 120; i < 200; i++) {
+            expect(at(i, 5 * PLANK_W)).toBe(ROOM_SCHEME.floor.seam);
+        }
+
+        // Sambungan ujung papan bersebelahan tidak sejajar.
+        const joints = (plank: number) =>
+            Array.from({ length: 96 }, (_, k) => 120 + k).filter(
+                (i) => at(i, plank * PLANK_W + 3) === ROOM_SCHEME.floor.seam,
+            );
+
+        expect(joints(5)).not.toEqual(joints(6));
     });
 
     it('pintu kaca di dinding kiri pada baris pintu, dinding biasa di baris lain', () => {

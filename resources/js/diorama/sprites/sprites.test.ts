@@ -17,10 +17,10 @@ import {
     variantKey,
 } from './customer-sprite';
 import type { CustomerVariant, SpriteSide } from './customer-sprite';
-import { PALETTE, isPaletteColor } from './palette';
+import { M, PALETTE, isPaletteColor, isSceneColor } from './palette';
 import { colorsOf, mirror } from './pixels';
 import type { PixelMatrix } from './pixels';
-import { RACK_FILLS, drawRackSlice } from './rack-sprite';
+import { PRODUCTS, RACK_FILLS, drawRackSlice } from './rack-sprite';
 import type { RackFill } from './rack-sprite';
 
 const SIDES: SpriteSide[] = ['depan', 'belakang'];
@@ -231,27 +231,21 @@ function rack(fill: RackFill, seed = 3) {
 }
 
 describe('sprite rak', () => {
-    it('hanya memakai warna palet', () => {
+    it('hanya memakai palet 24 + palet bahan; badan walnut berlis kuningan (Tahap 5G)', () => {
         for (const fill of RACK_FILLS) {
             const colors = new Set(rack(fill).values());
 
-            expect([...colors].filter((c) => !isPaletteColor(c))).toEqual([]);
+            expect([...colors].filter((c) => !isSceneColor(c))).toEqual([]);
+            expect(colors.has(M('walnut-5'))).toBe(true);
+            expect(colors.has(M('kuningan'))).toBe(true);
         }
     });
 
     it('makin banyak stok, makin banyak barang di rak', () => {
-        // Warna barang yang bukan bagian badan rak (kayu, krem, papan, bayangan, label).
+        // Warna badan barang (bukan kayu, papan, bayangan, atau label).
+        const bodies = PRODUCTS.map(([body]) => body);
         const goods = (fill: RackFill) =>
-            [...rack(fill).values()].filter((c) =>
-                [
-                    '#e8907e',
-                    '#f6c56b',
-                    '#a7d7a5',
-                    '#9fd3e6',
-                    '#f4b6c2',
-                    '#c9b6e4',
-                ].includes(c),
-            ).length;
+            [...rack(fill).values()].filter((c) => bodies.includes(c)).length;
         const counts = RACK_FILLS.map(goods);
 
         expect(counts[0]).toBe(0);

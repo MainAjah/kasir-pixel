@@ -11,7 +11,11 @@
  * Bagian yang hidup mengikuti keadaan (CounterLook): laser berkedip dan barang
  * meluncur di atas kaca saat memindai, LED scanner "bip", struk keluar saat
  * membayar, layar mini menampilkan total harian (hijau) atau total belanja
- * (kuning) saat membayar. Hanya palet 24 warna.
+ * (kuning) saat membayar.
+ *
+ * Tahap 5G (konsep v4): badan meja walnut berpanel dengan permukaan marmer, lis
+ * kuningan, dan kaki walnut gelap; bangku berdudukan walnut dan berkaki kuningan.
+ * Komputer, scanner, laci, struk, dan layar tetap memakai palet 24.
  */
 import {
     isoBox,
@@ -23,7 +27,7 @@ import {
 } from '../render/pixel';
 import { formatRupiah } from '../render/pixel';
 import type { GoodsColors } from './goods-sprite';
-import { C } from './palette';
+import { C, M } from './palette';
 
 export const COUNTER_HEIGHT = 28;
 const T = 32;
@@ -71,22 +75,23 @@ export function formatDisplay(value: number): string {
     return `${(Math.floor(millions * 10) / 10).toString().replace('.', ',')}JT`;
 }
 
-/** Badan meja: atas putih, sisi depan kunyit berpanel, plint gelap. */
+/** Badan meja: permukaan marmer, sisi depan walnut berpanel, lis kuningan, kaki walnut gelap. */
 function drawDesk(ctx: CanvasRenderingContext2D, cx: number, ty: number): void {
     const h = COUNTER_HEIGHT;
-    isoBox(ctx, cx, ty, T, T, h, C(4), C(12), C(13));
+    isoBox(ctx, cx, ty, T, T, h, M('marmer'), M('walnut-4'), M('walnut-5'));
 
     for (let i = 0; i < T; i++) {
-        leftDot(ctx, cx, ty, T, h, i, 0, C(3));
-        leftDot(ctx, cx, ty, T, h, i, h - 3, C(2), 1, 4);
+        leftDot(ctx, cx, ty, T, h, i, 0, M('kuningan'));
+        leftDot(ctx, cx, ty, T, h, i, h - 3, M('walnut-7'), 1, 4);
     }
 
     for (let i = 4; i < T; i += 8) {
-        leftDot(ctx, cx, ty, T, h, i, 3, C(13), 1, h - 7); // panel depan
+        leftDot(ctx, cx, ty, T, h, i, 3, M('walnut-5'), 1, h - 7); // panel depan
     }
 
     for (let j = 0; j < T; j++) {
-        rightDot(ctx, cx, ty, T, T, h, j, h - 3, C(2), 1, 4);
+        rightDot(ctx, cx, ty, T, T, h, j, 0, M('kuningan-gelap'));
+        rightDot(ctx, cx, ty, T, T, h, j, h - 3, M('walnut-7'), 1, 4);
     }
 }
 
@@ -306,7 +311,7 @@ export function drawCounterSlice(
     }
 }
 
-/** Bangku kasir 2: dudukan lavender, kaki logam. */
+/** Bangku kasir 2: dudukan walnut, kaki kuningan (Tahap 5G). */
 export function drawStool(
     ctx: CanvasRenderingContext2D,
     cx: number,
@@ -321,9 +326,19 @@ export function drawStool(
         [9, 9],
     ]) {
         const [x, y] = onTop(ox, oy, 0, u, v);
-        ctx.fillStyle = C(2);
+        ctx.fillStyle = M('kuningan-gelap');
         ctx.fillRect(x, y - 10, 1, 10);
     }
 
-    isoBox(ctx, ox, oy - 10, 12, 12, 2, C(17), C(3), C(2));
+    isoBox(
+        ctx,
+        ox,
+        oy - 10,
+        12,
+        12,
+        2,
+        M('walnut-2'),
+        M('walnut-4'),
+        M('walnut-6'),
+    );
 }

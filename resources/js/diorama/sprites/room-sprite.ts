@@ -1,43 +1,47 @@
 /**
- * Lantai, karpet antrean, keset, dinding, dan pintu kaca (Tahap 5C elemen 1).
+ * Lantai, inlay pintu masuk, dinding, dan pintu kaca.
  *
- * Bentuknya dipindahkan dari halaman rancangan 5A yang disetujui: lantai kotak
- * mint dan krem dengan nat dan kilau, karpet terakota bermotif zig-zag kunyit,
- * keset hijau bergaris, dua dinding belakang setinggi 80 px dengan list atas dan
- * plint, pintu kaca berbingkai kayu dengan pantulan dan gagang dorong.
+ * Tahap 5C: bentuk dasar dari rancangan 5A (dua dinding setinggi 80 px, pintu
+ * kaca berbingkai kayu dengan pantulan dan gagang dorong).
  *
- * Warna: skema "langit dan lavender" pilihan pemilik di 5C (hanya palet 24):
- * dinding lavender (berpintu) dan biru langit, list putih, plint dan alas hijau,
- * lantai mint memakai hijau palet. Ditambah alas diorama di tepi depan lantai.
+ * Tahap 5G, konsep v4 "cozy elegan" pilihan pemilik (palet 24 + palet bahan):
+ * lantai papan walnut dengan sambungan selang-seling dan serat, inlay herringbone
+ * krem dan burgundi berbingkai kuningan di depan pintu (pengganti keset), dinding
+ * mawar berdebu (berpintu) dan ivory dengan wainscot putih berpanel, lis kuningan,
+ * mahkota putih, dan plint walnut. Karpet di jalur kasir dihapus atas permintaan
+ * pemilik. Alas balok berlis kuningan dan bata walnut.
  */
 import { HALF_H, HALF_W, ORIGIN, WALL_H, tileTop } from '../engine/iso';
-import { isoBox, topDot } from '../render/pixel';
 import type { StoreScene } from '../scenes/store-scene';
 import { DOOR_GLASS_H, doorViewColor } from './decor-sprite';
 import type { TimeOfDay } from './decor-sprite';
-import { C } from './palette';
+import { C, M } from './palette';
 
 export type RoomScheme = {
     /** Latar di luar ruangan. */
     background: string;
     floor: {
-        /** Ubin krem dan ubin selang-seling. */
-        a: string;
-        b: string;
-        /** Nat di tepi belakang tiap ubin. */
-        grout: string;
-        /** Garis kilau di dalam nat; null = tanpa kilau. */
-        shineA: string | null;
-        shineB: string | null;
+        /** Tiga nada papan walnut, bergiliran per papan. */
+        planks: readonly [string, string, string];
+        /** Nat di antara papan dan di sambungan ujung papan. */
+        seam: string;
+        /** Serat kayu. */
+        grain: string;
     };
-    /** Dinding kiri (berpintu) dan dinding kanan (panjang, di belakang vending machine). */
+    /** Inlay herringbone di depan pintu masuk: dua warna dan bingkainya. */
+    inlay: { light: string; dark: string; frame: string };
+    /** Dinding kiri (berpintu) dan dinding kanan (panjang, di belakang kulkas). */
     wallLeft: string;
     wallRight: string;
-    /** List atas dinding. */
-    trim: string;
-    /** Plint di kaki dinding dan garis di atasnya. */
+    /** Wainscot berpanel di bagian bawah dinding, garis panelnya, dan lisnya. */
+    wainscot: string;
+    panel: string;
+    rail: string;
+    /** Mahkota di atas dinding dan garis di bawahnya. */
+    crown: string;
+    crownLine: string;
+    /** Plint di kaki dinding. */
     plinth: string;
-    plinthLine: string;
     /**
      * Alas diorama di tepi depan lantai (Tahap 5F: balok tebal berpola bata):
      * lis hijau, garis bayangan di bawah lis, bata, nat, bata terang sesekali,
@@ -48,7 +52,13 @@ export type RoomScheme = {
         right: BaseFace;
         edge: string;
     };
-    door: { frame: string; glass: string; shine: string; handle: string };
+    door: {
+        frame: string;
+        frameLine: string;
+        glass: string;
+        shine: string;
+        handle: string;
+    };
 };
 
 export type BaseFace = {
@@ -72,35 +82,57 @@ const LIP_ROWS = 4;
 const COURSE = 6;
 const BRICK_W = 12;
 
-/** Skema ruangan yang disetujui pemilik: langit dan lavender. */
+/** Skema ruangan pilihan pemilik (Tahap 5G): konsep v4 "cozy elegan". */
 export const ROOM_SCHEME: RoomScheme = {
-    // Tahap 5F: latar gelap kebiruan supaya balok toko tampak melayang.
-    background: C(24),
-    floor: { a: C(5), b: C(9), grout: C(6), shineA: C(4), shineB: null },
-    wallLeft: C(17),
-    wallRight: C(18),
-    trim: C(4),
-    plinth: C(10),
-    plinthLine: C(9),
+    // Latar gelap hangat supaya balok toko tampak melayang.
+    background: M('latar'),
+    floor: {
+        planks: [M('walnut-2'), M('walnut-1'), M('walnut-3')],
+        seam: M('walnut-6'),
+        grain: M('walnut-4'),
+    },
+    inlay: {
+        light: M('marmer'),
+        dark: M('burgundi-gelap'),
+        frame: M('kuningan'),
+    },
+    wallLeft: M('mawar'),
+    wallRight: M('ivory'),
+    wainscot: M('wainscot'),
+    panel: M('panel'),
+    rail: M('kuningan'),
+    crown: M('wainscot'),
+    crownLine: M('kuningan'),
+    plinth: M('walnut-6'),
     base: {
         left: {
-            lip: C(9),
-            lipShadow: C(10),
-            brick: C(7),
-            brickLight: C(6),
-            mortar: C(8),
+            lip: M('kuningan'),
+            lipShadow: M('kuningan-gelap'),
+            brick: M('walnut-4'),
+            brickLight: M('walnut-2'),
+            mortar: M('walnut-6'),
         },
         right: {
-            lip: C(10),
-            lipShadow: C(20),
-            brick: C(8),
-            brickLight: C(7),
-            mortar: C(20),
+            lip: M('kuningan-gelap'),
+            lipShadow: M('walnut-7'),
+            brick: M('walnut-5'),
+            brickLight: M('walnut-4'),
+            mortar: M('walnut-7'),
         },
         edge: C(1),
     },
-    door: { frame: C(20), glass: C(18), shine: C(4), handle: C(3) },
+    door: {
+        frame: M('walnut-5'),
+        frameLine: M('kuningan'),
+        glass: C(18),
+        shine: C(4),
+        handle: M('kuningan'),
+    },
 };
+
+/** Tinggi wainscot dari lantai (di atas plint) dan jarak garis panelnya. */
+const WAINSCOT_TOP = 30;
+const PANEL_EVERY = 16;
 
 /**
  * Warna satu piksel sisi alas: u = kolom sepanjang sisi, d = baris di bawah tepi
@@ -186,74 +218,98 @@ function drawBase(
     }
 }
 
-function floorTile(
+/** Lebar satu papan (searah gy) dan panjangnya (searah gx), dalam satuan lantai. */
+export const PLANK_W = 8;
+const PLANK_L = 48;
+
+/**
+ * Letak inlay herringbone di depan pintu masuk, dalam satuan lantai (i searah gx,
+ * j searah gy): menempel ke dinding kiri, sepanjang dua baris pintu ditambah
+ * setengah tile di kedua sisinya.
+ */
+export function inlayRect(scene: StoreScene): {
+    i0: number;
+    i1: number;
+    j0: number;
+    j1: number;
+} {
+    const [doorTop, doorBottom] = doorRowsOf(scene);
+
+    return {
+        i0: 4,
+        i1: 76,
+        j0: (doorTop - 0.5) * T,
+        j1: (doorBottom + 1.5) * T,
+    };
+}
+
+/** Bingkai kuningan inlay (satuan lantai). */
+const INLAY_FRAME = 3;
+
+/**
+ * Warna satu titik lantai (satuan lantai): inlay herringbone di depan pintu,
+ * selain itu papan walnut searah gx dengan sambungan selang-seling dan serat.
+ * Jalur kasir tidak lagi diberi karpet (Tahap 5G).
+ */
+export function floorColorAt(
+    scheme: RoomScheme,
+    inlay: ReturnType<typeof inlayRect>,
+    i: number,
+    j: number,
+): string {
+    if (i >= inlay.i0 && i < inlay.i1 && j >= inlay.j0 && j < inlay.j1) {
+        const frame =
+            i < inlay.i0 + INLAY_FRAME ||
+            i >= inlay.i1 - INLAY_FRAME ||
+            j < inlay.j0 + INLAY_FRAME ||
+            j >= inlay.j1 - INLAY_FRAME;
+
+        if (frame) {
+            return scheme.inlay.frame;
+        }
+
+        // Chevron: pita selebar 8 bergantian arah, lapis setinggi 6.
+        const u = i - inlay.i0 - INLAY_FRAME;
+        const w = j - inlay.j0 - INLAY_FRAME;
+        const slope = fl(u / 8) % 2 === 0 ? u % 8 : 7 - (u % 8);
+
+        return fl((w + slope) / 6) % 2 === 0
+            ? scheme.inlay.light
+            : scheme.inlay.dark;
+    }
+
+    const f = scheme.floor;
+    const plank = fl(j / PLANK_W);
+    const offset = (plank * 19) % PLANK_L;
+
+    if (j % PLANK_W === 0 || (i + offset) % PLANK_L === 0) {
+        return f.seam;
+    }
+
+    if ((i * 3 + plank * 7) % 23 === 0 || (i + plank * 5) % 31 === 0) {
+        return f.grain;
+    }
+
+    // Nada papan bergiliran tetap (bukan acak) per papan dan per potongan.
+    const piece = fl((i + offset) / PLANK_L);
+
+    return f.planks[(((plank * 73856093) ^ (piece * 19349663)) >>> 0) % 3];
+}
+
+/** Lantai papan dan inlay, digambar per titik lantai (sekali per waktu, bersama latar). */
+function drawFloor(
     ctx: CanvasRenderingContext2D,
-    gx: number,
-    gy: number,
+    scene: StoreScene,
     scheme: RoomScheme,
 ): void {
-    const { x: cx, y: ty } = tileTop(gx, gy);
-    const alt = (gx + gy) % 2 === 1;
-    const f = scheme.floor;
+    const a = scene.width * T;
+    const b = scene.height * T;
+    const inlay = inlayRect(scene);
 
-    for (let i = 0; i < T; i++) {
-        for (let j = 0; j < T; j++) {
-            let color = alt ? f.b : f.a;
-
-            if (i === 0 || j === 0) {
-                color = f.grout;
-            } else if ((i === 1 || j === 1) && (alt ? f.shineB : f.shineA)) {
-                color = (alt ? f.shineB : f.shineA) as string;
-            }
-
-            ctx.fillStyle = color;
-            ctx.fillRect(cx + i - j, ty + fl((i + j) / 2), 1, 1);
-        }
-    }
-}
-
-/** Karpet antrean di bawah titik dilayani dan antrean: terakota, pinggir krem, zig-zag kunyit. */
-function drawRug(ctx: CanvasRenderingContext2D, scene: StoreScene): void {
-    const slots = [...scene.queueSlots].sort((a, b) => a.gx - b.gx);
-    const first = slots[0].gx;
-    const length = slots.length * T;
-
-    for (const slot of slots) {
-        const { x: cx, y: ty } = tileTop(slot.gx, slot.gy);
-
-        for (let i = 0; i < T; i++) {
-            for (let j = 3; j < T - 3; j++) {
-                const u = (slot.gx - first) * T + i;
-                const edge = Math.min(u, length - 1 - u, j - 3, T - 4 - j);
-                const color =
-                    edge < 1 || edge === 3
-                        ? C(15)
-                        : edge < 3
-                          ? C(5)
-                          : (u + Math.abs((j % 8) - 4)) % 10 === 0
-                            ? C(12)
-                            : C(14);
-
-                ctx.fillStyle = color;
-                ctx.fillRect(cx + i - j, ty + fl((i + j) / 2), 1, 1);
-            }
-        }
-    }
-}
-
-/** Keset hijau bergaris di dalam pintu. */
-function drawDoormat(
-    ctx: CanvasRenderingContext2D,
-    doorRows: readonly number[],
-): void {
-    for (const gy of doorRows) {
-        const { x: cx, y: ty } = tileTop(0, gy);
-        isoBox(ctx, cx + 4, ty + 2, 20, T, 0, C(10), null, null);
-
-        for (let j = 2; j < T; j += 4) {
-            for (let i = 2; i < 18; i++) {
-                topDot(ctx, cx + 4, ty + 2, 0, i, j, C(9));
-            }
+    for (let j = 0; j < b; j++) {
+        for (let i = 0; i < a; i++) {
+            ctx.fillStyle = floorColorAt(scheme, inlay, i, j);
+            ctx.fillRect(ORIGIN.x + i - j, ORIGIN.y + fl((i + j) / 2), 1, 1);
         }
     }
 }
@@ -327,6 +383,39 @@ export function drawDoorGlass(
     }
 }
 
+/**
+ * Satu kolom dinding di x dengan kaki di base: warna dinding, wainscot berpanel
+ * dengan lis kuningan di atasnya, mahkota dengan garisnya, dan plint walnut.
+ * k = urutan kolom sepanjang dinding (untuk garis panel).
+ */
+function wallColumn(
+    ctx: CanvasRenderingContext2D,
+    scheme: RoomScheme,
+    x: number,
+    base: number,
+    color: string,
+    k: number,
+): void {
+    ctx.fillStyle = color;
+    ctx.fillRect(x, base - WALL_H, 1, WALL_H);
+    ctx.fillStyle = scheme.wainscot;
+    ctx.fillRect(x, base - WAINSCOT_TOP, 1, WAINSCOT_TOP - 8);
+
+    if (k % PANEL_EVERY < 2) {
+        ctx.fillStyle = scheme.panel;
+        ctx.fillRect(x, base - WAINSCOT_TOP + 3, 1, WAINSCOT_TOP - 14);
+    }
+
+    ctx.fillStyle = scheme.rail;
+    ctx.fillRect(x, base - WAINSCOT_TOP - 1, 1, 1);
+    ctx.fillStyle = scheme.crown;
+    ctx.fillRect(x, base - WALL_H, 1, 4);
+    ctx.fillStyle = scheme.crownLine;
+    ctx.fillRect(x, base - WALL_H + 4, 1, 1);
+    ctx.fillStyle = scheme.plinth;
+    ctx.fillRect(x, base - 8, 1, 8);
+}
+
 function drawWalls(
     ctx: CanvasRenderingContext2D,
     scene: StoreScene,
@@ -356,22 +445,18 @@ function drawWalls(
                     (gy === doorTop && i > HALF_W - 4);
                 ctx.fillStyle = scheme.door.frame;
                 ctx.fillRect(x, base - WALL_H, 1, 10);
+                ctx.fillStyle = scheme.door.frameLine;
+                ctx.fillRect(x, base - WALL_H + 9, 1, 1);
 
                 if (post || i % 16 === 0) {
+                    ctx.fillStyle = scheme.door.frame;
                     ctx.fillRect(x, base - WALL_H + 10, 1, WALL_H - 10);
                 }
 
                 continue;
             }
 
-            ctx.fillStyle = scheme.wallLeft;
-            ctx.fillRect(x, base - WALL_H, 1, WALL_H);
-            ctx.fillStyle = scheme.trim;
-            ctx.fillRect(x, base - WALL_H, 1, 4);
-            ctx.fillStyle = scheme.plinth;
-            ctx.fillRect(x, base - 8, 1, 8);
-            ctx.fillStyle = scheme.plinthLine;
-            ctx.fillRect(x, base - 9, 1, 1);
+            wallColumn(ctx, scheme, x, base, scheme.wallLeft, gy * HALF_W + i);
         }
     }
 
@@ -382,22 +467,20 @@ function drawWalls(
         const { x: cx, y: ty } = tileTop(gx, 0);
 
         for (let i = 0; i < HALF_W; i++) {
-            const x = cx + i;
-            const base = ty + fl(i / 2);
-            ctx.fillStyle = scheme.wallRight;
-            ctx.fillRect(x, base - WALL_H, 1, WALL_H);
-            ctx.fillStyle = scheme.trim;
-            ctx.fillRect(x, base - WALL_H, 1, 4);
-            ctx.fillStyle = scheme.plinth;
-            ctx.fillRect(x, base - 8, 1, 8);
-            ctx.fillStyle = scheme.plinthLine;
-            ctx.fillRect(x, base - 9, 1, 1);
+            wallColumn(
+                ctx,
+                scheme,
+                cx + i,
+                ty + fl(i / 2),
+                scheme.wallRight,
+                gx * HALF_W + i,
+            );
         }
     }
 }
 
 /**
- * Seluruh ruangan statis: latar, lantai, karpet, keset, dinding, pintu (kaca
+ * Seluruh ruangan statis: latar, alas, lantai papan, inlay, dinding, pintu (kaca
  * menampilkan pemandangan luar menurut waktu). Dirender sekali per waktu.
  */
 export function drawRoom(
@@ -419,16 +502,8 @@ export function drawRoom(
     ctx.fillRect(0, 0, width, height);
     underlay?.(ctx);
 
-    // Alas diorama: sisi depan lantai setebal BASE_H, ubin menutup bagian atasnya.
+    // Alas diorama: sisi depan lantai setebal BASE_H, papan menutup bagian atasnya.
     drawBase(ctx, scene, scheme);
-
-    for (let gy = 0; gy < scene.height; gy++) {
-        for (let gx = 0; gx < scene.width; gx++) {
-            floorTile(ctx, gx, gy, scheme);
-        }
-    }
-
-    drawRug(ctx, scene);
-    drawDoormat(ctx, doorRows);
+    drawFloor(ctx, scene, scheme);
     drawWalls(ctx, scene, scheme, doorRows, time);
 }

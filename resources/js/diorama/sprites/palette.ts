@@ -1,6 +1,7 @@
 /**
  * Palet 24 warna pastel diorama (docs/diorama-rancangan.md bagian 7).
- * Semua sprite buatan kode hanya boleh memakai warna di sini.
+ * Semua sprite buatan kode hanya boleh memakai warna di sini, ditambah palet
+ * bahan (MATERIAL, di bawah) untuk ruangan dan perabot sejak Tahap 5G.
  */
 export const PALETTE = [
     '#2b2a33', //  1 garis tepi gelap
@@ -62,4 +63,51 @@ export function C(index: PaletteIndex): string {
 
 export function isPaletteColor(color: string): boolean {
     return (PALETTE as readonly string[]).includes(color.toLowerCase());
+}
+
+/**
+ * Palet bahan "cozy elegan" (Tahap 5G, konsep v4 pilihan pemilik): khusus ruangan
+ * dan perabot (lantai, dinding, alas, rak, meja, kulkas). Karakter, barang yang
+ * dibawa, dan hiasan tetap memakai 24 warna di atas.
+ */
+export const MATERIAL = {
+    'walnut-1': '#7a553c',
+    'walnut-2': '#6e4a33',
+    'walnut-3': '#64432f',
+    'walnut-4': '#5c3c2a',
+    'walnut-5': '#4a2f22',
+    'walnut-6': '#3a2419',
+    'walnut-7': '#2f1f18',
+    kuningan: '#c49a52',
+    'kuningan-gelap': '#8f6d36',
+    marmer: '#efe8dd',
+    ivory: '#f2e8da',
+    wainscot: '#f7f1e7',
+    panel: '#e6d9c8',
+    'krem-bayangan': '#d6c9b2',
+    mawar: '#c49f9b',
+    burgundi: '#9a4a55',
+    'burgundi-gelap': '#6e2e3a',
+    madu: '#d8b878',
+    sage: '#aebca4',
+    kaca: '#cfe0dc',
+    'kaca-gelap': '#97b2ac',
+    'mawar-muda': '#d9b2b0',
+    latar: '#1f171a',
+} as const;
+
+export type MaterialName = keyof typeof MATERIAL;
+
+/** Warna bahan menurut namanya. */
+export function M(name: MaterialName): string {
+    return MATERIAL[name];
+}
+
+export function isMaterialColor(color: string): boolean {
+    return (Object.values(MATERIAL) as string[]).includes(color.toLowerCase());
+}
+
+/** Warna yang boleh dipakai sprite ruangan dan perabot: palet 24 atau palet bahan. */
+export function isSceneColor(color: string): boolean {
+    return isPaletteColor(color) || isMaterialColor(color);
 }

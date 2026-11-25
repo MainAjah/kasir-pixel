@@ -21,9 +21,9 @@ import {
     windowMatrix,
 } from './decor-sprite';
 import type { PaintingKey, TimeOfDay } from './decor-sprite';
-import { C, isPaletteColor } from './palette';
+import { C, isPaletteColor, isSceneColor } from './palette';
 import { colorsOf } from './pixels';
-import { drawDoorGlass, drawRoom } from './room-sprite';
+import { ROOM_SCHEME, drawDoorGlass, drawRoom } from './room-sprite';
 import { CANVAS_H, CANVAS_W, tileTop } from '../engine/iso';
 import { STORE_SCENE } from '../scenes/store-scene';
 
@@ -283,7 +283,10 @@ describe('pintu kaca: siang, senja, malam', () => {
         expect(roomPixel('malam', ...at)).toBe(C(24));
 
         const glass = record((ctx) => drawDoorGlass(ctx, STORE_SCENE, 'malam'));
-        expect(glass.some((f) => f.color === C(20))).toBe(false); // tanpa kayu
-        expect(glass.every((f) => isPaletteColor(f.color))).toBe(true);
+        // Tanpa kayu kusen (walnut, Tahap 5G); gagang kuningan dari palet bahan.
+        expect(glass.some((f) => f.color === ROOM_SCHEME.door.frame)).toBe(
+            false,
+        );
+        expect(glass.every((f) => isSceneColor(f.color))).toBe(true);
     });
 });

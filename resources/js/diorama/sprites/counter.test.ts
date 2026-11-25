@@ -7,7 +7,7 @@ import {
     formatDisplay,
 } from './counter-sprite';
 import type { CounterLook } from './counter-sprite';
-import { C, isPaletteColor } from './palette';
+import { C, M, isSceneColor } from './palette';
 import { CASHIER_MOTIONS, cashierMotion } from './reference-sprite';
 
 /** Konteks kanvas palsu: mencatat warna setiap piksel. */
@@ -92,7 +92,7 @@ describe('meja kasir', () => {
         },
     ];
 
-    it('semua keadaan dan bangku hanya memakai palet 24 warna', () => {
+    it('semua keadaan dan bangku memakai palet 24 + palet bahan (Tahap 5G)', () => {
         const used = new Set<string>();
 
         for (const look of looks) {
@@ -103,7 +103,11 @@ describe('meja kasir', () => {
             used.add(c),
         );
 
-        expect([...used].filter((c) => !isPaletteColor(c))).toEqual([]);
+        expect([...used].filter((c) => !isSceneColor(c))).toEqual([]);
+        // Meja v4: permukaan marmer, badan walnut, lis kuningan.
+        expect(used.has(M('marmer'))).toBe(true);
+        expect(used.has(M('walnut-4'))).toBe(true);
+        expect(used.has(M('kuningan'))).toBe(true);
     });
 
     it('laser terang dan barang di kaca hanya saat memindai', () => {

@@ -5,7 +5,7 @@ import { CANVAS_H, CANVAS_W } from '@/diorama/engine/iso';
 import type { Point } from '@/diorama/engine/iso';
 import { startLoop } from '@/diorama/engine/loop';
 import type { DioramaWorld } from '@/diorama/engine/world';
-import { backdropColor, vignette } from '@/diorama/render/lighting';
+import { backdropColor, vignette, warmTint } from '@/diorama/render/lighting';
 import {
     GLOW_H,
     GLOW_W,
@@ -204,6 +204,17 @@ export default function DioramaCanvas({
                                 opacity: BLOOM_OPACITY[time],
                             }}
                         />
+                        {/* Rona hangat (Tahap 5G): siang dan senja, soft-light di atas diorama. */}
+                        {warmTint(time) && (
+                            <div
+                                aria-hidden
+                                className="pointer-events-none absolute inset-0"
+                                style={{
+                                    background: warmTint(time) ?? undefined,
+                                    mixBlendMode: 'soft-light',
+                                }}
+                            />
+                        )}
                         {/* Tilt-shift (Tahap 5F): tepi atas dan bawah sedikit buram. */}
                         <div
                             aria-hidden

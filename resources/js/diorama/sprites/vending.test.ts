@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { C, isPaletteColor } from './palette';
+import { C, M, isSceneColor } from './palette';
 import { RACK_FILLS } from './rack-sprite';
 import type { RackFill } from './rack-sprite';
 import {
@@ -41,7 +41,7 @@ const diff = (a: Map<string, string>, b: Map<string, string>) =>
     [...a.entries()].filter(([at, c]) => b.get(at) !== c).length;
 
 describe('vending machine', () => {
-    it('semua warna, isi, dan keadaan lampu hanya memakai palet 24 warna', () => {
+    it('semua warna, isi, dan keadaan lampu memakai palet 24 + palet bahan (Tahap 5G)', () => {
         const used = new Set<string>();
 
         for (const color of [0, 1, 2] as VendingColor[]) {
@@ -52,7 +52,11 @@ describe('vending machine', () => {
             }
         }
 
-        expect([...used].filter((c) => !isPaletteColor(c))).toEqual([]);
+        expect([...used].filter((c) => !isSceneColor(c))).toEqual([]);
+        // Kulkas v4: badan krem enamel, kaca bening, tutup walnut.
+        expect(used.has(M('marmer'))).toBe(true);
+        expect(used.has(M('kaca'))).toBe(true);
+        expect(used.has(M('walnut-4'))).toBe(true);
     });
 
     it('botol empat tingkat: 0, 1, 3, 5 per baris; makin penuh makin banyak yang tergambar', () => {

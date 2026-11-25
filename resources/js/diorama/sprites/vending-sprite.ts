@@ -6,19 +6,23 @@
  *
  * Isi 4 tingkat menurut stok (kosong, sedikit, setengah, penuh): 0, 1, 3, atau
  * 5 botol per baris. Lampu papan nama dan lampu di atas kaca menyala-redup
- * pelan. Hanya palet 24 warna.
+ * pelan.
+ *
+ * Tahap 5G (konsep v4): menjadi kulkas kaca bergaya butik. Dua berbadan krem
+ * enamel, satu bening kebiruan; tutup walnut dan kaca bening dari palet bahan.
+ * Papan nama, lampu, botol, dan tombol tetap palet 24.
  */
 import { isoBox, leftDot, leftText, rightDot } from '../render/pixel';
-import { C } from './palette';
+import { C, M } from './palette';
 import type { RackFill } from './rack-sprite';
 
 export type VendingColor = 0 | 1 | 2;
 
-/** [badan depan, sisi]: merah, biru, hijau. */
+/** [badan depan, sisi] mesin 0, 1, 2: krem enamel, bening kebiruan, krem enamel. */
 const BODY: readonly (readonly [string, string])[] = [
-    [C(14), C(15)],
-    [C(18), C(19)],
-    [C(9), C(10)],
+    [M('marmer'), M('krem-bayangan')],
+    [M('kaca'), M('kaca-gelap')],
+    [M('marmer'), M('krem-bayangan')],
 ];
 /** Warna botol, bergiliran per baris dan kolom. */
 const BOTTLES = [C(14), C(12), C(9), C(16), C(19), C(17)];
@@ -90,7 +94,7 @@ export function drawVending(
     const L = (i: number, d: number, col: string, w = 1, hh = 1) =>
         leftDot(ctx, ox, ty, B, VENDING_HEIGHT, i, d, col, w, hh);
 
-    isoBox(ctx, ox, ty, A, B, VENDING_HEIGHT, C(5), front, side);
+    isoBox(ctx, ox, ty, A, B, VENDING_HEIGHT, M('walnut-4'), front, side);
 
     for (let i = 0; i < A; i++) {
         L(i, 0, C(1));
@@ -101,7 +105,7 @@ export function drawVending(
     L(2, 56, C(1), 19, 1);
     L(2, 15, C(1), 1, 42);
     L(20, 15, C(1), 1, 42);
-    L(3, 16, C(18), 17, 40);
+    L(3, 16, M('kaca'), 17, 40);
     drawVendingLights(ctx, cx, ty, color, lightOn);
 
     // Lima baris rak dalam berisi botol: tutup terang, badan berwarna, sisi gelap.

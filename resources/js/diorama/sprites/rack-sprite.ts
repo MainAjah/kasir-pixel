@@ -6,9 +6,12 @@
  *
  * Isi rak 4 tingkat menurut stok (rancangan bagian 9): kosong, sedikit, setengah,
  * penuh. Barang mengisi dari kiri; tata letaknya tetap untuk benih yang sama.
+ *
+ * Tahap 5G (konsep v4): badan dan papan walnut, lis kuningan di tepi atas depan,
+ * isi bernuansa redup (burgundi, madu, sage, kaca, mawar muda, marmer).
  */
 import { isoBox, leftDot, rightDot, topDot } from '../render/pixel';
-import { C } from './palette';
+import { C, M } from './palette';
 
 export type RackFill = 'kosong' | 'sedikit' | 'setengah' | 'penuh';
 
@@ -35,14 +38,13 @@ const FILL_LEVEL: Record<RackFill, number> = {
 };
 
 /** Pasangan warna barang [badan, sisi gelap]. */
-const PRODUCTS: readonly (readonly [string, string])[] = [
-    [C(14), C(15)],
-    [C(12), C(13)],
-    [C(9), C(10)],
-    [C(18), C(19)],
-    [C(16), C(14)],
-    [C(17), C(3)],
-    [C(4), C(3)],
+export const PRODUCTS: readonly (readonly [string, string])[] = [
+    [M('burgundi'), M('burgundi-gelap')],
+    [M('madu'), M('kuningan-gelap')],
+    [M('sage'), C(10)],
+    [M('kaca'), M('kaca-gelap')],
+    [M('mawar-muda'), M('burgundi')],
+    [M('marmer'), M('krem-bayangan')],
 ];
 
 const T = 32;
@@ -59,23 +61,23 @@ export function drawRackSlice(
     const h = RACK_HEIGHT;
     const level = FILL_LEVEL[fill];
 
-    isoBox(ctx, cx, ty, T, T, h, C(5), C(20), C(23));
+    isoBox(ctx, cx, ty, T, T, h, M('walnut-4'), M('walnut-5'), M('walnut-6'));
 
-    // Bingkai kayu di tepi papan atas.
+    // Lis kuningan di tepi atas depan, bingkai walnut di tepi papan atas.
     for (let i = 0; i < T; i++) {
-        leftDot(ctx, cx, ty, T, h, i, 0, C(23));
-        topDot(ctx, cx, ty, h, i, T - 1, C(20));
+        leftDot(ctx, cx, ty, T, h, i, 0, M('kuningan'));
+        topDot(ctx, cx, ty, h, i, T - 1, M('walnut-5'));
     }
 
     for (let j = 0; j < T; j++) {
-        topDot(ctx, cx, ty, h, T - 1, j, C(20));
+        topDot(ctx, cx, ty, h, T - 1, j, M('walnut-5'));
     }
 
     let state = (seed * 9301 + 49297) % 233280;
     const rand = () => (state = (state * 9301 + 49297) % 233280) / 233280;
 
     for (const floorD of SHELVES) {
-        leftDot(ctx, cx, ty, T, h, 0, floorD, C(8), T, 1); // papan
+        leftDot(ctx, cx, ty, T, h, 0, floorD, M('walnut-3'), T, 1); // papan
         leftDot(ctx, cx, ty, T, h, 0, floorD - 1, C(1), T, 1); // bayangan papan
 
         let i = 2;
@@ -127,6 +129,6 @@ export function drawRackSlice(
 
     // Sisi ujung: panel kayu dengan garis.
     for (let j = 6; j < T; j += 10) {
-        rightDot(ctx, cx, ty, T, T, h, j, 2, C(20), 1, h - 3);
+        rightDot(ctx, cx, ty, T, T, h, j, 2, M('walnut-4'), 1, h - 3);
     }
 }

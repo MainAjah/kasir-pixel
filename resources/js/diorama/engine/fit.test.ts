@@ -1,6 +1,12 @@
 import { describe, expect, it } from 'vite-plus/test';
-import { VIGNETTE_ALPHA, backdropColor, vignette } from '../render/lighting';
-import { C } from '../sprites/palette';
+import {
+    VIGNETTE_ALPHA,
+    WARM_TINT,
+    backdropColor,
+    vignette,
+    warmTint,
+} from '../render/lighting';
+import { C, M } from '../sprites/palette';
 import { ROOM_SCHEME } from '../sprites/room-sprite';
 import { screenScale } from './fit';
 
@@ -40,12 +46,12 @@ describe('screenScale (Beranda layar penuh)', () => {
 });
 
 describe('backdropColor', () => {
-    it('latar gelap kebiruan sama dengan latar kanvas di semua waktu (Tahap 5F)', () => {
-        expect(ROOM_SCHEME.background).toBe(C(24));
-
-        for (const time of ['siang', 'senja', 'malam'] as const) {
-            expect(backdropColor(time)).toBe(C(24));
-        }
+    it('latar gelap hangat sama dengan latar kanvas (Tahap 5G)', () => {
+        expect(ROOM_SCHEME.background).toBe(M('latar'));
+        expect(backdropColor('siang')).toBe(M('latar'));
+        // Senja dan malam ikut lapisan malam seperti seluruh kanvas.
+        expect(backdropColor('malam')).not.toBe(M('latar'));
+        expect(backdropColor('malam')).toMatch(/^#[0-9a-f]{6}$/);
     });
 
     it('latar terang tetap makin gelap ke biru malam saat senja dan malam', () => {
@@ -61,6 +67,14 @@ describe('backdropColor', () => {
             lum(backdropColor('senja', C(4))),
         );
         expect(backdropColor('malam', C(4))).toMatch(/^#[0-9a-f]{6}$/);
+    });
+});
+
+describe('rona hangat Beranda (Tahap 5G)', () => {
+    it('siang dan senja saja, senja lebih pekat; malam tidak ada', () => {
+        expect(warmTint('siang')).toContain('rgba(240, 140, 90');
+        expect(WARM_TINT.senja).toBeGreaterThan(WARM_TINT.siang);
+        expect(warmTint('malam')).toBeNull();
     });
 });
 
