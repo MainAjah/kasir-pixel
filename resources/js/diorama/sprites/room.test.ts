@@ -2,7 +2,7 @@ import { describe, expect, it } from 'vite-plus/test';
 import { CANVAS_H, CANVAS_W, tileTop } from '../engine/iso';
 import { STORE_SCENE } from '../scenes/store-scene';
 import { isPaletteColor } from './palette';
-import { BASE_H, ROOM_SCHEME, drawRoom } from './room-sprite';
+import { BASE_H, ROOM_SCHEME, baseFaceColor, drawRoom } from './room-sprite';
 
 /** Konteks kanvas palsu: mencatat warna terakhir tiap piksel. */
 function paint() {
@@ -65,13 +65,41 @@ describe('lantai, dinding, dan pintu', () => {
         expect(wallPixel(2)).toBe(scheme.wallLeft);
     });
 
-    it('alas diorama terlihat di bawah pojok depan lantai', () => {
-        const scheme = ROOM_SCHEME;
+    it('alas diorama tebal terlihat di bawah pojok depan lantai (Tahap 5F)', () => {
+        const { base } = ROOM_SCHEME;
         const pixels = paint();
         const { x, y } = tileTop(STORE_SCENE.width - 1, STORE_SCENE.height - 1);
-        // Pojok depan lantai = puncak tile + 32; alas tepat di bawahnya.
-        const below = pixels.get(`${x - 1},${y + 32 + BASE_H - 1}`);
+        // Pojok depan lantai = puncak tile + 32; sisi kiri alas tepat di kirinya.
+        const front = y + 32;
+        const colorsBelow = new Set(
+            Array.from({ length: BASE_H }, (_, d) =>
+                pixels.get(`${x - 1},${front + 1 + d}`),
+            ),
+        );
 
-        expect([scheme.base.left, scheme.base.right]).toContain(below);
+        expect(BASE_H).toBeGreaterThanOrEqual(20);
+        // Lis hijau, bata, dan nat sisi kiri, lalu garis bawah gelap.
+        expect(colorsBelow.has(base.left.lip)).toBe(true);
+        expect(colorsBelow.has(base.left.brick)).toBe(true);
+        expect(colorsBelow.has(base.left.mortar)).toBe(true);
+        // Kolom tepat di kiri pojok depan: tepi lantainya 1 px di atas pojok.
+        expect(pixels.get(`${x - 1},${front - 1 + BASE_H}`)).toBe(base.edge);
+        // Sisi kanan lebih gelap: bata kanan di kanan pojok depan.
+        expect([base.right.brick, base.right.brickLight]).toContain(
+            pixels.get(`${x + 2},${front + 8}`),
+        );
+    });
+
+    it('pola bata: nat tiap lapis, sambungan selang-seling antarlapis', () => {
+        const face = ROOM_SCHEME.base.left;
+        const edge = ROOM_SCHEME.base.edge;
+        // Baris 5..9 lapis pertama, baris 10 nat, baris 11..15 lapis kedua.
+        expect(baseFaceColor(face, edge, 3, 0)).toBe(face.lip);
+        expect(baseFaceColor(face, edge, 3, 4)).toBe(face.lipShadow);
+        expect(baseFaceColor(face, edge, 3, 10)).toBe(face.mortar);
+        expect(baseFaceColor(face, edge, 0, 6)).toBe(face.mortar);
+        expect(baseFaceColor(face, edge, 0, 12)).not.toBe(face.mortar);
+        expect(baseFaceColor(face, edge, 6, 12)).toBe(face.mortar);
+        expect(baseFaceColor(face, edge, 3, BASE_H)).toBe(edge);
     });
 });

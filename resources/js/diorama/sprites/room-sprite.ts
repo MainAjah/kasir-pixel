@@ -38,28 +38,153 @@ export type RoomScheme = {
     /** Plint di kaki dinding dan garis di atasnya. */
     plinth: string;
     plinthLine: string;
-    /** Alas diorama di tepi depan lantai: sisi kiri (terang) dan kanan (gelap). */
-    base: { left: string; right: string };
+    /**
+     * Alas diorama di tepi depan lantai (Tahap 5F: balok tebal berpola bata):
+     * lis hijau, garis bayangan di bawah lis, bata, nat, bata terang sesekali,
+     * dan garis bawah. Sisi kiri lebih terang dari sisi kanan.
+     */
+    base: {
+        left: BaseFace;
+        right: BaseFace;
+        edge: string;
+    };
     door: { frame: string; glass: string; shine: string; handle: string };
+};
+
+export type BaseFace = {
+    lip: string;
+    lipShadow: string;
+    brick: string;
+    brickLight: string;
+    mortar: string;
 };
 
 const T = 32;
 const fl = Math.floor;
-/** Tebal alas diorama di tepi depan lantai. */
-export const BASE_H = 6;
+/**
+ * Tebal alas diorama di tepi depan lantai. Tahap 5F: 6 → 23 px (lis 4, garis
+ * bayangan 1, tiga lapis bata setinggi 6 dengan natnya), ditambah garis bawah.
+ */
+export const BASE_H = 23;
+/** Baris lis hijau di atas alas, lalu baris bayangannya. */
+const LIP_ROWS = 4;
+/** Tinggi satu lapis bata (5 baris bata + 1 baris nat) dan panjang satu bata. */
+const COURSE = 6;
+const BRICK_W = 12;
 
 /** Skema ruangan yang disetujui pemilik: langit dan lavender. */
 export const ROOM_SCHEME: RoomScheme = {
-    background: C(4),
+    // Tahap 5F: latar gelap kebiruan supaya balok toko tampak melayang.
+    background: C(24),
     floor: { a: C(5), b: C(9), grout: C(6), shineA: C(4), shineB: null },
     wallLeft: C(17),
     wallRight: C(18),
     trim: C(4),
     plinth: C(10),
     plinthLine: C(9),
-    base: { left: C(9), right: C(10) },
+    base: {
+        left: {
+            lip: C(9),
+            lipShadow: C(10),
+            brick: C(7),
+            brickLight: C(6),
+            mortar: C(8),
+        },
+        right: {
+            lip: C(10),
+            lipShadow: C(20),
+            brick: C(8),
+            brickLight: C(7),
+            mortar: C(20),
+        },
+        edge: C(1),
+    },
     door: { frame: C(20), glass: C(18), shine: C(4), handle: C(3) },
 };
+
+/**
+ * Warna satu piksel sisi alas: u = kolom sepanjang sisi, d = baris di bawah tepi
+ * lantai (0 = tepi lantai, BASE_H = garis bawah). Bata bersusun selang-seling.
+ */
+export function baseFaceColor(
+    face: BaseFace,
+    edge: string,
+    u: number,
+    d: number,
+): string {
+    if (d >= BASE_H) {
+        return edge;
+    }
+
+    if (d < LIP_ROWS) {
+        return face.lip;
+    }
+
+    if (d === LIP_ROWS) {
+        return face.lipShadow;
+    }
+
+    const row = d - LIP_ROWS - 1;
+    const course = fl(row / COURSE);
+
+    if (row % COURSE === COURSE - 1) {
+        return face.mortar;
+    }
+
+    const shifted = u + (course % 2 === 1 ? BRICK_W / 2 : 0);
+
+    if (shifted % BRICK_W === 0) {
+        return face.mortar;
+    }
+
+    // Sesekali bata lebih terang (pola tetap, bukan acak), memberi tekstur.
+    const brick = fl(shifted / BRICK_W);
+
+    return (brick * 7 + course * 3) % 5 === 0 ? face.brickLight : face.brick;
+}
+
+/**
+ * Alas balok toko di bawah tepi depan lantai: sisi kiri (sepanjang gx, tepi
+ * gy = height) dan sisi kanan (sepanjang gy, tepi gx = width), setebal BASE_H
+ * plus garis bawah. Ubin lantai digambar sesudahnya dan menutup baris teratas.
+ */
+function drawBase(
+    ctx: CanvasRenderingContext2D,
+    scene: StoreScene,
+    scheme: RoomScheme,
+): void {
+    const a = scene.width * T;
+    const b = scene.height * T;
+    const { left, right, edge } = scheme.base;
+
+    // Satu fillRect per warna yang bersambung dalam satu kolom.
+    const column = (x: number, top: number, face: BaseFace, u: number) => {
+        let run = 0;
+
+        for (let d = 1; d <= BASE_H + 1; d++) {
+            const color = baseFaceColor(face, edge, u, run);
+
+            if (d === BASE_H + 1 || baseFaceColor(face, edge, u, d) !== color) {
+                ctx.fillStyle = color;
+                ctx.fillRect(x, top + run, 1, d - run);
+                run = d;
+            }
+        }
+    };
+
+    for (let i = 0; i < a; i++) {
+        column(ORIGIN.x - b + i, ORIGIN.y + fl(b / 2) + fl(i / 2), left, i);
+    }
+
+    for (let j = 0; j < b; j++) {
+        column(
+            ORIGIN.x + a - b + j,
+            ORIGIN.y + fl((a + b) / 2) - fl(j / 2),
+            right,
+            j,
+        );
+    }
+}
 
 function floorTile(
     ctx: CanvasRenderingContext2D,
@@ -282,24 +407,20 @@ export function drawRoom(
     height: number,
     scheme: RoomScheme = ROOM_SCHEME,
     time: TimeOfDay = 'siang',
+    /**
+     * Digambar tepat setelah latar dan sebelum balok toko (Tahap 5F: bayangan
+     * jatuh di bawah balok). Efek boleh memakai warna campuran; ruangan tidak.
+     */
+    underlay?: (ctx: CanvasRenderingContext2D) => void,
 ): void {
     const doorRows = doorRowsOf(scene);
 
     ctx.fillStyle = scheme.background;
     ctx.fillRect(0, 0, width, height);
+    underlay?.(ctx);
 
     // Alas diorama: sisi depan lantai setebal BASE_H, ubin menutup bagian atasnya.
-    isoBox(
-        ctx,
-        ORIGIN.x,
-        ORIGIN.y + BASE_H,
-        scene.width * T,
-        scene.height * T,
-        BASE_H,
-        null,
-        scheme.base.left,
-        scheme.base.right,
-    );
+    drawBase(ctx, scene, scheme);
 
     for (let gy = 0; gy < scene.height; gy++) {
         for (let gx = 0; gx < scene.width; gx++) {

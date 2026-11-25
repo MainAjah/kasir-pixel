@@ -1,12 +1,17 @@
 import { useEffect, useRef, useState } from 'react';
-import type { MouseEvent, ReactNode } from 'react';
+import type { CSSProperties, MouseEvent, ReactNode } from 'react';
 import { screenScale } from '@/diorama/engine/fit';
 import { CANVAS_H, CANVAS_W } from '@/diorama/engine/iso';
 import type { Point } from '@/diorama/engine/iso';
 import { startLoop } from '@/diorama/engine/loop';
 import type { DioramaWorld } from '@/diorama/engine/world';
-import { backdropColor } from '@/diorama/render/lighting';
-import { PlaceholderRenderer } from '@/diorama/render/placeholder-renderer';
+import { backdropColor, vignette } from '@/diorama/render/lighting';
+import {
+    GLOW_H,
+    GLOW_W,
+    PlaceholderRenderer,
+} from '@/diorama/render/placeholder-renderer';
+import type { TimeOfDay } from '@/diorama/sprites/decor-sprite';
 import { loadReferences } from '@/diorama/sprites/reference-loader';
 import type { RenderOptions } from '@/diorama/render/placeholder-renderer';
 
@@ -33,6 +38,13 @@ type Props = {
     isClickable?: (point: Point) => boolean;
 };
 
+/** Kepekatan lapisan bloom (Tahap 5F) menurut waktu: halus siang, kuat malam. */
+const BLOOM_OPACITY: Record<TimeOfDay, number> = {
+    siang: 0.55,
+    senja: 0.75,
+    malam: 0.9,
+};
+
 /** Titik layar → titik kanvas dasar. */
 function canvasPoint(event: MouseEvent<HTMLCanvasElement>): Point {
     const rect = event.currentTarget.getBoundingClientRect();
@@ -44,7 +56,7 @@ function canvasPoint(event: MouseEvent<HTMLCanvasElement>): Point {
 }
 
 /**
- * Kanvas diorama 768 × 432 dengan `image-rendering: pixelated`. Mode "width":
+ * Kanvas diorama 768 × 480 dengan `image-rendering: pixelated`. Mode "width":
  * skala kelipatan bulat menurut lebar wadah; wadah lebih sempit dari 768 px
  * membuat kanvas diperkecil. Mode "screen": lihat `screenScale`. Loop 30 FPS
  * berhenti saat tab tersembunyi.
@@ -61,6 +73,7 @@ export default function DioramaCanvas({
 }: Props) {
     const wrapRef = useRef<HTMLDivElement>(null);
     const canvasRef = useRef<HTMLCanvasElement>(null);
+    const glowRef = useRef<HTMLCanvasElement>(null);
     const optionsRef = useRef<RenderOptions | undefined>(options);
     const onFrameRef = useRef(onFrame);
     const [scale, setScale] = useState(fit === 'screen' ? 0 : 1);
@@ -110,10 +123,18 @@ export default function DioramaCanvas({
         }
 
         const renderer = new PlaceholderRenderer(world.scene);
+        // Mode "screen" (Beranda): kanvas cahaya kecil untuk bloom, digambar ulang
+        // hanya bila bagian yang menyala berubah.
+        const glow = glowRef.current?.getContext('2d') ?? null;
 
         const loop = startLoop((dt) => {
             world.update(dt);
             renderer.render(ctx, world, optionsRef.current);
+
+            if (glow) {
+                renderer.renderGlow(glow, world, optionsRef.current);
+            }
+
             onFrameRef.current?.(world);
         });
 
@@ -121,52 +142,93 @@ export default function DioramaCanvas({
     }, [world]);
 
     if (fit === 'screen') {
+        const time = options?.timeOfDay ?? 'siang';
+
         return (
             <div
                 ref={wrapRef}
-                className={`flex items-center justify-center overflow-hidden ${className ?? ''}`}
-                style={{
-                    backgroundColor: backdropColor(
-                        options?.timeOfDay ?? 'siang',
-                    ),
-                }}
+                className={`overflow-hidden ${className ?? ''}`}
+                style={{ backgroundColor: backdropColor(time) }}
             >
-                <div
-                    className="relative shrink-0"
-                    style={{
-                        width: CANVAS_W * scale,
-                        height: CANVAS_H * scale,
-                    }}
-                >
-                    <canvas
-                        ref={canvasRef}
-                        width={CANVAS_W}
-                        height={CANVAS_H}
-                        className="block size-full"
-                        style={{
-                            imageRendering: 'pixelated',
-                            cursor: pointer ? 'pointer' : undefined,
-                        }}
-                        onClick={
-                            onCanvasClick
-                                ? (event) => onCanvasClick(canvasPoint(event))
-                                : undefined
-                        }
-                        onMouseMove={
-                            isClickable
-                                ? (event) =>
-                                      setPointer(
-                                          isClickable(canvasPoint(event)),
-                                      )
-                                : undefined
-                        }
-                        onMouseLeave={() => setPointer(false)}
+                <div className="relative isolate flex size-full items-center justify-center">
+                    {/* Vinyet (Tahap 5F): sudut layar lebih gelap, lebih pekat saat malam.
+                        Di atas kanvas, di bawah tombol pos; tidak menangkap klik. */}
+                    <div
+                        aria-hidden
+                        className="pointer-events-none absolute inset-0 z-[1]"
+                        style={{ background: vignette(time) }}
                     />
-                    {overlay && scale > 0 && (
-                        <div className="pointer-events-none absolute inset-0">
-                            {overlay(scale)}
-                        </div>
-                    )}
+                    <div
+                        className="relative shrink-0"
+                        style={{
+                            width: CANVAS_W * scale,
+                            height: CANVAS_H * scale,
+                        }}
+                    >
+                        <canvas
+                            ref={canvasRef}
+                            width={CANVAS_W}
+                            height={CANVAS_H}
+                            className="block size-full"
+                            style={{
+                                imageRendering: 'pixelated',
+                                cursor: pointer ? 'pointer' : undefined,
+                            }}
+                            onClick={
+                                onCanvasClick
+                                    ? (event) =>
+                                          onCanvasClick(canvasPoint(event))
+                                    : undefined
+                            }
+                            onMouseMove={
+                                isClickable
+                                    ? (event) =>
+                                          setPointer(
+                                              isClickable(canvasPoint(event)),
+                                          )
+                                    : undefined
+                            }
+                            onMouseLeave={() => setPointer(false)}
+                        />
+                        {/* Bloom (Tahap 5F): kanvas cahaya ¼ ukuran, diperbesar halus,
+                            diburamkan, dan dicampur "screen". Kanvas utama tetap tajam. */}
+                        <canvas
+                            ref={glowRef}
+                            width={GLOW_W}
+                            height={GLOW_H}
+                            aria-hidden
+                            className="pointer-events-none absolute inset-0 size-full"
+                            style={{
+                                filter: `blur(${Math.max(2, scale * 2.5).toFixed(1)}px)`,
+                                mixBlendMode: 'screen',
+                                opacity: BLOOM_OPACITY[time],
+                            }}
+                        />
+                        {/* Tilt-shift (Tahap 5F): tepi atas dan bawah sedikit buram. */}
+                        <div
+                            aria-hidden
+                            className="diorama-tilt diorama-tilt-top"
+                            style={
+                                {
+                                    '--tilt-blur': `${Math.max(1, scale * 1.2).toFixed(1)}px`,
+                                } as CSSProperties
+                            }
+                        />
+                        <div
+                            aria-hidden
+                            className="diorama-tilt diorama-tilt-bottom"
+                            style={
+                                {
+                                    '--tilt-blur': `${Math.max(1, scale * 1.2).toFixed(1)}px`,
+                                } as CSSProperties
+                            }
+                        />
+                        {overlay && scale > 0 && (
+                            <div className="pointer-events-none absolute inset-0 z-[2]">
+                                {overlay(scale)}
+                            </div>
+                        )}
+                    </div>
                 </div>
             </div>
         );

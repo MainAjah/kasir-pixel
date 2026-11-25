@@ -301,3 +301,58 @@
     border: 2px solid var(--color-px-tinta);
     box-shadow: 2px 2px 0 var(--color-px-tinta);
 }
+
+/*
+ * Tilt-shift diorama Beranda (Tahap 5F): tepi atas dan bawah area diorama sedikit
+ * buram seperti foto miniatur, tengah toko tetap tajam. Besar blur dari
+ * --tilt-blur (mengikuti skala tampilan). Tidak menangkap klik.
+ */
+.diorama-tilt {
+    position: absolute;
+    left: 0;
+    right: 0;
+    pointer-events: none;
+    -webkit-backdrop-filter: blur(var(--tilt-blur, 1.5px));
+    backdrop-filter: blur(var(--tilt-blur, 1.5px));
+}
+
+.diorama-tilt-top {
+    top: 0;
+    height: 22%;
+    -webkit-mask-image: linear-gradient(
+        to bottom,
+        #000 0%,
+        #000 30%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(to bottom, #000 0%, #000 30%, transparent 100%);
+}
+
+.diorama-tilt-bottom {
+    bottom: 0;
+    height: 18%;
+    -webkit-mask-image: linear-gradient(
+        to top,
+        #000 0%,
+        #000 30%,
+        transparent 100%
+    );
+    mask-image: linear-gradient(to top, #000 0%, #000 30%, transparent 100%);
+}
+
+/* Cadangan bila backdrop-filter tidak didukung: gradasi gelap tipis tanpa blur. */
+@supports not (
+    (backdrop-filter: blur(1px)) or (-webkit-backdrop-filter: blur(1px))
+) {
+    .diorama-tilt-top {
+        background: linear-gradient(
+            to bottom,
+            rgb(14 15 36 / 0.2),
+            transparent
+        );
+    }
+
+    .diorama-tilt-bottom {
+        background: linear-gradient(to top, rgb(14 15 36 / 0.2), transparent);
+    }
+}

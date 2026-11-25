@@ -40,9 +40,11 @@ const LAMP_SIZE = { width: 7, height: 9 } as const;
 /**
  * Warna latar di luar ruangan setelah lapisan malam (sama dengan piksel pojok
  * kanvas). Dipakai untuk mengisi layar di sekeliling kanvas di Beranda supaya
- * kanvas menyatu dengan layar.
+ * kanvas menyatu dengan layar. Tahap 5F: latar biru malam (sama dengan warna
+ * lapisan malam, jadi tetap sama di semua waktu); kegelapan malam di sekeliling
+ * balok dibawa oleh vinyet di Beranda.
  */
-export function backdropColor(time: TimeOfDay, base: string = C(4)): string {
+export function backdropColor(time: TimeOfDay, base: string = C(24)): string {
     const a = NIGHT_ALPHA * NIGHT_STRENGTH[time];
     const mix = (from: string, to: string, shift: number) => {
         const f = (parseInt(from.slice(1), 16) >> shift) & 255;
@@ -56,6 +58,23 @@ export function backdropColor(time: TimeOfDay, base: string = C(4)): string {
         .join('');
 
     return `#${hex}`;
+}
+
+/** Kepekatan vinyet di sudut layar Beranda menurut waktu (Tahap 5F). */
+export const VIGNETTE_ALPHA: Record<TimeOfDay, number> = {
+    siang: 0.5,
+    senja: 0.6,
+    malam: 0.72,
+};
+
+/**
+ * Gradasi radial vinyet Beranda (efek, boleh warna campuran): tengah bening,
+ * sudut gelap kebiruan, lebih pekat saat senja dan malam.
+ */
+export function vignette(time: TimeOfDay): string {
+    const ink = '14, 15, 36';
+
+    return `radial-gradient(ellipse 75% 70% at 50% 48%, rgba(${ink}, 0) 55%, rgba(${ink}, ${VIGNETTE_ALPHA[time]}) 100%)`;
 }
 
 /** Gambar hiasan dinding untuk waktu ini (null = bukan hiasan dinding). */

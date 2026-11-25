@@ -1,11 +1,14 @@
 /**
  * Proyeksi isometrik 2:1 diorama (docs/diorama-rancangan.md bagian 1).
  *
- * Kanvas dasar 768 × 432, tile belah ketupat 64 × 32, grid toko 12 × 9.
+ * Kanvas dasar 768 × 480, tile belah ketupat 64 × 32, grid toko 12 × 9.
  * Asal (ORIGIN) adalah puncak belah ketupat tile (0,0), yaitu pojok belakang toko.
+ * Tahap 5F: tinggi 432 → 480 supaya alas tebal dan bayangan jatuh balok toko
+ * muat di bawah lantai; ORIGIN tetap, jadi semua posisi lama tidak berubah.
+ * (Dicoba 464 dengan alas 17 px: skala hanya naik 3,4%, jadi tetap 480.)
  */
 export const CANVAS_W = 768;
-export const CANVAS_H = 432;
+export const CANVAS_H = 480;
 export const TILE_W = 64;
 export const TILE_H = 32;
 export const HALF_W = TILE_W / 2;

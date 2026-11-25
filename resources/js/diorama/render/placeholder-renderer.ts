@@ -56,7 +56,14 @@ import {
     drawStool,
     formatDisplay,
 } from '../sprites/counter-sprite';
-import { NIGHT_STRENGTH, drawPlant } from '../sprites/decor-sprite';
+import {
+    NIGHT_STRENGTH,
+    WALL_DECOR,
+    drawPlant,
+    hangOnWall,
+    lampMatrix,
+    windowGlass,
+} from '../sprites/decor-sprite';
 import {
     POST_GUARD_KEYS,
     inventoryPlaceholderFrame,
@@ -85,6 +92,15 @@ import {
 import type { VendingColor } from '../sprites/vending-sprite';
 import { SpriteCache } from '../sprites/sprite-cache';
 import {
+    characterShadowSize,
+    drawAmbientOcclusion,
+    drawBlockShadow,
+    drawFurnitureShadows,
+    paintSoftShadow,
+    shadowStrength,
+} from './depth';
+import { drawLampPools, drawSunlight } from './sunlight';
+import {
     drawLitWall,
     drawNightOverlay,
     drawScreenGlow,
@@ -110,7 +126,6 @@ export type RenderOptions = {
 };
 
 const INK = '#2b2a33';
-const SHADOW = '#5b5470';
 const WHITE = '#fdf8f0';
 const SKIN = ['#f2c9a5', '#c98e6a', '#8d5a3f'];
 const SHIRTS = [
@@ -123,6 +138,18 @@ const SHIRTS = [
 ];
 
 const fl = Math.floor;
+
+/** Kanvas cahaya (bloom) = ¼ kanvas utama: 192 × 120 (Tahap 5F). */
+export const GLOW_SCALE = 0.25;
+export const GLOW_W = CANVAS_W * GLOW_SCALE;
+export const GLOW_H = CANVAS_H * GLOW_SCALE;
+
+/** Seberapa kuat bagian yang menyala memancar menurut waktu. */
+export const GLOW_LEVEL: Record<TimeOfDay, number> = {
+    siang: 0.55,
+    senja: 0.8,
+    malam: 1,
+};
 
 /** Warna badan tiap vending machine di denah: merah, biru, hijau. */
 const VENDING_COLORS: Record<string, VendingColor> = {
@@ -230,6 +257,12 @@ export class PlaceholderRenderer {
     private readonly headings = new Map<number, Heading>();
     private shownDaily: number | null = null;
     private lastTime = 0;
+    /** Bayangan lembut karakter per ukuran (Tahap 5F), dipra-render sekali. */
+    private readonly softShadows = new Map<number, HTMLCanvasElement>();
+    /** Kekuatan bayangan kontak untuk waktu yang sedang digambar. */
+    private shadowK = 1;
+    /** Kunci keadaan kanvas cahaya terakhir (bloom digambar ulang hanya bila berubah). */
+    private lastGlowKey = '';
 
     constructor(private readonly scene: StoreScene) {}
 
@@ -239,6 +272,7 @@ export class PlaceholderRenderer {
         options: RenderOptions = {},
     ): void {
         const time = options.timeOfDay ?? 'siang';
+        this.shadowK = shadowStrength(time);
         ctx.imageSmoothingEnabled = false;
         ctx.globalAlpha = 1;
         ctx.drawImage(this.backgroundCanvas(time), 0, 0);
@@ -382,12 +416,28 @@ export class PlaceholderRenderer {
         const ctx = canvas.getContext('2d');
 
         if (ctx) {
-            drawRoom(ctx, this.scene, CANVAS_W, CANVAS_H, ROOM_SCHEME, time);
+            drawRoom(
+                ctx,
+                this.scene,
+                CANVAS_W,
+                CANVAS_H,
+                ROOM_SCHEME,
+                time,
+                (c) => drawBlockShadow(c, this.scene),
+            );
+            // Tahap 5F: oklusi sudut dan bayangan kontak perabot, sekali per waktu.
+            drawAmbientOcclusion(ctx, this.scene, shadowStrength(time));
+            drawFurnitureShadows(ctx, this.scene, shadowStrength(time));
             drawWallDecor(ctx, time);
 
             // Senja dan malam: ruangan redup, kaca jendela dan pintu tetap terang,
             // lampu dinding menyala. Siang tidak menggambar apa pun di sini.
             drawNightOverlay(ctx, time, CANVAS_W, CANVAS_H);
+
+            // Tahap 5F: sinar matahari (siang, senja) dan kolam cahaya lampu
+            // (senja, malam), di atas lapisan malam supaya tetap hangat.
+            drawSunlight(ctx, this.scene, time);
+            drawLampPools(ctx, this.scene, time);
 
             if (NIGHT_STRENGTH[time] > 0) {
                 drawLitWall(ctx, time);
@@ -398,6 +448,39 @@ export class PlaceholderRenderer {
         this.backgrounds.set(time, canvas);
 
         return canvas;
+    }
+
+    /**
+     * Bayangan kontak lembut karakter di lantai, berpusat di titik pijak (x, y).
+     * s = setengah lebar belah ketupat bayangan lama (12 untuk karakter biasa).
+     * Ikut transparansi saat ini (pelanggan yang muncul atau hilang di pintu).
+     */
+    private softShadow(
+        ctx: CanvasRenderingContext2D,
+        x: number,
+        y: number,
+        s = 12,
+    ): void {
+        let sprite = this.softShadows.get(s);
+        const { w, h } = characterShadowSize(s);
+
+        if (!sprite) {
+            sprite = document.createElement('canvas');
+            sprite.width = w;
+            sprite.height = h;
+            const c = sprite.getContext('2d');
+
+            if (c) {
+                paintSoftShadow(c, w, h);
+            }
+
+            this.softShadows.set(s, sprite);
+        }
+
+        const alpha = ctx.globalAlpha;
+        ctx.globalAlpha = alpha * this.shadowK;
+        ctx.drawImage(sprite, fl(x - w / 2), fl(y - h / 2));
+        ctx.globalAlpha = alpha;
     }
 
     /** Kanvas cadangan transparan untuk benda dan aktor saat senja dan malam. */
@@ -421,6 +504,124 @@ export class PlaceholderRenderer {
         layer.clearRect(0, 0, CANVAS_W, CANVAS_H);
 
         return layer;
+    }
+
+    // ---- Bloom (Tahap 5F langkah 3) -------------------------------------------
+
+    /**
+     * Kunci keadaan bagian yang menyala: waktu, lampu vending, layar kedua meja, dan
+     * koin yang sedang terbang. Kanvas cahaya digambar ulang hanya bila kunci ini
+     * berubah, bukan tiap bingkai.
+     */
+    glowKey(world: DioramaWorld, time: TimeOfDay): string {
+        const parts: string[] = [time];
+
+        for (const item of this.scene.furniture) {
+            if (item.kind === 'vending') {
+                const color = VENDING_COLORS[item.id] ?? 0;
+                parts.push(vendingLightOn(world.time, color) ? 'v1' : 'v0');
+            } else if (item.kind === 'meja_kasir' && item.active) {
+                const look = this.counterLook(world);
+                parts.push(
+                    `${look.on ? 1 : 0}${look.display.mode}:${look.display.text}`,
+                );
+            }
+        }
+
+        for (const customer of world.customers) {
+            if (customer.state === 'bayar') {
+                // Koin bergerak tiap bingkai selama terbang (kurang dari satu detik).
+                parts.push(`k${customer.id}:${customer.stateTime.toFixed(2)}`);
+            }
+        }
+
+        return parts.join('|');
+    }
+
+    /**
+     * Bagian yang menyala ke kanvas cahaya beresolusi kecil (¼ kanvas utama):
+     * kaca jendela dan pintu, lampu dinding (senja, malam), papan vending yang
+     * menyala, layar mini kedua meja, dan koin. Kanvas ini diperbesar dan
+     * diburamkan dengan CSS lalu dicampur "screen" di atas diorama; kanvas utama
+     * tetap tajam. Mengembalikan false bila tidak ada yang berubah.
+     */
+    renderGlow(
+        ctx: CanvasRenderingContext2D,
+        world: DioramaWorld,
+        options: RenderOptions = {},
+    ): boolean {
+        const time = options.timeOfDay ?? 'siang';
+        const key = this.glowKey(world, time);
+
+        if (key === this.lastGlowKey) {
+            return false;
+        }
+
+        this.lastGlowKey = key;
+        const night = NIGHT_STRENGTH[time];
+        const level = GLOW_LEVEL[time];
+
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+        ctx.clearRect(0, 0, ctx.canvas.width, ctx.canvas.height);
+        ctx.setTransform(GLOW_SCALE, 0, 0, GLOW_SCALE, 0, 0);
+        ctx.imageSmoothingEnabled = true;
+
+        // Kaca jendela dan pintu: terang saat siang dan senja, redup saat malam.
+        ctx.globalAlpha = level * (time === 'malam' ? 0.35 : 0.9);
+        const pane = WALL_DECOR.find((d) => d.key === 'jendela');
+
+        if (pane) {
+            hangOnWall(ctx, windowGlass(time), pane);
+        }
+
+        drawDoorGlass(ctx, this.scene, time);
+
+        // Lampu dinding menyala saat senja dan malam.
+        if (night > 0) {
+            ctx.globalAlpha = night;
+
+            for (const lamp of WALL_DECOR) {
+                if (lamp.key.startsWith('lampu-')) {
+                    hangOnWall(ctx, lampMatrix(true), lamp);
+                }
+            }
+        }
+
+        ctx.globalAlpha = level;
+
+        for (const item of this.scene.furniture) {
+            if (item.kind === 'vending') {
+                const color = VENDING_COLORS[item.id] ?? 0;
+
+                if (vendingLightOn(world.time, color)) {
+                    const { x, y } = tileTop(item.gx, item.gy);
+                    drawVendingLights(ctx, x, y, color, true);
+                }
+            } else if (
+                item.kind === 'meja_kasir' &&
+                (item.active || item.id === this.scene.posts.inventaris.desk)
+            ) {
+                const gx = item.gx + item.w - 1;
+                const { x, y } = tileTop(gx, item.gy);
+                drawCounterScreen(
+                    ctx,
+                    x,
+                    y,
+                    item.active ? this.counterLook(world) : INVENTORY_COUNTER,
+                );
+            }
+        }
+
+        for (const customer of world.customers) {
+            if (customer.state === 'bayar') {
+                this.drawCoin(ctx, world, customer);
+            }
+        }
+
+        ctx.globalAlpha = 1;
+        ctx.setTransform(1, 0, 0, 1, 0, 0);
+
+        return true;
     }
 
     /**
@@ -598,9 +799,8 @@ export class PlaceholderRenderer {
         const src = referenceMatrix(key);
         const frame = frameAt('diam', world.time, 0.5);
 
-        ctx.globalAlpha = 0.25;
-        isoBox(ctx, x, y - 6, 12, 12, 0, SHADOW, null, null);
         ctx.globalAlpha = 1;
+        this.softShadow(ctx, x, y);
 
         if (character && src) {
             const flip = referenceFlip(character, keeper.facing === 'sw');
@@ -690,10 +890,8 @@ export class PlaceholderRenderer {
         lift: number,
         headShift = { dx: 0, dy: 0 },
     ): void {
-        // Bayangan di lantai.
-        ctx.globalAlpha *= 0.25;
-        isoBox(ctx, x, y - 6, 12, 12, 0, SHADOW, null, null);
-        ctx.globalAlpha /= 0.25;
+        // Bayangan lembut di lantai (Tahap 5F).
+        this.softShadow(ctx, x, y);
 
         const base = y - 6 - lift;
         isoBox(
@@ -783,9 +981,8 @@ export class PlaceholderRenderer {
             const footX = flip ? size.width - 1 - size.footX : size.footX;
             const s = Math.max(8, Math.min(24, Math.round(src.width * 0.45)));
 
-            ctx.globalAlpha = alpha * 0.25;
-            isoBox(ctx, x, y - fl(s / 2), s, s, 0, SHADOW, null, null);
             ctx.globalAlpha = alpha;
+            this.softShadow(ctx, x, y, s);
             ctx.drawImage(sprite, x - footX, y - size.footY - character.hover);
             top = y - src.height - character.hover;
         } else {
@@ -803,9 +1000,8 @@ export class PlaceholderRenderer {
             );
             const footX = flip ? FRAME_W - 1 - FOOT_X : FOOT_X;
 
-            ctx.globalAlpha = alpha * 0.25;
-            isoBox(ctx, x, y - 6, 12, 12, 0, SHADOW, null, null);
             ctx.globalAlpha = alpha;
+            this.softShadow(ctx, x, y);
             ctx.drawImage(sprite, x - footX, y - FOOT_Y);
         }
 
@@ -872,9 +1068,8 @@ export class PlaceholderRenderer {
         );
         const footX = flip ? size.width - 1 - size.footX : size.footX;
 
-        ctx.globalAlpha = 0.25;
-        isoBox(ctx, x, y - 6, 12, 12, 0, SHADOW, null, null);
         ctx.globalAlpha = 1;
+        this.softShadow(ctx, x, y);
         ctx.drawImage(sprite, x - footX, y - size.footY);
 
         return true;

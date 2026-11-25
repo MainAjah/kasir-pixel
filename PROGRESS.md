@@ -1,5 +1,89 @@
 # PROGRESS
 
+## Tahap 5F: Diorama toko 2.5D bergaya HD-2D (25 Nov 2026)
+
+Status: **ketiga langkah selesai; di-commit atas izin pemilik sebelum Tahap 5G (tanpa baris Co-Authored-By), belum di-push.** Pengukuran FPS di browser pemilik masih ditunggu.
+
+### Keputusan pemilik
+
+- **2.5D di Canvas:** tanpa paket baru, tanpa three.js.
+- **Warna:** sprite tetap 24 warna palet; warna campuran hanya untuk efek (cahaya, bayangan, bloom, blur).
+- **Latar:** biru gelap dengan vinyet.
+- **Tidak berubah:** denah toko, karakter, klik pelanggan, tombol pos, siang/senja/malam, bunyi, data stok di rak, dan loop 30 FPS.
+- **Teknis:**
+  - bloom di kanvas kecil yang hanya digambar ulang bila ada yang berubah;
+  - tilt-shift memakai `backdrop-filter`, dengan cadangan `@supports`;
+  - bayangan tanpa `ctx.filter`;
+  - kanvas tetap `pixelated`;
+  - saat malam, sinar matahari hilang, oklusi dan bayangan melemah, dan muncul kolam cahaya di bawah lampu;
+  - tanpa tombol kualitas.
+- **Ukuran (catatan Langkah 1):** kanvas 464 dengan alas 17 px juga dicoba. Skalanya hanya naik 3,4% (1,279 → 1,323 di 1093×614), jadi tetap 480 dengan alas 23 px.
+
+### Yang sudah selesai
+
+- **Langkah 1, balok toko melayang:**
+  - kanvas 768 × 432 → **768 × 480** (`CANVAS_H`); `ORIGIN` tetap, jadi semua posisi lama sama;
+  - alas balok setebal **23 px** berpola bata (`room-sprite.ts` `drawBase`/`baseFaceColor`): lis hijau, garis bayangan, tiga lapis bata selang-seling, garis bawah, hanya warna palet; sisi kiri terang dan sisi kanan gelap;
+  - **bayangan jatuh** lembut di bawah balok (`render/depth.ts` `drawBlockShadow`, lapisan bertumpuk);
+  - latar kanvas dan layar biru malam `C(24)` (`backdropColor` sama di semua waktu);
+  - **vinyet** CSS di Beranda (`lighting.ts` `vignette`), makin pekat saat senja dan malam, di atas kanvas dan di bawah tombol pos.
+- **Perbaikan layar pendek (catatan Langkah 1):** di 1093 × 614 (1366 × 768 dengan skala Windows 125%), tombol Keluar di menu ikon terpotong (sampai 660 px). Ini masalah lama. Pada tinggi layar ≤ 680 px, tombol menu kini 40 px dan jaraknya lebih rapat (`side-menu.tsx`, `dashboard.tsx`), sehingga menu berakhir di 554 px.
+- **Langkah 2, kedalaman** (`render/depth.ts`):
+  - **oklusi sudut:** lantai di kaki kedua dinding dan pojok belakang, kaki dinding, dan sudut tegak; digambar di "ruang lantai" lewat `setTransform`, sehingga gradasinya sejajar dinding;
+  - **bayangan kontak perabot:** jejak tiap perabot sedikit dilebarkan, bergeser menjauhi jendela (makin tinggi makin jauh), dan dipotong ke bidang lantai;
+  - **bayangan karakter:** belah ketupat keras diganti elips lembut pra-render, ikut memudar bersama pelanggan di pintu;
+  - **kekuatan:** siang 100%, senja 80%, malam 60% (`shadowStrength`).
+- **Langkah 3, cahaya:**
+  - **sinar matahari dari jendela** (`render/sunlight.ts`):
+    - siang kuning, jatuh di lantai kosong di samping penjaga Inventaris; senja oranye, lebih panjang; malam tidak ada;
+    - wujudnya berkas di udara (selubung cembung kaca + bidang lantai) dan bidang lantai berpinggir lembut;
+  - **kolam cahaya** di lantai di bawah kedua lampu dinding saat senja dan malam;
+  - **bloom:**
+    - `renderGlow` menggambar kaca jendela dan pintu, lampu, papan "MINUM" yang menyala, layar kedua meja, dan koin ke kanvas **192 × 120**;
+    - kanvas itu digambar ulang hanya bila kuncinya berubah (`glowKey`);
+    - `DioramaCanvas` memperbesarnya dengan CSS `blur` + `mix-blend-mode: screen`, dengan kepekatan menurut waktu;
+  - **tilt-shift:** 22% atas dan 18% bawah area diorama (`.diorama-tilt` di `app.css`, blur sekitar 1,2 × skala); tanpa dukungan `backdrop-filter`, diganti gradasi gelap tipis;
+  - **hanya di Beranda:** bloom, tilt-shift, dan vinyet; halaman Diorama lab tetap memakai balok, bayangan, dan sinar.
+
+### Pemeriksaan sebelum commit (25 Nov 2026)
+
+- **Konsol:** muat ulang penuh di tab baru, konsol bersih (tanpa "SHORT is not defined"). Galat lama itu dari versi sementara `side-menu.tsx` yang sudah diperbaiki.
+- **Fungsi tetap jalan:**
+  - klik pelanggan menampilkan kartunya ("Ninja berjubah awan merah, Hanya melihat-lihat");
+  - pos Kasir dan pos Inventaris membuka panelnya.
+- **Lapisan:**
+  - kartu "Hari Ini" dan menu ikon di luar lapisan diorama, dilukis sesudahnya;
+  - tombol pos di lapisan z-2 di atas tilt-shift (z auto);
+  - tidak ada yang ikut buram, dicek dengan perbesaran gambar.
+- **Performa:**
+  - **FPS sungguhan tidak bisa diukur di panel pratinjau**, karena jendela Claude tidak tampil di layar dan browser memperlambat halaman (rAF 3,7/detik);
+  - sebagai gantinya, beban diukur langsung: 300 bingkai dirender berturut-turut dengan kode yang sama;
+  - **median 0,7 ms (siang) dan 1,4 ms (malam) per bingkai**, rata-rata 3,6–5,2 ms, bloom rata-rata 0,15 ms dan digambar ulang di 25 dari 300 bingkai;
+  - ada lonjakan acak 15–85 ms, tetapi bagian yang diukur (perabot, karakter, bayangan, cahaya malam, drawImage) masing-masing < 1 ms saat lonjakan, jadi lonjakan itu dari halaman yang diperlambat atau pembersihan memori, bukan dari kode diorama;
+  - batas 30 FPS = 33 ms per bingkai;
+  - **perlu dikonfirmasi pemilik** di browsernya dengan DevTools Performance, siang (`?waktu=siang`) dan malam (`?waktu=malam`).
+- **Hasil pemeriksaan:**
+  - `npm run build` (vite build) berhasil;
+  - Pest 423 lulus; Vitest 245 lulus;
+  - tsc bersih; lint bersih (2 peringatan lama di `docs/referensi-karakter/alat`); Pint bersih.
+- **`git status`:** hanya berkas Tahap 5F, tanpa berkas tak sengaja. `public/build` diabaikan git.
+  - **diubah:** `app.css`, `side-menu.tsx`, `diorama-canvas.tsx`, `fit.test.ts`, `iso.ts`, `lighting.ts`, `placeholder-renderer.ts`, `room-sprite.ts`, `room.test.ts`, `dashboard.tsx`;
+  - **baru:** `render/depth.ts`, `render/depth.test.ts`, `render/sunlight.ts`, `render/sunlight.test.ts`.
+
+### Batasan dan hal yang perlu diketahui
+
+- **Ukuran tampilan:** di 1366 × 768 skala diorama turun dari sekitar 1,78 ke 1,6 karena kanvas lebih tinggi (tinggi layar yang membatasi).
+- **Sinar matahari saat senja** sebagian jatuh di balik meja Inventaris, karena jendela berada di ujung dinding yang padat perabot.
+- **Isi rak** masih bergambar buku, bukan barang dagangan seperti di prompt HD-2D. Itu bagian sprite rak yang sudah ada dan tidak diubah di tahap ini.
+- **Riwayat kerja:** saat membandingkan ukuran, `git checkout` sempat mengembalikan `iso.ts` ke versi commit. Perubahannya dipulihkan dan dicek ulang.
+
+### Saran untuk tahap berikutnya
+
+- **Pemilik mencoba di browsernya:** FPS di DevTools Performance (siang dan malam), di layar 1366 × 768 dengan skala 125% bila ada. Setelah setuju: commit (tanpa Co-Authored-By) dan push.
+- **Bila ingin dipoles lagi** (Sonnet, upaya sedang): isi rak menjadi barang dagangan dan jendela kedua agar sinar matahari jatuh di area lebih lapang. Perlu persetujuan, karena mengubah sprite dan denah.
+
+---
+
 ## Tahap 10: REST API kasir dan stok, checkout all-or-nothing (24 Nov 2026)
 
 Status: **selesai, hasil dan dokumen menunggu persetujuan pemilik, belum di-commit.**

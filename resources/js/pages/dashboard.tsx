@@ -122,7 +122,8 @@ export default function Dashboard(props: Props) {
                     ]}
                 />
 
-                <div className="pointer-events-none absolute inset-y-0 left-0 flex flex-col gap-5 p-4">
+                <div className="pointer-events-none absolute inset-y-0 left-0 flex flex-col gap-5 p-4 [@media(max-height:680px)]:gap-3">
+                    {/* Layar pendek (1093 × 614 di skala Windows 125%): jarak lebih rapat, menu tetap utuh. */}
                     <div className="pointer-events-auto">
                         <TodayCard today={today} />
                     </div>

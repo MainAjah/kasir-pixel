@@ -80,7 +80,10 @@ const SHORTCUTS: MenuItem[] = [
     },
 ];
 
-const BUTTON = `${PIXEL_FRAME} flex size-12 items-center justify-center transition-transform hover:bg-[#ffe9a8] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#6a9fc4] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_#2b2a33]`;
+// Layar pendek (misalnya 1366 × 768 dengan skala Windows 125% = 1093 × 614):
+// tombol 40 px dan jarak lebih rapat supaya menu tidak terpotong di bawah.
+// Kelas ditulis utuh supaya terbaca pemindai Tailwind.
+const BUTTON = `${PIXEL_FRAME} flex size-12 [@media(max-height:680px)]:size-10 items-center justify-center transition-transform hover:bg-[#ffe9a8] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-[#6a9fc4] active:translate-x-[2px] active:translate-y-[2px] active:shadow-[1px_1px_0_#2b2a33]`;
 
 function MenuButton({ item }: { item: MenuItem }) {
     return (
@@ -118,13 +121,18 @@ export default function SideMenu() {
     const shortcuts = SHORTCUTS.filter(can);
 
     return (
-        <nav aria-label="Menu Beranda" className="flex flex-col gap-3">
+        <nav
+            aria-label="Menu Beranda"
+            className="flex flex-col gap-3 [@media(max-height:680px)]:gap-2"
+        >
             {main.map((item) => (
                 <MenuButton key={item.icon} item={item} />
             ))}
 
             {shortcuts.length > 0 && (
-                <div className="my-1 h-[3px] w-12 bg-[#2b2a33]/40" />
+                <div
+                    className="my-1 h-[3px] w-12 bg-[#2b2a33]/40 [@media(max-height:680px)]:w-10"
+                />
             )}
 
             {shortcuts.map((item) => (
