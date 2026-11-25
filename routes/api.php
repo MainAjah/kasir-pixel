@@ -2,6 +2,8 @@
 
 use App\Http\Controllers\Api\CartController;
 use App\Http\Controllers\Api\ProductController;
+use App\Http\Controllers\Api\Reports\InventoryReportController;
+use App\Http\Controllers\Api\Reports\SalesReportController;
 use App\Http\Controllers\Api\SaleController;
 use App\Http\Controllers\Api\StockMovementController;
 use App\Http\Controllers\Api\TokenController;
@@ -41,6 +43,12 @@ Route::prefix('v1')->name('api.')->group(function () {
             Route::get('produk/{product}/mutasi', [StockMovementController::class, 'index'])
                 ->whereNumber('product')
                 ->name('products.movements');
+
+            // Tahap 11A: laporan penjualan dan inventaris (hanya membaca) beserta CSV.
+            Route::get('laporan/penjualan', [SalesReportController::class, 'index'])->name('reports.sales');
+            Route::get('laporan/penjualan.csv', [SalesReportController::class, 'csv'])->name('reports.sales.csv');
+            Route::get('laporan/inventaris', [InventoryReportController::class, 'index'])->name('reports.inventory');
+            Route::get('laporan/inventaris.csv', [InventoryReportController::class, 'csv'])->name('reports.inventory.csv');
         });
     });
 });

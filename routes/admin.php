@@ -19,9 +19,8 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::get('hak-akses', [AccessController::class, 'index'])->name('access.index');
     Route::put('hak-akses/pengguna/{user}', [AccessController::class, 'update'])->name('access.update');
 
-    // Tahap 6C: laporan penjualan dan inventaris, hanya membaca.
+    // Tahap 6C: laporan penjualan dan inventaris. Sejak Tahap 11A hanya kerangka
+    // halaman; data dan CSV lewat REST API (/api/v1/laporan/...).
     Route::get('laporan/penjualan', [SalesReportController::class, 'index'])->name('reports.sales');
-    Route::get('laporan/penjualan/csv', [SalesReportController::class, 'csv'])->name('reports.sales.csv');
     Route::get('laporan/inventaris', [InventoryReportController::class, 'index'])->name('reports.inventory');
-    Route::get('laporan/inventaris/csv', [InventoryReportController::class, 'csv'])->name('reports.inventory.csv');
 });

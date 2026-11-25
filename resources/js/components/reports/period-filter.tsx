@@ -30,7 +30,7 @@ const PRESETS = [
 type Props = {
     /** Alamat halaman laporan (tanpa query). */
     url: string;
-    /** Alamat ekspor CSV (tanpa query). */
+    /** Alamat ekspor CSV di REST API (tanpa query). */
     csvUrl: string;
     filters: ReportFilters;
     cashiers?: { id: number; name: string }[];
@@ -59,8 +59,23 @@ export function filterQuery(f: {
 }
 
 /**
+ * Filter dari query alamat halaman, dipakai selama data API belum ada
+ * (mis. tautan langsung dengan rentang yang ditolak 422).
+ */
+export function filtersFromQuery(q: Record<string, string>): ReportFilters {
+    return {
+        preset: q.periode ?? 'hari-ini',
+        from: q.dari ?? '',
+        to: q.sampai ?? '',
+        kasir: q.kasir ? Number(q.kasir) : null,
+    };
+}
+
+/**
  * Filter periode laporan (Tahap 6C): Hari ini, 7 hari, Bulan ini, atau rentang
  * bebas; pilihan kasir (opsional); dan tombol Ekspor CSV dengan filter yang sama.
+ * Sejak Tahap 11A filter hanya mengganti query alamat halaman (kerangka
+ * Inertia); halaman lalu membaca ulang datanya dari REST API.
  */
 export default function PeriodFilter({
     url,

@@ -152,18 +152,25 @@ test('identitas saldo awal + mutasi = saldo akhir berlaku untuk semua produk dan
     }
 });
 
-// --- Halaman dan CSV -------------------------------------------------------------
+// --- REST API, halaman, dan CSV (Tahap 11A) --------------------------------------
 
-test('admin membuka laporan inventaris', function () {
+test('admin mengambil laporan inventaris lewat REST API', function () {
     produkInventaris('Mi instan', 5, 10);
 
     $this->actingAs($this->admin)
-        ->get(route('reports.inventory', ['periode' => '7-hari']))
+        ->getJson(route('api.reports.inventory', ['periode' => '7-hari']))
+        ->assertOk()
+        ->assertJsonPath('data.filters.preset', '7-hari')
+        ->assertJsonPath('data.report.summary.low', 1);
+});
+
+test('halaman laporan inventaris hanya kerangka: datanya dari REST API', function () {
+    $this->actingAs($this->admin)
+        ->get(route('reports.inventory'))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('laporan/inventaris')
-            ->where('filters.preset', '7-hari')
-            ->where('report.summary.low', 1));
+            ->missing('report'));
 });
 
 test('CSV inventaris: tajuk, satu baris per produk aktif, pengaman rumus pada teks', function () {
@@ -171,7 +178,7 @@ test('CSV inventaris: tajuk, satu baris per produk aktif, pengaman rumus pada te
     $aneh->update(['sku' => '+62-001']);
     produkInventaris('Mi instan', 0, 5);
 
-    $csv = $this->actingAs($this->admin)->get(route('reports.inventory.csv'))->streamedContent();
+    $csv = $this->actingAs($this->admin)->get(route('api.reports.inventory.csv'))->streamedContent();
     $rows = array_map(
         fn ($l) => str_getcsv($l, ';', '"', ''),
         array_values(array_filter(explode("\n", substr($csv, 3)))),

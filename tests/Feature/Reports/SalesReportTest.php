@@ -157,40 +157,49 @@ test('kartu Hari Ini di Beranda sama dengan laporan "hari ini"', function () {
         ->and($today['sales_count'])->toBe($summary['count'])
         ->and($today['low_stock'])->toBe(app(InventoryReport::class)->lowStockCount());
 
-    // Lewat HTTP pun sama: properti Beranda = properti halaman laporan.
+    // Lewat HTTP pun sama: properti Beranda = isi REST API laporan (Tahap 11A).
     $beranda = $this->actingAs($this->admin)->get(route('dashboard'))->viewData('page')['props']['today'];
-    $halaman = $this->actingAs($this->admin)->get(route('reports.sales'))->viewData('page')['props']['report']['summary'];
+    $halaman = $this->actingAs($this->admin)->getJson(route('api.reports.sales'))->json('data.report.summary');
 
     expect($beranda['sales_total'])->toBe($halaman['total'])
         ->and($beranda['sales_count'])->toBe($halaman['count']);
 });
 
-// --- Halaman, filter, CSV ---------------------------------------------------------
+// --- REST API, filter, CSV (Tahap 11A) ----------------------------------------------
 
-test('admin membuka laporan penjualan dengan filter', function () {
+test('admin mengambil laporan penjualan lewat REST API dengan filter', function () {
     jualLaporan($this->kasir, [[$this->mie, 1]]);
 
     $this->actingAs($this->admin)
-        ->get(route('reports.sales', ['periode' => 'bulan-ini', 'kasir' => $this->kasir->id]))
+        ->getJson(route('api.reports.sales', ['periode' => 'bulan-ini', 'kasir' => $this->kasir->id]))
+        ->assertOk()
+        ->assertJsonPath('data.filters.preset', 'bulan-ini')
+        ->assertJsonPath('data.filters.kasir', $this->kasir->id)
+        ->assertJsonPath('data.report.summary.total', 3000)
+        ->assertJsonCount(1, 'data.cashiers');
+});
+
+test('halaman laporan penjualan hanya kerangka: datanya dari REST API', function () {
+    $this->actingAs($this->admin)
+        ->get(route('reports.sales', ['periode' => 'bulan-ini']))
         ->assertOk()
         ->assertInertia(fn (Assert $page) => $page
             ->component('laporan/penjualan')
-            ->where('filters.preset', 'bulan-ini')
-            ->where('filters.kasir', $this->kasir->id)
-            ->where('report.summary.total', 3000)
-            ->has('cashiers', 1));
+            ->missing('report')
+            ->missing('filters'));
 });
 
-test('rentang bebas divalidasi', function () {
+test('rentang bebas divalidasi (422 JSON)', function () {
     $today = now(config('app.display_timezone'))->format('Y-m-d');
     $tomorrow = now(config('app.display_timezone'))->addDay()->format('Y-m-d');
+    $get = fn (array $q) => $this->getJson(route('api.reports.sales', $q));
 
     $this->actingAs($this->admin);
-    $this->get(route('reports.sales', ['periode' => 'rentang']))->assertSessionHasErrors(['dari', 'sampai']);
-    $this->get(route('reports.sales', ['periode' => 'rentang', 'dari' => $today, 'sampai' => '2020-01-01']))->assertSessionHasErrors('sampai');
-    $this->get(route('reports.sales', ['periode' => 'rentang', 'dari' => $today, 'sampai' => $tomorrow]))->assertSessionHasErrors('sampai');
-    $this->get(route('reports.sales', ['periode' => 'rentang', 'dari' => '2024-01-01', 'sampai' => $today]))->assertSessionHasErrors('sampai');
-    $this->get(route('reports.sales', ['periode' => 'tahunan']))->assertSessionHasErrors('periode');
+    $get(['periode' => 'rentang'])->assertUnprocessable()->assertJsonValidationErrors(['dari', 'sampai']);
+    $get(['periode' => 'rentang', 'dari' => $today, 'sampai' => '2020-01-01'])->assertJsonValidationErrors('sampai');
+    $get(['periode' => 'rentang', 'dari' => $today, 'sampai' => $tomorrow])->assertJsonValidationErrors('sampai');
+    $get(['periode' => 'rentang', 'dari' => '2024-01-01', 'sampai' => $today])->assertJsonValidationErrors('sampai');
+    $get(['periode' => 'tahunan'])->assertJsonValidationErrors('periode');
 });
 
 test('CSV penjualan: pemisah titik koma, satu baris per penjualan, total Selesai = total laporan', function () {
@@ -199,7 +208,7 @@ test('CSV penjualan: pemisah titik koma, satu baris per penjualan, total Selesai
     $batal = jualLaporan($this->kasir, [[$this->mie, 3]]);
     app(VoidSale::class)->handle($batal, $this->admin, 'salah input');
 
-    $response = $this->actingAs($this->admin)->get(route('reports.sales.csv', ['periode' => 'hari-ini']));
+    $response = $this->actingAs($this->admin)->get(route('api.reports.sales.csv', ['periode' => 'hari-ini']));
     $response->assertOk()->assertHeader('content-type', 'text/csv; charset=UTF-8');
 
     $csv = $response->streamedContent();
@@ -226,7 +235,7 @@ test('CSV penjualan menetralkan teks yang bisa dibaca sebagai rumus', function (
     $batal = jualLaporan($kasirAneh, [[$this->mie, 1]]);
     app(VoidSale::class)->handle($batal, $this->admin, '=HYPERLINK("x")');
 
-    $csv = $this->actingAs($this->admin)->get(route('reports.sales.csv'))->streamedContent();
+    $csv = $this->actingAs($this->admin)->get(route('api.reports.sales.csv'))->streamedContent();
 
     expect($csv)->toContain(";'@kasir;")
         ->and($csv)->toContain("'=HYPERLINK(\"\"x\"\")");
@@ -234,20 +243,29 @@ test('CSV penjualan menetralkan teks yang bisa dibaca sebagai rumus', function (
 
 // --- Akses ---------------------------------------------------------------------
 
-test('kasir dan bendahara mendapat 403 di semua rute laporan, tamu diminta masuk', function () {
-    $routes = ['reports.sales', 'reports.sales.csv', 'reports.inventory', 'reports.inventory.csv'];
+test('kasir dan bendahara mendapat 403 di halaman dan REST API laporan, tamu ditolak', function () {
+    $pages = ['reports.sales', 'reports.inventory'];
+    $api = ['api.reports.sales', 'api.reports.sales.csv', 'api.reports.inventory', 'api.reports.inventory.csv'];
 
     foreach (['kasir', 'bendahara'] as $role) {
         $user = User::factory()->create()->assignRole($role);
 
-        foreach ($routes as $name) {
+        foreach ($pages as $name) {
             $this->actingAs($user)->get(route($name))->assertForbidden();
+        }
+
+        foreach ($api as $name) {
+            $this->actingAs($user)->getJson(route($name))->assertForbidden();
         }
     }
 
-    auth()->logout();
+    app('auth')->forgetGuards();
 
-    foreach ($routes as $name) {
+    foreach ($pages as $name) {
         $this->get(route($name))->assertRedirect(route('login'));
+    }
+
+    foreach ($api as $name) {
+        $this->getJson(route($name))->assertUnauthorized();
     }
 });

@@ -2,34 +2,21 @@
 
 namespace App\Http\Controllers\Reports;
 
-use App\Actions\Reports\SalesReport;
 use App\Http\Controllers\Controller;
-use App\Http\Requests\Reports\ReportRequest;
-use App\Support\CsvWriter;
 use Inertia\Inertia;
 use Inertia\Response;
-use Symfony\Component\HttpFoundation\StreamedResponse;
 
-/** Laporan penjualan (Tahap 6C): hanya admin, dijaga rute `role:admin`. */
+/**
+ * Halaman laporan penjualan (admin, dijaga rute `role:admin`).
+ *
+ * Tahap 11A: hanya kerangka halaman. Datanya diambil halaman dari REST API
+ * (`GET /api/v1/laporan/penjualan`, lihat Api\Reports\SalesReportController),
+ * dengan filter dari query string alamat halaman ini.
+ */
 class SalesReportController extends Controller
 {
-    public function index(ReportRequest $request, SalesReport $report): Response
+    public function index(): Response
     {
-        $period = $request->period();
-        $cashierId = $request->cashierId();
-
-        return Inertia::render('laporan/penjualan', [
-            'filters' => $period->toArray() + ['kasir' => $cashierId],
-            'cashiers' => $report->cashierOptions(),
-            'report' => $report->handle($period, $cashierId),
-        ]);
-    }
-
-    public function csv(ReportRequest $request, SalesReport $report): StreamedResponse
-    {
-        $period = $request->period();
-        $name = 'laporan-penjualan-'.$period->start->format('Ymd').'-'.$period->end->format('Ymd').'.csv';
-
-        return CsvWriter::download($name, SalesReport::csvHeader(), $report->csvRows($period, $request->cashierId()));
+        return Inertia::render('laporan/penjualan');
     }
 }
