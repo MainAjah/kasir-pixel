@@ -53,7 +53,7 @@ function normalize(v: Vec3): Vec3 {
  * atas, kanan bawah, kiri bawah. `region` (texel, opsional) memilih sebagian
  * bingkai. Urutan segitiga dibalik otomatis bila normalnya tidak searah `facing`.
  */
-function quad(
+export function quad(
     out: MeshArrays,
     corners: readonly [Vec3, Vec3, Vec3, Vec3],
     frame: AtlasFrame,

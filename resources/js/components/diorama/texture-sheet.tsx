@@ -1,6 +1,12 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { AtlasEntry } from '@/diorama/assets/atlas';
-import { storeEntries } from '@/diorama/assets/procedural-source';
+import {
+    A2_DECOR,
+    A2_FURNITURE,
+    furnitureEntries,
+    storeEntries,
+} from '@/diorama/assets/procedural-source';
+import { shelfFills } from '@/diorama/engine/shelves';
 import { STORE_SCENE } from '@/diorama/scenes/store-scene';
 import { paintMatrix } from '@/diorama/sprites/sprite-cache';
 import { WORLD } from '@/diorama/three/palette-world';
@@ -15,8 +21,22 @@ const LABELS: Record<string, string> = {
     'tex/dinding/kanan-tutup': 'Tutup dinding kanan',
     'tex/alas/depan-kiri': 'Alas bata, muka depan kiri',
     'tex/alas/depan-kanan': 'Alas bata, muka depan kanan',
-    'contoh/marmer': 'Marmer (permukaan meja, langkah a2)',
-    'contoh/daun': 'Daun (tanaman pot, langkah a2)',
+    'contoh/marmer': 'Marmer (contoh)',
+    'contoh/daun': 'Daun (contoh)',
+    'tex/perabot/rak-a/depan':
+        'Rak A, muka depan (isi: penuh, setengah, sedikit, penuh, kosong)',
+    'tex/perabot/rak-a/kanan': 'Rak A, sisi',
+    'tex/perabot/rak-a/atas': 'Rak A, papan atas',
+    'tex/perabot/kasir-1/depan': 'Meja kasir, depan',
+    'tex/perabot/kasir-1/kanan': 'Meja kasir, sisi',
+    'tex/perabot/kasir-1/atas': 'Meja kasir, permukaan marmer',
+    'tex/perabot/vending-merah/depan': 'Kulkas, depan (isi setengah)',
+    'tex/perabot/vending-merah/kanan': 'Kulkas, sisi',
+    'tex/perabot/vending-merah/atas': 'Kulkas, tutup',
+    'tex/perabot/tanaman-1/depan': 'Pot, sisi',
+    'tex/perabot/tanaman-1/kanan': 'Pot, sisi kanan',
+    'tex/perabot/tanaman-1/atas': 'Pot, atas',
+    'tex/hiasan/lampu-kanan': 'Lampu dinding (gambar 5C, mati)',
 };
 
 function Swatch({ entry, scale }: { entry: AtlasEntry; scale: number }) {
@@ -57,7 +77,30 @@ function Swatch({ entry, scale }: { entry: AtlasEntry; scale: number }) {
  * dikemas ke atlas, beserta palet dunia.
  */
 export default function TextureSheet({ scale = 4 }: { scale?: number }) {
-    const entries = useMemo(() => storeEntries(STORE_SCENE), []);
+    const entries = useMemo(
+        () => [
+            ...storeEntries(STORE_SCENE),
+            ...furnitureEntries(
+                STORE_SCENE,
+                A2_FURNITURE,
+                A2_DECOR,
+                shelfFills(
+                    {
+                        rak: [
+                            'penuh',
+                            'setengah',
+                            'sedikit',
+                            'penuh',
+                            'kosong',
+                        ],
+                        vending: ['setengah'],
+                    },
+                    STORE_SCENE,
+                ),
+            ),
+        ],
+        [],
+    );
 
     return (
         <div className="space-y-6">

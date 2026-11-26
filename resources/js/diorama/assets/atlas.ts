@@ -186,6 +186,42 @@ export function rasterizeAtlas(
 }
 
 /**
+ * Satu bingkai beserta padding-nya sebagai larik RGBA sendiri (untuk melukis
+ * ulang sebagian atlas, mis. rak saat isinya berubah). Piksel kosong transparan.
+ * Murni.
+ */
+export function rasterizeFrame(
+    entry: AtlasEntry,
+    padding: number,
+): { width: number; height: number; data: Uint8ClampedArray<ArrayBuffer> } {
+    const { width: w, height: h, pixels } = entry.matrix;
+    const width = w + padding * 2;
+    const height = h + padding * 2;
+    const data = new Uint8ClampedArray(width * height * 4);
+
+    for (let y = 0; y < height; y++) {
+        for (let x = 0; x < width; x++) {
+            const sx = Math.max(0, Math.min(w - 1, x - padding));
+            const sy = Math.max(0, Math.min(h - 1, y - padding));
+            const color = pixels[sy * w + sx];
+
+            if (!color) {
+                continue;
+            }
+
+            const i = (y * width + x) * 4;
+            const [r, g, b] = rgb(color);
+            data[i] = r;
+            data[i + 1] = g;
+            data[i + 2] = b;
+            data[i + 3] = 255;
+        }
+    }
+
+    return { width, height, data };
+}
+
+/**
  * Gabungan beberapa sumber aset dengan urutan prioritas: kunci dicari di sumber
  * pertama dulu (mis. paket berlisensi), lalu jatuh ke berikutnya (procedural).
  */

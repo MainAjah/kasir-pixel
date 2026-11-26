@@ -1,5 +1,103 @@
 # PROGRESS
 
+## Tahap 5H langkah a2: Perabot, lampu, zombie, dan satu pelanggan (26 Nov 2026)
+
+Status: **langkah a2 selesai dan disetujui pemilik (26 Nov 2026); di-commit di cabang `tahap-5h-diorama-3d` tanpa baris Co-Authored-By, belum di-push.** Keputusan sharp bilinear sebagai bawaan masih menunggu pemilik.
+
+### Yang sudah selesai (semua di `/diorama-3d-lab`)
+
+- **Perabot**: kotak bertekstur procedural, satu geometri dan satu draw call bersama balok toko. Posisi dan tinggi dari denah yang tidak berubah.
+  - **Rak A**:
+    - badan walnut, lis kuningan, tiga tingkat papan, tiang di tiap potongan;
+    - **barang menurut `shelfFills`** (fungsi yang sama dengan Beranda). Isi tiap potongan menentukan barang mana yang tampil; letak barang tetap saat stok berubah;
+    - muka depan rak dan kulkas dilukis ulang di atlas saat isinya berubah.
+  - **Meja kasir**: permukaan marmer bertepi gelap, badan walnut dengan panel cekung, lis kuningan, plint.
+  - **Kulkas**: badan krem enamel, tutup walnut, pintu kaca dengan empat rak dan botol menurut isi, gagang kuningan, kisi.
+  - **Tanaman pot**: pot terakota (kotak kecil) + rimbun daun procedural sebagai sprite.
+- **Lampu dinding kanan**: gambar lampu 5C yang sudah disetujui (`lampMatrix(false)`, mati, palet 24) ditempel di dinding seperti di Canvas (1 kolom gambar = 1 piksel layar).
+- **Zombie** berdiri diam di tempat penjaga, di balik meja, dengan gerak "diam" yang sudah ada.
+- **Satu pelanggan** dari `DioramaWorld` yang sama dengan Beranda: `stagePretend('pembeli')`, hanya animasi tanpa data.
+  - Ia masuk, mengambil barang, antre, dilayani, lalu pergi; setelah toko kosong 1,5 detik, pembeli berikutnya masuk.
+  - Logika jalan dan antrean tidak disentuh. Karakter, aksi, dan arah memakai `customerCharacter`, `headingOf`, `customerAction` yang sama dengan Canvas.
+- **Atlas karakter**: bingkai dibuat saat pertama dibutuhkan (kanvas 1024², penempatan bertahap, diunggah sekali per bingkai bila ada yang baru).
+- **Billboard 1 piksel gambar = 1 piksel dalam** (`three/sprite-quad.ts`):
+  - **tanpa resample dan tanpa diskala menurut jarak**;
+  - **titik pijak dibulatkan** ke sudut piksel; piksel kaki diletakkan seperti `drawImage(x − footX, y − footY)` di Canvas;
+  - **kedalaman seluruh sprite = titik pijaknya** (digeser 0,05 ubin ke arah kamera supaya kaki menang dari lantai), jadi zombie tertutup meja dengan benar;
+  - semua sprite dalam **satu draw call**;
+  - memudar di ambang pintu memakai dither Bayer, seperti alfa di Canvas.
+- **Sakelar perbesaran skala pecahan** di lab:
+  - **nearest murni**, atau
+  - **sharp bilinear**: nearest sampai kelipatan bulat di atas skala (×2 untuk 1,53), lalu linear turun ke skala sebenarnya, sehingga hanya batas antartexel yang dicampur, paling lebar 1 piksel.
+  - Pada skala bulat keduanya identik.
+- **Lembar tekstur 4×** kini juga berisi semua tekstur perabot dan lampu.
+
+### Hasil penilaian di browser
+
+- **Tangkapan layar:** `docs/referensi-diorama/5h-a2/`.
+  - Panel pratinjau memotong tangkapan saat ukuran diemulasikan, jadi gambar ikhtisar diambil dari isi kanvas.
+- **1920 × 1080** (skala Windows 125%): ×2 bulat, gambar dalam 960 × 540.
+  - **3 draw call** (balok + perabot, sprite, perbesaran), 265 segitiga;
+  - 3 sprite; 19 bingkai di atlas karakter setelah beberapa pelanggan.
+- **1366 × 768:** ×1,53 pecahan, gambar dalam 896 × 503.
+  - **Nearest vs sharp bilinear: sharp bilinear lebih rapi.**
+    - Dengan nearest, lebar piksel bergantian 1 dan 2 piksel layar, sehingga tangga garis papan tidak rata dan lis kuningan rak tampak putus-putus.
+    - Dengan sharp bilinear, tangga rata dan garis menyambung. Harganya tepi sedikit lebih lembut (campuran 1 piksel).
+  - Usul: sharp bilinear menjadi bawaan untuk skala pecahan.
+- **Keserasian karakter (penilaian saya):**
+  - **Kepadatan piksel serasi.** Satu piksel karakter sama tinggi dengan satu texel dunia, dicek pada perbesaran 3–5×. Karakter tajam dan proporsinya terhadap meja dan rak sama dengan Canvas.
+  - **Yang belum serasi: karakter tampak sedikit "ditempel".**
+    - Belum ada bayangan kontak di kaki, karena cahaya baru di a3.
+    - Pencahayaannya rata.
+    - Garis tepi gelap dan warna jenuhnya lebih menonjol dari dunia yang redup.
+  - Ini sesuai rencana untuk diselesaikan di a3 (bayangan kontak, bayangan panjang, rim, olah warna), bukan dengan mengubah gambar.
+- Konsol bersih. FPS tidak terukur di panel pratinjau (0–2 bingkai/detik karena diperlambat browser).
+
+### Pemeriksaan
+
+- Vitest **305** lulus; baru: `three/a2.test.ts`, 12 tes:
+  - tinggi perabot = denah;
+  - palet dunia, dan lampu memakai gambar 5C apa adanya;
+  - isi rak mengikuti stok dan letak barang tetap;
+  - ukuran bingkai isi tetap;
+  - kotak perabot dan muka menghadap kamera;
+  - lampu 1 kolom = 1 piksel;
+  - kotak sprite 1:1 dan kaki dibulatkan;
+  - pelanggan memakai karakter yang sama dengan Canvas;
+  - zombie;
+  - penempatan atlas.
+- Pest **429** lulus (`kasir_test`).
+- tsc dan Pint bersih; lint bersih (2 peringatan lama di `docs/referensi-karakter/alat`).
+- `npm run build`: potongan three **137,1 KB gzip**.
+- `vp fmt` hanya dijalankan pada berkas yang dibuat atau diubah.
+- **Tidak berubah:** Beranda, `DioramaCanvas`, `/diorama-lab`, dan sprite Canvas.
+
+### Batasan
+
+- Pelanggan kadang menuju Rak B atau dua kulkas lain yang belum digambar (perabot lengkap di langkah b). Ia juga masuk menembus dinding kiri karena pintu belum ada (langkah b).
+- Zombie selalu memakai gerak "diam", juga saat logika sedang melayani (sesuai permintaan a2). Gerak melayani yang sudah ada dipasang di langkah b.
+- Gerak karakter tetap "cara 1" yang sudah disetujui. Pergeseran dan regangan 1 piksel itu bagian dari animasi lama; renderer 3D sendiri tidak me-resample.
+- Lampu kecil (7 × 9) dan sebagian tertutup kulkas, sama dengan letaknya di Canvas.
+
+### Saran untuk langkah a3 (menunggu persetujuan a2)
+
+- **Model dan upaya:** Opus, upaya tinggi, sesi baru.
+- **Isi a3**, rantai cahaya sore sesuai rencana bagian 3:
+  - matahari rendah lewat jendela (jendela di dinding kanan, `jendela` tile 11);
+  - bayangan peta 1024 termasuk quad bayangan karakter yang menghadap matahari;
+  - bayangan kontak elips di kaki sprite;
+  - berkas sinar dan debu (debu mati bila `prefers-reduced-motion`);
+  - lampu dinding menyala dengan `PointLight` + halo;
+  - bloom, DOF/tilt-shift, kabut tipis, olah warna, vinyet, bayangan jatuh balok;
+  - HUD `?hud=1` dan penjaga performa;
+  - tombol "bandingkan dengan Canvas".
+  - Sprite diberi pencahayaan adegan dan rim keemasan di shader, tanpa mengubah gambar.
+- **Perlu keputusan pemilik sebelum a3:**
+  - sharp bilinear sebagai bawaan untuk skala pecahan (usul: ya);
+  - lensa perspektif atau ortografik tetap diputuskan setelah ada cahaya.
+
+---
+
 ## Tahap 5H langkah a1: Diorama 3D, fondasi dan balok toko (26 Nov 2026)
 
 Status: **langkah a1 selesai dan disetujui pemilik (26 Nov 2026); di-commit di cabang `tahap-5h-diorama-3d` tanpa baris Co-Authored-By, belum di-push.** Kemiringan bawaan 30° dan lantai 16 texel per ubin disetujui; alasannya dicatat di `docs/rencana-tahap-5h.md` bagian 1 dan 2.

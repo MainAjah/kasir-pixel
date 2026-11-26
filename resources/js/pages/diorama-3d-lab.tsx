@@ -1,5 +1,5 @@
 import { Head } from '@inertiajs/react';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
 import TextureSheet from '@/components/diorama/texture-sheet';
@@ -11,7 +11,10 @@ import {
     TAB_ACTIVE,
     TAB_IDLE,
 } from '@/components/pixel/styles';
-import type { Lens } from '@/diorama/three/webgl-view';
+import { shelfFills } from '@/diorama/engine/shelves';
+import { STORE_SCENE } from '@/diorama/scenes/store-scene';
+import type { RackFill } from '@/diorama/sprites/rack-sprite';
+import type { Lens, Upscale } from '@/diorama/three/webgl-view';
 import { cn } from '@/lib/utils';
 import { lab3d } from '@/routes/diorama';
 
@@ -20,6 +23,34 @@ const LENSES: { value: Lens; label: string }[] = [
     { value: 'perspektif', label: 'Perspektif 10°' },
     { value: 'ortografik', label: 'Ortografik' },
 ];
+const UPSCALES: { value: Upscale; label: string }[] = [
+    { value: 'nearest', label: 'Nearest murni' },
+    { value: 'sharp', label: 'Sharp bilinear' },
+];
+
+/** Isi rak contoh untuk lab (bukan data stok; lab tidak membaca data). */
+const FILL_PATTERNS: Record<string, readonly RackFill[]> = {
+    kosong: ['kosong'],
+    sedikit: ['sedikit'],
+    setengah: ['setengah'],
+    penuh: ['penuh'],
+    campur: ['penuh', 'setengah', 'sedikit', 'penuh', 'kosong'],
+};
+const FILL_CHOICES = [
+    { value: 'campur', label: 'Campur' },
+    { value: 'kosong', label: 'Kosong' },
+    { value: 'sedikit', label: 'Sedikit' },
+    { value: 'setengah', label: 'Setengah' },
+    { value: 'penuh', label: 'Penuh' },
+];
+
+function sampleFills(pattern: string) {
+    const levels = FILL_PATTERNS[pattern] ?? FILL_PATTERNS.campur;
+    const repeat = (n: number) =>
+        Array.from({ length: n }, (_, i) => levels[i % levels.length]);
+
+    return shelfFills({ rak: repeat(10), vending: repeat(3) }, STORE_SCENE);
+}
 
 function Choice<T extends string | number>({
     label,
@@ -69,14 +100,19 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
 }
 
 /**
- * Lab diorama 3D (Tahap 5H langkah a1, hanya admin). Prototipe terpisah dari
- * Beranda dan /diorama-lab: balok toko dengan tekstur procedural, kamera miring
- * dengan geser kursor, dan lembar tekstur 4×. Belum ada efek cahaya dan aktor.
+ * Lab diorama 3D (Tahap 5H, hanya admin). Prototipe terpisah dari Beranda dan
+ * /diorama-lab. Langkah a1: balok toko, kamera miring dengan geser kursor,
+ * lembar tekstur 4×. Langkah a2: perabot, lampu dinding, zombie diam, satu
+ * pelanggan berjalan dari logika diorama yang ada, dan pilihan cara perbesaran
+ * untuk skala pecahan. Belum ada efek cahaya.
  */
 export default function Diorama3dLab() {
     const [pitch, setPitch] = useState<number>(30);
     const [lens, setLens] = useState<Lens>('perspektif');
     const [drift, setDrift] = useState(true);
+    const [upscale, setUpscale] = useState<Upscale>('nearest');
+    const [fillPattern, setFillPattern] = useState('campur');
+    const fills = useMemo(() => sampleFills(fillPattern), [fillPattern]);
     const [full, setFull] = useState(false);
     const [stats, setStats] = useState<StageStats | null>(null);
     const onStats = useCallback((s: StageStats) => setStats(s), []);
@@ -106,6 +142,8 @@ export default function Diorama3dLab() {
             pitchDeg={pitch}
             lens={lens}
             drift={drift}
+            upscale={upscale}
+            fills={fills}
             onStats={onStats}
             className="size-full bg-[#17213a]"
         />
@@ -117,10 +155,12 @@ export default function Diorama3dLab() {
 
             <div className="space-y-6 p-4">
                 <p className="max-w-prose text-sm text-px-bayangan">
-                    Prototipe Tahap 5H langkah a1: balok toko 3D dengan tekstur
-                    buatan kode, tanpa efek cahaya dan tanpa aktor. Gerakkan
-                    kursor di atas diorama untuk melihat geser kamera. Mode
-                    layar penuh menunjukkan ukuran seperti di Beranda.
+                    Prototipe Tahap 5H langkah a2: balok toko 3D dengan rak,
+                    meja kasir, kulkas, tanaman, lampu dinding, zombie penjaga,
+                    dan satu pembeli pura-pura (hanya animasi, tanpa data).
+                    Belum ada efek cahaya. Mode layar penuh menunjukkan ukuran
+                    seperti di Beranda; cara perbesaran hanya berpengaruh bila
+                    skalanya pecahan.
                 </p>
 
                 <div className="flex flex-wrap items-end gap-6">
@@ -147,6 +187,18 @@ export default function Diorama3dLab() {
                         ]}
                         value={drift ? 'nyala' : 'mati'}
                         onChange={(v) => setDrift(v === 'nyala')}
+                    />
+                    <Choice
+                        label="Perbesaran skala pecahan"
+                        options={UPSCALES}
+                        value={upscale}
+                        onChange={setUpscale}
+                    />
+                    <Choice
+                        label="Isi rak dan kulkas (contoh)"
+                        options={FILL_CHOICES}
+                        value={fillPattern}
+                        onChange={setFillPattern}
                     />
                     <button
                         type="button"
@@ -186,7 +238,11 @@ export default function Diorama3dLab() {
                     <dl className="grid max-w-4xl grid-cols-2 gap-4 sm:grid-cols-4">
                         <Stat label="Skala tampilan">
                             ×{stats.scale.toFixed(2)}{' '}
-                            {stats.integer ? '(bulat)' : '(pecahan)'}
+                            {stats.integer
+                                ? '(bulat)'
+                                : stats.upscale === 'sharp'
+                                  ? `(pecahan, sharp ×${stats.prescale})`
+                                  : '(pecahan, nearest)'}
                         </Stat>
                         <Stat label="Gambar dalam">
                             {stats.internal[0]} × {stats.internal[1]}
@@ -199,6 +255,9 @@ export default function Diorama3dLab() {
                         <Stat label="Segitiga">{stats.triangles}</Stat>
                         <Stat label="Geometri, tekstur di GPU">
                             {stats.geometries}, {stats.textures}
+                        </Stat>
+                        <Stat label="Sprite, bingkai di atlas karakter">
+                            {stats.sprites}, {stats.spriteFrames}
                         </Stat>
                         <Stat label="Geser kamera">
                             {stats.driftActive

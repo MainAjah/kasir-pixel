@@ -3,8 +3,23 @@
  * dengan benih tetap, dikemas ke satu atlas. Bagian `storeEntries` murni (bisa
  * dites di Node); `ProceduralSource.load` melukisnya ke kanvas di browser.
  */
-import type { StoreScene } from '../scenes/store-scene';
+import { fillKey } from '../engine/shelves';
+import type { ShelfFills } from '../engine/shelves';
+import type { Furniture, StoreScene } from '../scenes/store-scene';
+import { lampMatrix } from '../sprites/decor-sprite';
 import { BASE_TEXELS, brickTexture } from './procedural/brick';
+import {
+    counterBodyTexture,
+    counterTopTexture,
+    fridgeFrontTexture,
+    fridgeSideTexture,
+    fridgeTopTexture,
+    potSideTexture,
+    potTopTexture,
+    rackEndTexture,
+    rackFrontTexture,
+    rackTopTexture,
+} from './procedural/furniture';
 import { leafTexture } from './procedural/leaf';
 import { marbleTexture } from './procedural/marble';
 import {
@@ -98,16 +113,163 @@ export function storeEntries(
 /** Tinggi tekstur tegak, dipakai pengecekan ukuran. */
 export const VERTICAL_TEXELS = { dinding: WALL_TEXELS, alas: BASE_TEXELS };
 
+// ---- Perabot dan hiasan (Tahap 5H langkah a2) --------------------------------
+
+export type FurnitureFace = 'depan' | 'kanan' | 'atas';
+
+/** Kunci tekstur satu muka perabot: depan (+z), kanan (+x), atas (+y). */
+export function furnitureKey(id: string, face: FurnitureFace): string {
+    return `tex/perabot/${id}/${face}`;
+}
+
+/** Kunci tekstur hiasan dinding (mis. `lampu-kanan`). */
+export function decorKey(key: string): string {
+    return `tex/hiasan/${key}`;
+}
+
+/** Perabot yang digambar di langkah a2 (sisanya di langkah b). */
+export const A2_FURNITURE: readonly string[] = [
+    'rak-a',
+    'kasir-1',
+    'vending-merah',
+    'tanaman-1',
+];
+
+/** Hiasan dinding yang digambar di langkah a2. */
+export const A2_DECOR: readonly string[] = ['lampu-kanan'];
+
+function furnitureSeed(seed: number, id: string): number {
+    let h = seed;
+
+    for (let i = 0; i < id.length; i++) {
+        h = (Math.imul(h, 31) + id.charCodeAt(i)) | 0;
+    }
+
+    return h >>> 0;
+}
+
+function pickFurniture(scene: StoreScene, ids: readonly string[]): Furniture[] {
+    return scene.furniture.filter((f) => ids.includes(f.id));
+}
+
+/**
+ * Bingkai perabot yang isinya mengikuti stok: muka depan rak (isi tiap
+ * potongan) dan muka depan kulkas. Dilukis ulang saat isi berubah. Murni.
+ */
+export function fillEntries(
+    scene: StoreScene,
+    ids: readonly string[],
+    fills: ShelfFills,
+    seed = SEED,
+): AtlasEntry[] {
+    const entries: AtlasEntry[] = [];
+
+    for (const item of pickFurniture(scene, ids)) {
+        const s = furnitureSeed(seed, item.id);
+
+        if (item.kind === 'rak') {
+            const slices = Array.from(
+                { length: item.w },
+                (_, i) => fills[fillKey(item.id, i)] ?? 'kosong',
+            );
+            entries.push({
+                key: furnitureKey(item.id, 'depan'),
+                matrix: rackFrontTexture(slices, s),
+            });
+        } else if (item.kind === 'vending') {
+            entries.push({
+                key: furnitureKey(item.id, 'depan'),
+                matrix: fridgeFrontTexture(
+                    fills[fillKey(item.id, 0)] ?? 'kosong',
+                    s,
+                ),
+            });
+        }
+    }
+
+    return entries;
+}
+
+/** Semua bingkai perabot `ids` dan hiasan `decor`, isi rak menurut `fills`. Murni. */
+export function furnitureEntries(
+    scene: StoreScene,
+    ids: readonly string[],
+    decor: readonly string[],
+    fills: ShelfFills = {},
+    seed = SEED,
+): AtlasEntry[] {
+    const entries = fillEntries(scene, ids, fills, seed);
+
+    for (const item of pickFurniture(scene, ids)) {
+        const s = furnitureSeed(seed, item.id);
+        const w = item.w * T;
+        const d = item.h * T;
+        const add = (face: FurnitureFace, matrix: AtlasEntry['matrix']) =>
+            entries.push({ key: furnitureKey(item.id, face), matrix });
+
+        switch (item.kind) {
+            case 'rak':
+                add('kanan', rackEndTexture(d));
+                add('atas', rackTopTexture(w, d, s + 1));
+                break;
+            case 'meja_kasir':
+                add('depan', counterBodyTexture(w));
+                add('kanan', counterBodyTexture(d));
+                add('atas', counterTopTexture(w, d, s + 1));
+                break;
+            case 'vending':
+                add('kanan', fridgeSideTexture(d));
+                add('atas', fridgeTopTexture(s + 1));
+                break;
+            case 'tanaman':
+                add('depan', potSideTexture());
+                add('kanan', potSideTexture());
+                add('atas', potTopTexture());
+                break;
+            default:
+                break;
+        }
+    }
+
+    for (const key of decor) {
+        if (key.startsWith('lampu-')) {
+            // Lampu dinding yang sudah disetujui (5C), mati; menyala di a3.
+            entries.push({ key: decorKey(key), matrix: lampMatrix(false) });
+        }
+    }
+
+    return entries;
+}
+
+export type ProceduralOptions = {
+    furniture?: readonly string[];
+    decor?: readonly string[];
+    fills?: ShelfFills;
+    seed?: number;
+};
+
 export class ProceduralSource implements AssetSource {
     readonly id = 'procedural';
+    private readonly seed: number;
 
     constructor(
-        private readonly scene: Pick<StoreScene, 'width' | 'height'>,
-        private readonly seed = SEED,
-    ) {}
+        private readonly scene: StoreScene,
+        private readonly options: ProceduralOptions = {},
+    ) {
+        this.seed = options.seed ?? SEED;
+    }
 
     async load(): Promise<AtlasPack> {
-        const entries = storeEntries(this.scene, this.seed);
+        const entries = [
+            ...storeEntries(this.scene, this.seed),
+            ...furnitureEntries(
+                this.scene,
+                this.options.furniture ?? [],
+                this.options.decor ?? [],
+                this.options.fills ?? {},
+                this.seed,
+            ),
+        ];
         const layout = packAtlas(
             entries.map((e) => ({
                 key: e.key,

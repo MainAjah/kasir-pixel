@@ -1,19 +1,24 @@
 /**
- * Tampilan WebGL diorama (Tahap 5H langkah a1) dengan three.js.
+ * Tampilan WebGL diorama (Tahap 5H) dengan three.js.
  *
  * Pipa: adegan dirender ke target kecil (resolusi dalam, 1 texel ≈ 1 piksel),
- * lalu diperbesar ke layar dengan sampel nearest (tanpa penghalusan). Skala
- * bulat bila memungkinkan (lihat `viewportFor`). Kamera hanya bergeser sejajar
- * layar mengikuti kursor; geserannya dibulatkan ke grid piksel dalam dan sisa
+ * lalu diperbesar ke layar. Skala bulat bila memungkinkan (lihat
+ * `viewportFor`); untuk skala pecahan ada dua cara perbesaran: nearest murni,
+ * atau "sharp bilinear" (nearest sampai kelipatan bulat di atasnya, lalu
+ * linear turun ke skala sebenarnya). Kamera hanya bergeser sejajar layar
+ * mengikuti kursor; geserannya dibulatkan ke grid piksel dalam dan sisa
  * pecahannya diterapkan saat memperbesar, jadi gambar tidak berkilau.
  *
- * Langkah a1: hanya balok toko (alas bata, lantai papan, dua dinding), tanpa
- * efek cahaya, tanpa aktor. `pick` belum dipakai (pelanggan datang di a2).
+ * Langkah a1: balok toko. Langkah a2: perabot (rak berisi barang menurut
+ * isi stok, meja kasir bermarmer, kulkas, tanaman pot), lampu dinding (mati),
+ * zombie penjaga diam, dan pelanggan dari logika `DioramaWorld` yang ada,
+ * sebagai billboard 1 piksel gambar = 1 piksel dalam. Belum ada efek cahaya.
  */
 import {
     BufferAttribute,
     BufferGeometry,
     Color,
+    LinearFilter,
     Mesh,
     MeshBasicMaterial,
     NearestFilter,
@@ -28,17 +33,29 @@ import {
     WebGLRenderTarget,
     WebGLRenderer,
 } from 'three';
-import { AtlasRegistry } from '../assets/atlas';
+import { AtlasRegistry, rasterizeFrame } from '../assets/atlas';
 import type { AtlasFrame, AtlasPack } from '../assets/atlas';
-import { ProceduralSource } from '../assets/procedural-source';
+import {
+    A2_DECOR,
+    A2_FURNITURE,
+    ProceduralSource,
+    SEED,
+    fillEntries,
+} from '../assets/procedural-source';
 import type { Customer } from '../actors/customer';
 import type { Point } from '../engine/iso';
+import type { ShelfFills } from '../engine/shelves';
 import type { DioramaWorld } from '../engine/world';
-import type { RenderOptions } from '../render/placeholder-renderer';
+import type { Heading, RenderOptions } from '../render/placeholder-renderer';
 import { STORE_SCENE } from '../scenes/store-scene';
 import type { StoreScene } from '../scenes/store-scene';
+import { loadReferences, referenceMatrix } from '../sprites/reference-loader';
 import type { DioramaView, WorldAnchor } from '../view/types';
+import { actorSprites, plantSprite } from './actors';
+import type { ActorSprite } from './actors';
+import { buildDecor, buildFurniture } from './build-furniture';
 import { buildStore, storeCorners } from './build-store';
+import type { MeshArrays } from './build-store';
 import {
     cameraBasis,
     driftTarget,
@@ -52,8 +69,13 @@ import {
 import type { CameraBasis, Frame, Viewport } from './camera-math';
 import { BACKDROP } from './palette-world';
 import { PITCH_DEG, PX_PER_UNIT } from './space';
+import { BillboardBatch, SpriteAtlas } from './sprite-batch';
+import type { BillboardDraw } from './sprite-batch';
+import { rectToNdc, spriteRect } from './sprite-quad';
 
 export type Lens = 'perspektif' | 'ortografik';
+/** Cara memperbesar gambar dalam ke layar saat skalanya pecahan. */
+export type Upscale = 'nearest' | 'sharp';
 
 export type WebGLViewOptions = {
     scene?: StoreScene;
@@ -63,6 +85,11 @@ export type WebGLViewOptions = {
     fovDeg?: number;
     /** Geser halus mengikuti kursor. */
     drift?: boolean;
+    upscale?: Upscale;
+    /** Perabot yang digambar (id denah); bawaan: perabot langkah a2. */
+    furniture?: readonly string[];
+    /** Hiasan dinding yang digambar; bawaan: lampu langkah a2. */
+    decor?: readonly string[];
 };
 
 export type WebGLStats = {
@@ -71,17 +98,24 @@ export type WebGLStats = {
     fovDeg: number | null;
     scale: number;
     integer: boolean;
+    upscale: Upscale;
+    prescale: number;
     internal: [number, number];
     device: [number, number];
     calls: number;
     triangles: number;
     geometries: number;
     textures: number;
+    sprites: number;
+    spriteFrames: number;
     driftActive: boolean;
 };
 
 /** Sudut pandang lensa perspektif bawaan (lensa panjang). */
 export const DEFAULT_FOV = 10;
+
+/** Kedalaman sprite digeser sedikit ke arah kamera supaya kakinya menang dari lantai. */
+const FOOT_DEPTH_BIAS = 0.05;
 
 const BLIT_VERTEX = /* glsl */ `
 void main() {
@@ -89,17 +123,35 @@ void main() {
 }
 `;
 
-// Piksel layar → texel gambar dalam (nearest). +1 melewati margin satu texel
-// yang disediakan untuk geser halus; uFrac = sisa geser kamera (piksel dalam).
+// Piksel layar → texel gambar dalam. +1 melewati margin satu texel untuk geser
+// halus; uFrac = sisa geser kamera (piksel dalam).
+// uMode 0: nearest murni. uMode 1: sharp bilinear: seolah gambar diperbesar
+// nearest ×uPrescale (kelipatan bulat di atas skala), lalu diperkecil linear ke
+// skala sebenarnya; hanya batas antartexel yang dicampur, paling lebar 1 piksel.
 const BLIT_FRAGMENT = /* glsl */ `
 uniform sampler2D tScene;
 uniform vec2 uSize;
 uniform float uScale;
 uniform vec2 uFrac;
+uniform float uMode;
+uniform float uPrescale;
+
+float sharpAxis(float p, float k) {
+    float q = p * k;
+    float j0 = floor(q - 0.5);
+    float w = q - 0.5 - j0;
+    float t0 = floor((j0 + 0.5) / k);
+    float t1 = floor((j0 + 1.5) / k);
+
+    return t0 == t1 ? t0 + 0.5 : t0 + 0.5 + w;
+}
 
 void main() {
     vec2 p = gl_FragCoord.xy / uScale + 1.0 + uFrac;
-    gl_FragColor = texture2D(tScene, (floor(p) + 0.5) / uSize);
+    vec2 t = uMode > 0.5
+        ? vec2(sharpAxis(p.x, uPrescale), sharpAxis(p.y, uPrescale))
+        : floor(p) + 0.5;
+    gl_FragColor = texture2D(tScene, t / uSize);
     #include <colorspace_fragment>
 }
 `;
@@ -128,15 +180,23 @@ export class WebGLView implements DioramaView {
     private readonly blitGeometry = new BufferGeometry();
     private readonly storeGeometry = new BufferGeometry();
     private readonly storeMaterial: MeshBasicMaterial;
-    private readonly textures: Texture[] = [];
+    private readonly atlasPack: AtlasPack;
+    private readonly atlasTexture: Texture;
+    private readonly registry: AtlasRegistry;
+    private readonly spriteAtlas: SpriteAtlas;
+    private readonly billboards: BillboardBatch;
+    private readonly headings = new Map<number, Heading>();
+    private readonly staticSprites: ActorSprite[];
     private target: WebGLRenderTarget;
     private camera: PerspectiveCamera | OrthographicCamera;
     private readonly storeScene: StoreScene;
+    private readonly furnitureIds: readonly string[];
 
     private pitchDeg: number;
     private lens: Lens;
     private fovDeg: number;
     private driftEnabled: boolean;
+    private upscale: Upscale;
     private basis: CameraBasis;
     private frame: Frame;
     private viewport: Viewport = {
@@ -147,6 +207,8 @@ export class WebGLView implements DioramaView {
     };
     private dpr = 1;
     private deviceSize: [number, number] = [1, 1];
+    private fillsKey = '';
+    private spriteCount = 0;
 
     private pointer: { x: number; y: number } | null = null;
     private drift = { x: 0, vx: 0, y: 0, vy: 0 };
@@ -159,21 +221,29 @@ export class WebGLView implements DioramaView {
         listener: () => void;
     }[] = [];
 
-    /** Buat tampilan setelah atlas siap. */
+    /** Buat tampilan setelah atlas dan gambar karakter pemilik siap. */
     static async create(options: WebGLViewOptions = {}): Promise<WebGLView> {
         const scene = options.scene ?? STORE_SCENE;
-        const registry = new AtlasRegistry([new ProceduralSource(scene)]);
-        await registry.load();
+        const registry = new AtlasRegistry([
+            new ProceduralSource(scene, {
+                furniture: options.furniture ?? A2_FURNITURE,
+                decor: options.decor ?? A2_DECOR,
+            }),
+        ]);
+        await Promise.all([registry.load(), loadReferences()]);
 
         return new WebGLView(registry, options);
     }
 
     private constructor(registry: AtlasRegistry, options: WebGLViewOptions) {
+        this.registry = registry;
         this.storeScene = options.scene ?? STORE_SCENE;
+        this.furnitureIds = options.furniture ?? A2_FURNITURE;
         this.pitchDeg = options.pitchDeg ?? PITCH_DEG;
         this.lens = options.lens ?? 'perspektif';
         this.fovDeg = options.fovDeg ?? DEFAULT_FOV;
         this.driftEnabled = options.drift ?? true;
+        this.upscale = options.upscale ?? 'nearest';
         this.basis = cameraBasis(this.pitchDeg);
         this.frame = frameOf(storeCorners(this.storeScene), this.basis);
 
@@ -193,10 +263,9 @@ export class WebGLView implements DioramaView {
 
         this.scene.background = new Color(BACKDROP);
 
-        // Balok toko: satu geometri, satu bahan, satu atlas.
-        const pack = registry.loaded[0];
-        const texture = atlasTexture(pack);
-        this.textures.push(texture);
+        // Balok toko, perabot, dan hiasan: satu geometri, satu bahan, satu atlas.
+        this.atlasPack = registry.loaded[0];
+        this.atlasTexture = atlasTexture(this.atlasPack);
         const frameLookup = (key: string): AtlasFrame => {
             const found = registry.find(key);
 
@@ -206,7 +275,20 @@ export class WebGLView implements DioramaView {
 
             return found.frame;
         };
-        const arrays = buildStore(this.storeScene, pack.layout, frameLookup);
+        const layout = this.atlasPack.layout;
+        const arrays: MeshArrays = buildStore(
+            this.storeScene,
+            layout,
+            frameLookup,
+        );
+        buildFurniture(
+            arrays,
+            this.storeScene,
+            this.furnitureIds,
+            layout,
+            frameLookup,
+        );
+        buildDecor(arrays, options.decor ?? A2_DECOR, layout, frameLookup);
         this.storeGeometry.setAttribute(
             'position',
             new BufferAttribute(new Float32Array(arrays.positions), 3),
@@ -220,14 +302,27 @@ export class WebGLView implements DioramaView {
             new BufferAttribute(new Float32Array(arrays.colors), 3),
         );
         this.storeGeometry.setIndex(arrays.indices);
+        // alphaTest: piksel kosong hiasan (lampu) dibuang, tidak menjadi hitam.
         this.storeMaterial = new MeshBasicMaterial({
-            map: texture,
+            map: this.atlasTexture,
             vertexColors: true,
+            alphaTest: 0.5,
         });
         this.scene.add(new Mesh(this.storeGeometry, this.storeMaterial));
 
-        // Target resolusi dalam: texel nearest, disimpan sRGB 8-bit supaya warna
-        // palet tidak bergeser.
+        // Aktor dan sprite tetap (daun tanaman): satu kumpulan billboard.
+        this.spriteAtlas = new SpriteAtlas();
+        this.billboards = new BillboardBatch(this.spriteAtlas);
+        this.scene.add(this.billboards.mesh);
+        this.staticSprites = this.storeScene.furniture
+            .filter(
+                (f) => f.kind === 'tanaman' && this.furnitureIds.includes(f.id),
+            )
+            .map((f, i) => plantSprite(f, SEED + 40 + i));
+
+        // Target resolusi dalam, disimpan sRGB 8-bit supaya warna palet tidak
+        // bergeser. Penyaring linear hanya terpakai oleh sharp bilinear; mode
+        // nearest selalu mengambil tengah texel.
         this.target = this.createTarget(2, 2);
 
         this.blitGeometry.setAttribute(
@@ -243,6 +338,8 @@ export class WebGLView implements DioramaView {
                 uSize: { value: new Vector2(2, 2) },
                 uScale: { value: 1 },
                 uFrac: { value: this.fraction },
+                uMode: { value: this.upscale === 'sharp' ? 1 : 0 },
+                uPrescale: { value: 1 },
             },
             vertexShader: BLIT_VERTEX,
             fragmentShader: BLIT_FRAGMENT,
@@ -282,8 +379,10 @@ export class WebGLView implements DioramaView {
         this.applyViewport();
     }
 
-    render(_world: DioramaWorld, _options: RenderOptions, dt: number): void {
+    render(world: DioramaWorld, options: RenderOptions, dt: number): void {
         this.updateDrift(dt);
+        this.applyFills(options.fills ?? {});
+        this.updateSprites(world);
         this.renderer.info.reset();
         this.renderer.setRenderTarget(this.target);
         this.renderer.render(this.scene, this.camera);
@@ -317,7 +416,7 @@ export class WebGLView implements DioramaView {
     }
 
     pick(_point: Point): Customer | null {
-        // Langkah a1 belum menggambar pelanggan.
+        // Klik pelanggan dipasang di langkah c (proyeksi kotak sprite).
         return null;
     }
 
@@ -345,6 +444,11 @@ export class WebGLView implements DioramaView {
         this.driftEnabled = enabled;
     }
 
+    setUpscale(mode: Upscale): void {
+        this.upscale = mode;
+        this.blitMaterial.uniforms.uMode.value = mode === 'sharp' ? 1 : 0;
+    }
+
     stats(): WebGLStats {
         const info = this.renderer.info;
 
@@ -357,13 +461,16 @@ export class WebGLView implements DioramaView {
                     : null,
             scale: this.viewport.scale,
             integer: this.viewport.integer,
+            upscale: this.upscale,
+            prescale: this.blitMaterial.uniforms.uPrescale.value as number,
             internal: [this.viewport.width, this.viewport.height],
             device: this.deviceSize,
-            // info.render dihitung per render(); blit = 1 panggilan.
             calls: info.render.calls,
             triangles: info.render.triangles,
             geometries: info.memory.geometries,
             textures: info.memory.textures,
+            sprites: this.spriteCount,
+            spriteFrames: this.spriteAtlas.count,
             driftActive: this.driftAllowed(),
         };
     }
@@ -379,14 +486,12 @@ export class WebGLView implements DioramaView {
 
         this.storeGeometry.dispose();
         this.storeMaterial.dispose();
+        this.atlasTexture.dispose();
+        this.billboards.dispose();
+        this.spriteAtlas.dispose();
         this.blitGeometry.dispose();
         this.blitMaterial.dispose();
         this.target.dispose();
-
-        for (const t of this.textures) {
-            t.dispose();
-        }
-
         this.renderer.dispose();
         this.renderer.forceContextLoss();
         this.canvas.remove();
@@ -394,10 +499,93 @@ export class WebGLView implements DioramaView {
 
     // ---- Bagian dalam -------------------------------------------------------
 
+    /** Lukis ulang muka depan rak dan kulkas bila isi stoknya berubah. */
+    private applyFills(fills: ShelfFills): void {
+        const key = JSON.stringify(fills);
+
+        if (key === this.fillsKey) {
+            return;
+        }
+
+        this.fillsKey = key;
+        const ctx = (this.atlasPack.image as HTMLCanvasElement).getContext(
+            '2d',
+        );
+
+        if (!ctx) {
+            return;
+        }
+
+        const pad = this.atlasPack.layout.padding;
+
+        for (const entry of fillEntries(
+            this.storeScene,
+            this.furnitureIds,
+            fills,
+        )) {
+            const found = this.registry.find(entry.key);
+
+            if (!found) {
+                continue;
+            }
+
+            const raster = rasterizeFrame(entry, pad);
+            ctx.putImageData(
+                new ImageData(raster.data, raster.width, raster.height),
+                found.frame.x - pad,
+                found.frame.y - pad,
+            );
+        }
+
+        this.atlasTexture.needsUpdate = true;
+    }
+
+    /** Susun ulang billboard: tiap sprite diletakkan di titik pijaknya (dibulatkan). */
+    private updateSprites(world: DioramaWorld): void {
+        const sprites = [
+            ...this.staticSprites,
+            ...actorSprites(world, referenceMatrix, this.headings),
+        ];
+        const tw = this.viewport.width + 2;
+        const th = this.viewport.height + 2;
+        const back = this.basis.back;
+        const draws: BillboardDraw[] = [];
+        const v = new Vector3();
+
+        for (const sprite of sprites) {
+            const entry = this.spriteAtlas.get(sprite.key, sprite.build);
+
+            if (!entry) {
+                continue;
+            }
+
+            const [fx, fy, fz] = sprite.foot;
+            v.set(fx, fy, fz).project(this.camera);
+            const foot = { x: ((v.x + 1) / 2) * tw, y: ((v.y + 1) / 2) * th };
+            v.set(
+                fx + back[0] * FOOT_DEPTH_BIAS,
+                fy + back[1] * FOOT_DEPTH_BIAS,
+                fz + back[2] * FOOT_DEPTH_BIAS,
+            ).project(this.camera);
+            const rect = spriteRect(foot, entry, sprite.hover);
+
+            draws.push({
+                rect: rectToNdc(rect, { width: tw, height: th }),
+                z: v.z,
+                entry,
+                alpha: sprite.alpha,
+            });
+        }
+
+        this.billboards.update(draws);
+        this.spriteAtlas.flush();
+        this.spriteCount = draws.length;
+    }
+
     private createTarget(width: number, height: number): WebGLRenderTarget {
         return new WebGLRenderTarget(width, height, {
-            minFilter: NearestFilter,
-            magFilter: NearestFilter,
+            minFilter: LinearFilter,
+            magFilter: LinearFilter,
             generateMipmaps: false,
             depthBuffer: true,
             colorSpace: SRGBColorSpace,
@@ -424,6 +612,10 @@ export class WebGLView implements DioramaView {
 
         this.blitMaterial.uniforms.uSize.value.set(tw, th);
         this.blitMaterial.uniforms.uScale.value = this.viewport.scale;
+        this.blitMaterial.uniforms.uPrescale.value = Math.max(
+            1,
+            Math.ceil(this.viewport.scale - 1e-6),
+        );
         this.placeCamera();
     }
 
