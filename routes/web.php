@@ -26,6 +26,9 @@ Route::middleware(['auth'])->group(function () {
 Route::middleware(['auth', 'role:admin'])->group(function () {
     Route::inertia('diorama-lab', 'diorama-lab')->name('diorama.lab');
 
+    // Tahap 5H: prototipe diorama 3D (three.js), terpisah dari Beranda dan diorama lab.
+    Route::inertia('diorama-3d-lab', 'diorama-3d-lab')->name('diorama.lab3d');
+
     // Tahap 6: satu penjualan acak sungguhan (lewat CompleteSale) untuk demo.
     Route::post('diorama-lab/simulasi', [SimulateSaleController::class, 'store'])
         ->middleware('throttle:60,1')

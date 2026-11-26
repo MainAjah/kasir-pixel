@@ -1,8 +1,114 @@
 # PROGRESS
 
+## Tahap 5H langkah a1: Diorama 3D, fondasi dan balok toko (26 Nov 2026)
+
+Status: **langkah a1 selesai dan disetujui pemilik (26 Nov 2026); di-commit di cabang `tahap-5h-diorama-3d` tanpa baris Co-Authored-By, belum di-push.** Kemiringan bawaan 30° dan lantai 16 texel per ubin disetujui; alasannya dicatat di `docs/rencana-tahap-5h.md` bagian 1 dan 2.
+
+- **Cabang:** `tahap-5h-diorama-3d`, dari `main` `fa52982` (sudah berisi Tahap 11A).
+- **Tag:** `versi-aman-canvas` beranotasi di `fa52982`, **hanya lokal**. Belum di-push sampai pemilik memastikan repo GitHub privat.
+- **Rencana lengkap:** `docs/rencana-tahap-5h.md`.
+
+### Keputusan pemilik
+
+- Rencana Tahap 5H disetujui.
+- Paket `three@0.187.0` dan `@types/three@0.187.0` diizinkan dan sudah dipasang dengan versi pasti. Keduanya rilis 30 Okt 2026 (≥ 2 minggu), versi stabil terbaru, dan versi tipenya sama.
+- `prefers-reduced-motion` dihormati: geser kamera mati bila sistem meminta gerak dikurangi. Debu menyusul di a3.
+- Sesi ini hanya a1. Beranda, `DioramaCanvas`, dan `/diorama-lab` tidak disentuh.
+
+### Yang sudah selesai
+
+- **Halaman `/diorama-3d-lab`** (rute `diorama.lab3d`, hanya admin):
+  - panggung 3D dengan pilihan kemiringan (30°/35°/40°), lensa (perspektif 10° atau ortografik), dan geser kursor nyala/mati;
+  - mode **Layar penuh** (portal ke `<body>`, ukurannya sama dengan Beranda);
+  - angka: skala, gambar dalam, draw call, segitiga, dan memori GPU;
+  - **lembar tekstur 4×** beserta palet dunia.
+- **three.js dimuat dengan `import()` dinamis**, sehingga potongannya terpisah: `webgl-view` 535 KB, **133,7 KB gzip** (anggaran ≤ 200 KB).
+- **Antarmuka `DioramaView`** (`diorama/view/types.ts`) + **`WebGLView`** dasar (`diorama/three/webgl-view.ts`):
+  - adegan dirender ke target resolusi dalam (sRGB 8-bit, nearest), lalu diperbesar dengan shader nearest;
+  - geser kamera dibulatkan ke grid piksel dalam, dan sisa pecahannya diterapkan saat memperbesar;
+  - `toScreen` sudah ada (untuk tombol pos di langkah c);
+  - `pick` masih `null`, karena pelanggan baru ada di a2;
+  - `dispose` melepas semua sumber daya;
+  - `webglcontextlost` diteruskan ke `onLost`.
+- **Kamera** (`camera-math.ts`, murni):
+  - basis kamera arah 45°;
+  - bingkai balok dengan target di **kedalaman tengah balok**. Tanpa ini lensa perspektif memperbesar balok ±13%, ditemukan dan diperbaiki saat dicoba;
+  - pegas teredam kritis (±0,6 detik), geser ±0,15 ubin;
+  - mati di layar sentuh dan saat gerak dikurangi.
+- **Skala tampilan:**
+  - bulat bila kelipatan bulat tidak mengecilkan balok lebih dari 20%;
+  - selain itu pecahan, seperti diorama Canvas sekarang.
+- **Palet dunia** (`three/palette-world.ts`): **55 warna**. Nada walnut dan beberapa warna dinding/rak sama dengan palet bahan v4. Palet antarmuka 24 warna tidak berubah dan dijaga tes.
+- **Generator tekstur procedural** (`assets/procedural/`, berbenih, hanya palet dunia):
+  - `brick`: alas 23 texel, lis kuningan, 3 lapis berselang, nada per bata, derau, sudut gempil, kotor ke bawah;
+  - `wood`: papan walnut 4 texel, ruas acak berselang, serat, mata kayu; satu tekstur 192 × 144 untuk seluruh lantai, jadi papan menyambung lintas ubin;
+  - `wall`: plester mawar/ivory berbintik halus, mahkota bergaris kuningan, lis kursi, panel wainscot, plint walnut; tinggi 80 texel;
+  - `marble` dan `leaf` (untuk a2).
+  - Pembantunya: `noise` dan `dither` (Bayer 4×4).
+- **Atlas** (`assets/atlas.ts`):
+  - shelf packing;
+  - padding diisi ulangan tepi (anti-rembes);
+  - UV dihitung dari atas;
+  - `AtlasRegistry` dengan urutan prioritas sumber; kunci yang hilang jatuh ke sumber berikutnya.
+- **Sumber aset:** `ProceduralSource` dengan kunci semantik (`tex/lantai/walnut`, `tex/dinding/kiri`, …). Paket berlisensi nanti cukup menjadi sumber kedua.
+- **Balok toko** (`three/build-store.ts`):
+  - lantai satu quad per ubin, dengan variasi kecerahan ±3%;
+  - dua dinding (muka dalam, ujung, tutup), alas bata dua muka;
+  - **satu geometri, satu bahan: 2 draw call per bingkai** (adegan + perbesaran), 233 segitiga;
+  - belum ada cahaya; kecerahan per muka tetap (sisi +x 0,84), hanya agar bentuknya terbaca.
+
+### Temuan saat dibuat (perlu diketahui pemilik)
+
+- **Kepadatan texel:** rencana menulis "48 texel per ubin". Kenyataannya:
+  - kamera berskala **45,25 piksel per ubin** (diagonal ubin 64 px, sama persis dengan Canvas);
+  - **lantai dan arah sepanjang dinding 16 texel per ubin**;
+  - **arah tegak 1 texel = 1 piksel**.
+
+  Hanya dengan angka ini, pada kemiringan **30°**, tiap texel lantai menjadi langkah 2 × 1 piksel seperti garis iso pixel art (dicek pada perbesaran 4×). Karakter (a2) tetap 1 piksel = 1 texel.
+- **Kemiringan 30° paling tajam.** Pada 35° dan 40° langkah texel lantai tidak rata lagi (1 dan 2 piksel bercampur), bisa dibandingkan di lab. Usul: 30° menjadi bawaan.
+- **Lensa:** perspektif 10° dan ortografik hampir sama di mata. Ortografik sedikit lebih rata langkah pikselnya, perspektif memberi sedikit kesan kedalaman. Keputusan diserahkan ke pemilik setelah cahaya ada (a3).
+- **Skala bulat:**
+  - di 1920 × 1080 fisik (skala Windows 125%) didapat **×2 bulat**, gambar dalam 960 × 540;
+  - di 1366 × 768 bulat ×1 terlalu kecil, sehingga dipakai pecahan (sekitar 1,6), sama dengan Canvas sekarang.
+
+### Pemeriksaan
+
+- **Tes:**
+  - Vitest **293** lulus; baru: `palette-world`, `procedural`, `atlas`, `camera-math`, `build-store`;
+  - Pest **429** lulus; baru: `Diorama3dLabTest` (admin, kasir/bendahara 403, tamu ke login).
+- **Alat cek:**
+  - tsc bersih;
+  - lint bersih (2 peringatan lama di `docs/referensi-karakter/alat`);
+  - Pint bersih;
+  - `npm run build` berhasil.
+- **Browser** (panel pratinjau, juga diemulasikan 1536 × 864 @ 125% = 1920 × 1080 fisik):
+  - balok tampil utuh di panggung dan layar penuh;
+  - lantai, dinding, dan alas tajam pada perbesaran 4×;
+  - geser kursor bekerja;
+  - konsol bersih.
+- **FPS tidak bisa diukur di panel pratinjau** (diperlambat browser, 2–6 bingkai/detik seperti di 5F). Beban per bingkai sangat kecil (2 draw call). Pengukuran resmi oleh pemilik menyusul di a3 bersama HUD.
+- `components/beranda/side-menu.tsx` sempat dirapikan otomatis oleh `vp fmt`, lalu dikembalikan: Beranda tidak berubah.
+
+### Batasan
+
+- Belum ada perabot, aktor, cahaya, bayangan, vinyet, atau bayangan jatuh balok (a2–a3).
+- Pintu dan jendela belum digambar di dinding (jendela datang bersama sinar matahari di a3, pintu di b).
+- Mode layar penuh menyembunyikan gulir halaman selama aktif.
+
+### Saran untuk langkah a2 (menunggu persetujuan a1)
+
+- **Model dan upaya:** Opus, upaya tinggi, sesi baru.
+- **Isi a2:**
+  - beberapa perabot sebagai kotak bertekstur procedural: 1 rak walnut berisi barang menurut `shelfFills`, meja kasir bermarmer + zombie diam, satu kulkas, satu tanaman pot dari tekstur daun;
+  - **satu pelanggan** berjalan dari logika `DioramaWorld` yang ada (billboard menghadap kamera, kedalaman tegak di titik pijak, atlas karakter dari `reference-loader`);
+  - satu lampu dinding (belum menyala; cahaya di a3).
+- **Yang masih menunggu pemilik:** tag `versi-aman-canvas` boleh di-push atau tidak (setelah repo dipastikan privat). Kemiringan bawaan 30° sudah disetujui.
+
+---
+
 ## Tahap 5G: Konsep v4 "cozy elegan" di diorama aplikasi (25 Nov 2026)
 
-Status: **kedua langkah selesai dan disetujui pemilik; di-commit tanpa baris Co-Authored-By, belum di-push.**
+Status: **kedua langkah selesai dan disetujui pemilik; di-commit tanpa baris Co-Authored-By (`2f169ba`) dan sudah di-push ke GitHub (`origin/main`).**
 
 ### Asal-usul
 
@@ -59,7 +165,7 @@ Status: **kedua langkah selesai dan disetujui pemilik; di-commit tanpa baris Co-
 
 ### Saran untuk tahap berikutnya
 
-- **Pemilik mencoba di browsernya**, termasuk FPS di DevTools Performance (siang dan malam). Setelah setuju, push `e7ace4c` (5F) dan commit 5G ke GitHub.
+- **Pemilik mencoba di browsernya**, termasuk FPS di DevTools Performance (siang dan malam). (5F dan 5G sudah di-push; yang tersisa hanya pengukuran FPS.)
 - **Bila ingin dipoles** (Sonnet, upaya sedang; perlu persetujuan karena mengubah sprite):
   - isi rak berbentuk toples, botol, dan kaleng sungguhan;
   - papan kulkas tanpa tulisan "MINUM".
@@ -68,7 +174,7 @@ Status: **kedua langkah selesai dan disetujui pemilik; di-commit tanpa baris Co-
 
 ## Tahap 5F: Diorama toko 2.5D bergaya HD-2D (25 Nov 2026)
 
-Status: **ketiga langkah selesai; di-commit atas izin pemilik sebelum Tahap 5G (`e7ace4c`, tanpa baris Co-Authored-By), belum di-push.** Pengukuran FPS di browser pemilik masih ditunggu.
+Status: **ketiga langkah selesai; di-commit atas izin pemilik sebelum Tahap 5G (`e7ace4c`, tanpa baris Co-Authored-By) dan sudah di-push ke GitHub (`origin/main`).** Pengukuran FPS di browser pemilik masih ditunggu.
 
 ### Keputusan pemilik
 
@@ -145,7 +251,7 @@ Status: **ketiga langkah selesai; di-commit atas izin pemilik sebelum Tahap 5G (
 
 ### Saran untuk tahap berikutnya
 
-- **Pemilik mencoba di browsernya:** FPS di DevTools Performance (siang dan malam), di layar 1366 × 768 dengan skala 125% bila ada. Setelah setuju: commit (tanpa Co-Authored-By) dan push.
+- **Pemilik mencoba di browsernya:** FPS di DevTools Performance (siang dan malam), di layar 1366 × 768 dengan skala 125% bila ada. (Commit dan push sudah dilakukan.)
 - **Bila ingin dipoles lagi** (Sonnet, upaya sedang): isi rak menjadi barang dagangan dan jendela kedua agar sinar matahari jatuh di area lebih lapang. Perlu persetujuan, karena mengubah sprite dan denah.
 
 ---
