@@ -6,7 +6,9 @@
 import { fillKey } from '../engine/shelves';
 import type { ShelfFills } from '../engine/shelves';
 import type { Furniture, StoreScene } from '../scenes/store-scene';
-import { lampMatrix } from '../sprites/decor-sprite';
+import { lampMatrix, windowGlass, windowMatrix } from '../sprites/decor-sprite';
+import { C } from '../sprites/palette';
+import type { PixelMatrix } from '../sprites/pixels';
 import { BASE_TEXELS, brickTexture } from './procedural/brick';
 import {
     counterBodyTexture,
@@ -29,7 +31,7 @@ import {
     wallTexture,
 } from './procedural/wall';
 import { plankTexture } from './procedural/wood';
-import { packAtlas, rasterizeAtlas } from './atlas';
+import { glowEntries, packAtlas, rasterizeAtlas } from './atlas';
 import type { AssetSource, AtlasEntry, AtlasPack } from './atlas';
 
 /** Kunci tekstur balok toko. Renderer hanya memakai kunci ini, bukan generatornya. */
@@ -197,6 +199,7 @@ export function furnitureEntries(
     decor: readonly string[],
     fills: ShelfFills = {},
     seed = SEED,
+    lampsOn = false,
 ): AtlasEntry[] {
     const entries = fillEntries(scene, ids, fills, seed);
 
@@ -233,12 +236,37 @@ export function furnitureEntries(
 
     for (const key of decor) {
         if (key.startsWith('lampu-')) {
-            // Lampu dinding yang sudah disetujui (5C), mati; menyala di a3.
-            entries.push({ key: decorKey(key), matrix: lampMatrix(false) });
+            // Lampu dinding yang sudah disetujui (5C): mati di a2, menyala di a3
+            // (bola lampu masuk atlas cahaya untuk bloom).
+            const matrix = lampMatrix(lampsOn);
+            entries.push({
+                key: decorKey(key),
+                matrix,
+                glow: lampsOn ? onlyColor(matrix, C(11)) : undefined,
+            });
+        } else if (key === 'jendela') {
+            // Jendela 5C dengan langit senja; kacanya menyala (atlas cahaya).
+            entries.push({
+                key: decorKey(key),
+                matrix: windowMatrix('senja'),
+                glow: windowGlass('senja'),
+            });
         }
     }
 
     return entries;
+}
+
+/** Hiasan dinding langkah a3: kedua lampu dan jendela sumber berkas sinar. */
+export const A3_DECOR: readonly string[] = [
+    'lampu-kanan',
+    'lampu-kiri',
+    'jendela',
+];
+
+/** Hanya piksel berwarna `color` dari matriks (untuk atlas cahaya). */
+function onlyColor(m: PixelMatrix, color: string): PixelMatrix {
+    return { ...m, pixels: m.pixels.map((p) => (p === color ? p : null)) };
 }
 
 export type ProceduralOptions = {
@@ -246,6 +274,8 @@ export type ProceduralOptions = {
     decor?: readonly string[];
     fills?: ShelfFills;
     seed?: number;
+    /** Lampu dinding menyala (a3). */
+    lampsOn?: boolean;
 };
 
 export class ProceduralSource implements AssetSource {
@@ -268,6 +298,7 @@ export class ProceduralSource implements AssetSource {
                 this.options.decor ?? [],
                 this.options.fills ?? {},
                 this.seed,
+                this.options.lampsOn ?? false,
             ),
         ];
         const layout = packAtlas(
@@ -278,17 +309,27 @@ export class ProceduralSource implements AssetSource {
                 pivot: e.pivot,
             })),
         );
-        const canvas = document.createElement('canvas');
-        canvas.width = layout.width;
-        canvas.height = layout.height;
-        const ctx = canvas.getContext('2d');
+        const paint = (list: readonly AtlasEntry[]): HTMLCanvasElement => {
+            const canvas = document.createElement('canvas');
+            canvas.width = layout.width;
+            canvas.height = layout.height;
+            const ctx = canvas.getContext('2d');
 
-        if (ctx) {
-            const image = ctx.createImageData(layout.width, layout.height);
-            image.data.set(rasterizeAtlas(layout, entries));
-            ctx.putImageData(image, 0, 0);
-        }
+            if (ctx) {
+                const image = ctx.createImageData(layout.width, layout.height);
+                image.data.set(rasterizeAtlas(layout, list));
+                ctx.putImageData(image, 0, 0);
+            }
 
-        return { source: this.id, image: canvas, layout };
+            return canvas;
+        };
+        const glow = glowEntries(entries);
+
+        return {
+            source: this.id,
+            image: paint(entries),
+            layout,
+            glowImage: glow.length > 0 ? paint(glow) : undefined,
+        };
     }
 }

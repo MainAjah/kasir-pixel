@@ -1,8 +1,8 @@
 import { useEffect, useMemo, useRef } from 'react';
 import type { AtlasEntry } from '@/diorama/assets/atlas';
 import {
-    A2_DECOR,
     A2_FURNITURE,
+    A3_DECOR,
     furnitureEntries,
     storeEntries,
 } from '@/diorama/assets/procedural-source';
@@ -36,7 +36,9 @@ const LABELS: Record<string, string> = {
     'tex/perabot/tanaman-1/depan': 'Pot, sisi',
     'tex/perabot/tanaman-1/kanan': 'Pot, sisi kanan',
     'tex/perabot/tanaman-1/atas': 'Pot, atas',
-    'tex/hiasan/lampu-kanan': 'Lampu dinding (gambar 5C, mati)',
+    'tex/hiasan/lampu-kanan': 'Lampu dinding kanan (gambar 5C, menyala)',
+    'tex/hiasan/lampu-kiri': 'Lampu dinding kiri (gambar 5C, menyala)',
+    'tex/hiasan/jendela': 'Jendela senja (gambar 5C), sumber berkas sinar',
 };
 
 function Swatch({ entry, scale }: { entry: AtlasEntry; scale: number }) {
@@ -83,7 +85,7 @@ export default function TextureSheet({ scale = 4 }: { scale?: number }) {
             ...furnitureEntries(
                 STORE_SCENE,
                 A2_FURNITURE,
-                A2_DECOR,
+                A3_DECOR,
                 shelfFills(
                     {
                         rak: [
@@ -97,6 +99,8 @@ export default function TextureSheet({ scale = 4 }: { scale?: number }) {
                     },
                     STORE_SCENE,
                 ),
+                undefined,
+                true,
             ),
         ],
         [],

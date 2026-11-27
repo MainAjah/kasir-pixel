@@ -2,6 +2,7 @@ import { Head } from '@inertiajs/react';
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import type { ReactNode } from 'react';
 import { createPortal } from 'react-dom';
+import DioramaCanvas from '@/components/diorama/diorama-canvas';
 import TextureSheet from '@/components/diorama/texture-sheet';
 import ThreeLabStage from '@/components/diorama/three-lab-stage';
 import type { StageStats } from '@/components/diorama/three-lab-stage';
@@ -12,9 +13,17 @@ import {
     TAB_IDLE,
 } from '@/components/pixel/styles';
 import { shelfFills } from '@/diorama/engine/shelves';
+import { DioramaWorld } from '@/diorama/engine/world';
 import { STORE_SCENE } from '@/diorama/scenes/store-scene';
 import type { RackFill } from '@/diorama/sprites/rack-sprite';
-import type { Lens, Upscale } from '@/diorama/three/webgl-view';
+import {
+    ALL_EFFECTS,
+    EFFECT_ORDER,
+    NO_EFFECTS,
+    effectsFromQuery,
+} from '@/diorama/three/effects';
+import type { EffectKey, Effects } from '@/diorama/three/effects';
+import type { Lens, TierMode, Upscale } from '@/diorama/three/webgl-view';
 import { cn } from '@/lib/utils';
 import { lab3d } from '@/routes/diorama';
 
@@ -26,6 +35,13 @@ const LENSES: { value: Lens; label: string }[] = [
 const UPSCALES: { value: Upscale; label: string }[] = [
     { value: 'nearest', label: 'Nearest murni' },
     { value: 'sharp', label: 'Sharp bilinear' },
+];
+const TIER_CHOICES: { value: string; label: string }[] = [
+    { value: 'otomatis', label: 'Otomatis' },
+    { value: '0', label: '0' },
+    { value: '1', label: '1' },
+    { value: '2', label: '2' },
+    { value: '3', label: '3' },
 ];
 
 /** Isi rak contoh untuk lab (bukan data stok; lab tidak membaca data). */
@@ -50,6 +66,12 @@ function sampleFills(pattern: string) {
         Array.from({ length: n }, (_, i) => levels[i % levels.length]);
 
     return shelfFills({ rak: repeat(10), vending: repeat(3) }, STORE_SCENE);
+}
+
+function query(): URLSearchParams {
+    return new URLSearchParams(
+        typeof window === 'undefined' ? '' : window.location.search,
+    );
 }
 
 function Choice<T extends string | number>({
@@ -99,23 +121,90 @@ function Stat({ label, children }: { label: string; children: ReactNode }) {
     );
 }
 
+type PerformanceWithMemory = Performance & {
+    memory?: { usedJSHeapSize: number };
+};
+
+/**
+ * Uji bocor memori: pasang dan lepas tampilan 3D 20 kali di wadah tersembunyi.
+ * Tiap kali, sisa geometri dan tekstur di GPU sesaat sebelum renderer dilepas
+ * harus 0.
+ */
+async function leakTest(
+    world: DioramaWorld,
+    fills: ReturnType<typeof sampleFills>,
+): Promise<string> {
+    const { WebGLView } = await import('@/diorama/three/webgl-view');
+    const memory = () =>
+        (performance as PerformanceWithMemory).memory?.usedJSHeapSize;
+    const before = memory();
+    let geometries = 0;
+    let textures = 0;
+
+    for (let i = 0; i < 20; i++) {
+        const host = document.createElement('div');
+        Object.assign(host.style, {
+            position: 'fixed',
+            left: '-10000px',
+            top: '0',
+            width: '320px',
+            height: '180px',
+        });
+        document.body.appendChild(host);
+        const view = await WebGLView.create({ tier: 0 });
+        view.attach(host);
+        view.resize(320, 180, 1);
+        view.render(world, { fills }, 1 / 30);
+        view.render(world, { fills }, 1 / 30);
+        const left = view.dispose();
+        host.remove();
+        geometries = Math.max(geometries, left.geometries);
+        textures = Math.max(textures, left.textures);
+    }
+
+    const after = memory();
+    const heap =
+        before !== undefined && after !== undefined
+            ? `; heap JS ${(before / 1048576).toFixed(1)} → ${(after / 1048576).toFixed(1)} MB (belum termasuk pembersihan otomatis browser)`
+            : '';
+
+    return `20× pasang/lepas selesai: sisa geometri ${geometries}, tekstur ${textures} (harus 0)${heap}.`;
+}
+
 /**
  * Lab diorama 3D (Tahap 5H, hanya admin). Prototipe terpisah dari Beranda dan
- * /diorama-lab. Langkah a1: balok toko, kamera miring dengan geser kursor,
- * lembar tekstur 4×. Langkah a2: perabot, lampu dinding, zombie diam, satu
- * pelanggan berjalan dari logika diorama yang ada, dan pilihan cara perbesaran
- * untuk skala pecahan. Belum ada efek cahaya.
+ * /diorama-lab.
+ * - a1: balok toko, kamera miring dengan geser kursor, lembar tekstur 4×.
+ * - a2: perabot, lampu, zombie, satu pelanggan, cara perbesaran skala pecahan.
+ * - a3: rantai cahaya sore dengan sakelar per efek, tingkat kualitas, HUD
+ *   (`?hud=1`), pembanding dengan diorama Canvas, dan uji bocor memori.
+ *   Query `?efek=semua|dasar|kunci,kunci` dan `?tingkat=0..3` untuk tangkapan.
  */
 export default function Diorama3dLab() {
+    const [world] = useState(() => new DioramaWorld({ autoBackground: false }));
     const [pitch, setPitch] = useState<number>(30);
     const [lens, setLens] = useState<Lens>('perspektif');
     const [drift, setDrift] = useState(true);
     const [upscale, setUpscale] = useState<Upscale>('nearest');
     const [fillPattern, setFillPattern] = useState('campur');
     const fills = useMemo(() => sampleFills(fillPattern), [fillPattern]);
+    const [effects, setEffects] = useState<Effects>(() =>
+        effectsFromQuery(query().get('efek')),
+    );
+    const [tier, setTier] = useState<TierMode>(() => {
+        const t = query().get('tingkat');
+
+        return t && /^[0-3]$/.test(t) ? (Number(t) as TierMode) : 'otomatis';
+    });
+    const [hud, setHud] = useState(() => query().get('hud') === '1');
+    const [frozen, setFrozen] = useState(false);
+    const [compare, setCompare] = useState(false);
+    const [leak, setLeak] = useState<string | null>(null);
     const [full, setFull] = useState(false);
     const [stats, setStats] = useState<StageStats | null>(null);
     const onStats = useCallback((s: StageStats) => setStats(s), []);
+    const toggle = (key: EffectKey) =>
+        setEffects((e) => ({ ...e, [key]: !e[key] }));
 
     useEffect(() => {
         if (!full) {
@@ -139,14 +228,35 @@ export default function Diorama3dLab() {
 
     const stage = (
         <ThreeLabStage
+            world={world}
+            driveWorld={!compare}
+            frozen={frozen}
             pitchDeg={pitch}
             lens={lens}
             drift={drift}
             upscale={upscale}
             fills={fills}
+            effects={effects}
+            tier={tier}
+            hud={hud}
             onStats={onStats}
             className="size-full bg-[#17213a]"
         />
+    );
+    // Pembanding: diorama Canvas (senja) memajukan dunia yang sama, jadi
+    // keduanya menampilkan saat yang sama.
+    const view = compare ? (
+        <div className="grid size-full grid-cols-2 gap-1 bg-px-tinta">
+            <DioramaCanvas
+                world={world}
+                options={{ fills, timeOfDay: 'senja' }}
+                fit="screen"
+                className="size-full"
+            />
+            {stage}
+        </div>
+    ) : (
+        stage
     );
 
     return (
@@ -155,12 +265,10 @@ export default function Diorama3dLab() {
 
             <div className="space-y-6 p-4">
                 <p className="max-w-prose text-sm text-px-bayangan">
-                    Prototipe Tahap 5H langkah a2: balok toko 3D dengan rak,
-                    meja kasir, kulkas, tanaman, lampu dinding, zombie penjaga,
-                    dan satu pembeli pura-pura (hanya animasi, tanpa data).
-                    Belum ada efek cahaya. Mode layar penuh menunjukkan ukuran
-                    seperti di Beranda; cara perbesaran hanya berpengaruh bila
-                    skalanya pecahan.
+                    Prototipe Tahap 5H langkah a3: cahaya sore lengkap di balok
+                    toko 3D, dengan pembeli pura-pura (hanya animasi, tanpa
+                    data). Tiap efek bisa dinyalakan sendiri. Mode layar penuh
+                    menunjukkan ukuran seperti di Beranda.
                 </p>
 
                 <div className="flex flex-wrap items-end gap-6">
@@ -200,6 +308,84 @@ export default function Diorama3dLab() {
                         value={fillPattern}
                         onChange={setFillPattern}
                     />
+                    <Choice
+                        label="Tingkat kualitas"
+                        options={TIER_CHOICES}
+                        value={String(tier)}
+                        onChange={(v) =>
+                            setTier(
+                                v === 'otomatis'
+                                    ? 'otomatis'
+                                    : (Number(v) as TierMode),
+                            )
+                        }
+                    />
+                </div>
+
+                <fieldset className="space-y-2">
+                    <legend className="text-xs text-px-bayangan">
+                        Efek cahaya (nyalakan satu per satu untuk membandingkan)
+                    </legend>
+                    <div className="flex flex-wrap gap-x-5 gap-y-2">
+                        {EFFECT_ORDER.map(({ key, label }) => (
+                            <label
+                                key={key}
+                                className="flex items-center gap-1.5 text-sm text-px-tinta"
+                            >
+                                <input
+                                    type="checkbox"
+                                    data-efek={key}
+                                    checked={effects[key]}
+                                    onChange={() => toggle(key)}
+                                    className="size-4 accent-[#e89b4f]"
+                                />
+                                {label}
+                            </label>
+                        ))}
+                    </div>
+                    <div className="flex flex-wrap gap-2">
+                        <button
+                            type="button"
+                            className={cn(SECONDARY_BUTTON, 'h-9 text-sm')}
+                            onClick={() => setEffects({ ...ALL_EFFECTS })}
+                        >
+                            Semua efek
+                        </button>
+                        <button
+                            type="button"
+                            className={cn(SECONDARY_BUTTON, 'h-9 text-sm')}
+                            onClick={() => setEffects({ ...NO_EFFECTS })}
+                        >
+                            Tanpa efek (a2)
+                        </button>
+                    </div>
+                </fieldset>
+
+                <div className="flex flex-wrap gap-2">
+                    <button
+                        type="button"
+                        aria-pressed={hud}
+                        className={cn(TAB, hud ? TAB_ACTIVE : TAB_IDLE)}
+                        onClick={() => setHud((h) => !h)}
+                    >
+                        HUD
+                    </button>
+                    <button
+                        type="button"
+                        aria-pressed={frozen}
+                        className={cn(TAB, frozen ? TAB_ACTIVE : TAB_IDLE)}
+                        onClick={() => setFrozen((f) => !f)}
+                    >
+                        Bekukan dunia
+                    </button>
+                    <button
+                        type="button"
+                        aria-pressed={compare}
+                        className={cn(TAB, compare ? TAB_ACTIVE : TAB_IDLE)}
+                        onClick={() => setCompare((c) => !c)}
+                    >
+                        Bandingkan dengan Canvas
+                    </button>
                     <button
                         type="button"
                         className={cn(SECONDARY_BUTTON, 'h-9 text-sm')}
@@ -207,14 +393,32 @@ export default function Diorama3dLab() {
                     >
                         Layar penuh
                     </button>
+                    <button
+                        type="button"
+                        className={cn(SECONDARY_BUTTON, 'h-9 text-sm')}
+                        onClick={() => {
+                            setLeak('Menguji…');
+                            void leakTest(world, fills).then(setLeak, (e) =>
+                                setLeak(`Uji gagal: ${String(e)}`),
+                            );
+                        }}
+                    >
+                        Uji pasang/lepas 20×
+                    </button>
                 </div>
+
+                {leak && (
+                    <p role="status" className="text-sm text-px-tinta">
+                        {leak}
+                    </p>
+                )}
 
                 {full ? (
                     // Portal ke <body>: tata letak halaman tidak membatasi
                     // ukuran, jadi sama dengan Beranda (seluruh jendela).
                     createPortal(
                         <div className="fixed inset-0 z-50">
-                            {stage}
+                            {view}
                             <button
                                 type="button"
                                 className={cn(
@@ -230,7 +434,7 @@ export default function Diorama3dLab() {
                     )
                 ) : (
                     <div className="relative h-[70vh] min-h-[420px] border-[3px] border-px-tinta">
-                        {stage}
+                        {view}
                     </div>
                 )}
 
@@ -250,7 +454,18 @@ export default function Diorama3dLab() {
                         <Stat label="Piksel perangkat">
                             {stats.device[0]} × {stats.device[1]}
                         </Stat>
-                        <Stat label="Bingkai per detik">{stats.fps}</Stat>
+                        <Stat label="Bingkai per detik">
+                            {stats.fps.toFixed(1)}
+                        </Stat>
+                        <Stat label="CPU per bingkai p50 / p90">
+                            {stats.cpu50.toFixed(1)} / {stats.cpu90.toFixed(1)}{' '}
+                            ms
+                        </Stat>
+                        <Stat label="GPU per bingkai p50 / p90">
+                            {stats.gpu50 === null
+                                ? 'tidak tersedia'
+                                : `${stats.gpu50.toFixed(1)} / ${(stats.gpu90 ?? 0).toFixed(1)} ms`}
+                        </Stat>
                         <Stat label="Draw call per bingkai">{stats.calls}</Stat>
                         <Stat label="Segitiga">{stats.triangles}</Stat>
                         <Stat label="Geometri, tekstur di GPU">
@@ -258,6 +473,12 @@ export default function Diorama3dLab() {
                         </Stat>
                         <Stat label="Sprite, bingkai di atlas karakter">
                             {stats.sprites}, {stats.spriteFrames}
+                        </Stat>
+                        <Stat label="Tingkat kualitas">
+                            {stats.tier} ({stats.tierMode}), bayangan{' '}
+                            {stats.shadowMap > 0
+                                ? `${stats.shadowMap}²`
+                                : 'mati'}
                         </Stat>
                         <Stat label="Geser kamera">
                             {stats.driftActive

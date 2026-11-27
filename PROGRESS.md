@@ -1,5 +1,61 @@
 # PROGRESS
 
+## Tahap 5H langkah a3: Rantai cahaya sore (WIP, 26–27 Nov 2026)
+
+Status: **belum selesai, di-commit sebagai WIP atas pilihan pemilik (27 Nov 2026), tanpa baris Co-Authored-By.** Tahap 5H kemudian **digantikan konsep baru** "toko item fantasi malam, aset Higgsfield" (lihat bagian keputusan di bawah). Kode a3 disimpan supaya bagiannya bisa dipakai ulang.
+
+### Yang sudah ada di kode (lab `/diorama-3d-lab`)
+
+- **Cahaya:**
+  - matahari jingga rendah (±18°) dengan peta bayangan 1024;
+  - penghalang sinar dinding kanan yang berlubang tepat di kaca jendela dan berkusen silang;
+  - cahaya langit hemisfer + oklusi ambien di warna vertex;
+  - dua lampu dinding (PointLight) + halo;
+  - berkas sinar jendela, debu berkilau di dalam berkas.
+- **Sprite karakter:**
+  - ikut gelap-terang: uji sinar analitik per texel, sama dengan `sunVisible` di TS;
+  - rim keemasan 1 texel;
+  - bayangan kontak dan bayangan panjang (quad penghasil bayangan menghadap matahari, `customDepthMaterial`);
+  - opsi garis luar.
+- **Pipa pasca:** target resolusi dalam (+ tekstur kedalaman) → bloom dual Kawase 3 tingkat → blur ½ dan ¼ → satu komposit (nearest atau sharp bilinear, DOF atau tilt-shift, kabut, olah warna, vinyet, dither).
+- **Kendali dan ukuran:**
+  - HUD `?hud=1`;
+  - penjaga performa tingkat 0–3;
+  - sakelar per efek, `?efek=`, `?tingkat=`;
+  - "Bekukan dunia", "Bandingkan dengan Canvas" (dunia sama, saat sama), uji pasang/lepas 20×.
+- **Tes:** Vitest `three/a3.test.ts` (cahaya, geometri, efek, penjaga performa). Diorama 292 tes lulus; tsc dan lint bersih.
+
+### Hasil ukur yang sempat diambil
+
+Browser Playwright merender dengan **Intel UHD Graphics (grafis terpadu)** laptop pemilik.
+
+- **Beban di 1920 × 1080, tingkat 0, semua efek:**
+  - ±27,5 FPS (batas 30);
+  - CPU 0,8–0,9 ms p50, 1,1–1,3 ms p90;
+  - GPU 4,1–4,2 ms p50, 5,1–6,4 ms p90;
+  - 20 draw call, ±1.000 segitiga.
+- **Uji pasang/lepas 20× (4 putaran):**
+  - sisa geometri dan tekstur di GPU selalu 0;
+  - heap JS kembali ke ±14–15 MB saat istirahat, tidak bocor.
+
+### Yang belum dikerjakan (karena arah diganti)
+
+- Tangkapan per efek di 1366 × 768 dan 1920 × 1080, dan penilaian daftar cek bagian 7.
+- Pemeriksa shader (agen) belum selesai: sesi berakhir sebelum hasilnya keluar.
+- Pemeriksa threejs-devtools lewat proxy belum tersambung.
+- `docs/referensi-diorama/5h-a3/coba-*.png` hanya tangkapan coba, tidak ikut di-commit.
+
+---
+
+## Keputusan pemilik 27 Nov 2026: konsep HD-2D "toko item fantasi malam"
+
+- **Konsep baru menggantikan Tahap 5H** (toko koperasi sore, tanpa gambar AI). Langkah 5H b–d dibatalkan.
+- **Aset gambar dibuat dengan Higgsfield** (paket Plus, 1.000 kredit). Biaya dan tiap generate menunggu persetujuan pemilik.
+- **Karakter:** hanya zombie (gambar pemilik) yang dipakai, sebagai penjaga toko. Penjaga toko baru dari prompt (rambut putih, topi merah) tidak dibuat.
+- **Cabang kerja baru:** `feature/hd2d-ui`, dibuat dari commit WIP a3.
+
+---
+
 ## Tahap 5H langkah a2: Perabot, lampu, zombie, dan satu pelanggan (26 Nov 2026)
 
 Status: **langkah a2 selesai dan disetujui pemilik (26 Nov 2026); di-commit di cabang `tahap-5h-diorama-3d` tanpa baris Co-Authored-By, belum di-push.** Keputusan sharp bilinear sebagai bawaan masih menunggu pemilik.

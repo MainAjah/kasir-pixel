@@ -1,17 +1,20 @@
 import { useEffect, useRef, useState } from 'react';
+import DioramaHud from '@/components/diorama/diorama-hud';
 import { startLoop } from '@/diorama/engine/loop';
 import type { LoopHandle } from '@/diorama/engine/loop';
-import { DioramaWorld } from '@/diorama/engine/world';
 import type { ShelfFills } from '@/diorama/engine/shelves';
+import type { DioramaWorld } from '@/diorama/engine/world';
+import type { Effects } from '@/diorama/three/effects';
 import type {
     Lens,
+    TierMode,
     Upscale,
     WebGLStats,
     WebGLView,
 } from '@/diorama/three/webgl-view';
 import { cn } from '@/lib/utils';
 
-export type StageStats = WebGLStats & { fps: number };
+export type StageStats = WebGLStats;
 
 type Status = 'memuat' | 'siap' | 'tidak-didukung' | 'gagal' | 'hilang';
 
@@ -23,7 +26,10 @@ const MESSAGES: Record<Exclude<Status, 'siap'>, string> = {
     hilang: 'Konteks grafis hilang (driver atau GPU direset). Muat ulang halaman.',
 };
 
-function supportsWebGL2(): boolean {
+/** Jeda (detik) sebelum pelanggan berikutnya masuk setelah toko kosong. */
+const RESPAWN_DELAY = 1.5;
+
+export function supportsWebGL2(): boolean {
     try {
         const canvas = document.createElement('canvas');
         const gl = canvas.getContext('webgl2');
@@ -35,51 +41,61 @@ function supportsWebGL2(): boolean {
     }
 }
 
-/** Jeda (detik) sebelum pelanggan berikutnya masuk setelah toko kosong. */
-const RESPAWN_DELAY = 1.5;
-
 /**
  * Panggung diorama 3D untuk lab Tahap 5H. three.js dimuat dengan import()
  * dinamis (potongan terpisah). Loop 30 FPS yang sama dengan Canvas
  * (`startLoop`, berhenti saat tab tersembunyi).
  *
- * Langkah a2: dunia diorama yang sama dengan Beranda (`DioramaWorld`) berjalan
- * di sini. Satu pembeli pura-pura (`stagePretend`, hanya animasi, tanpa data)
- * masuk, mengambil barang, antre, dilayani, lalu pergi; setelah toko kosong
- * sebentar, pembeli berikutnya masuk.
+ * Dunia diorama (`DioramaWorld`, sama dengan Beranda) diberikan dari luar,
+ * sehingga lab bisa menampilkan Canvas dan 3D pada saat yang sama. Panggung
+ * hanya memajukan dunia bila `driveWorld` dan tidak dibekukan. Satu pembeli
+ * pura-pura (`stagePretend`, hanya animasi, tanpa data) masuk lagi setelah
+ * toko kosong sebentar.
  */
 export default function ThreeLabStage({
+    world,
+    driveWorld,
+    frozen,
     pitchDeg,
     lens,
     drift,
     upscale,
     fills,
+    effects,
+    tier,
+    hud,
     onStats,
     className,
 }: {
+    world: DioramaWorld;
+    driveWorld: boolean;
+    frozen: boolean;
     pitchDeg: number;
     lens: Lens;
     drift: boolean;
     upscale: Upscale;
     fills: ShelfFills;
+    effects: Effects;
+    tier: TierMode;
+    hud: boolean;
     onStats?: (stats: StageStats) => void;
     className?: string;
 }) {
     const hostRef = useRef<HTMLDivElement>(null);
     const viewRef = useRef<WebGLView | null>(null);
-    const settings = useRef({ pitchDeg, lens, drift, upscale });
-    const fillsRef = useRef(fills);
+    const settings = useRef({ pitchDeg, lens, drift, upscale, effects, tier });
+    const live = useRef({ fills, driveWorld, frozen });
     const onStatsRef = useRef(onStats);
-    const [world] = useState(() => new DioramaWorld({ autoBackground: false }));
     const [status, setStatus] = useState<Status>('memuat');
+    const [stats, setStats] = useState<StageStats | null>(null);
 
     useEffect(() => {
         onStatsRef.current = onStats;
     }, [onStats]);
 
     useEffect(() => {
-        fillsRef.current = fills;
-    }, [fills]);
+        live.current = { fills, driveWorld, frozen };
+    }, [fills, driveWorld, frozen]);
 
     useEffect(() => {
         const host = hostRef.current;
@@ -99,7 +115,6 @@ export default function ThreeLabStage({
         let loop: LoopHandle | null = null;
         let observer: ResizeObserver | null = null;
         let timer = 0;
-        let frames = 0;
 
         void import('@/diorama/three/webgl-view')
             .then(async ({ WebGLView: View }) => {
@@ -122,27 +137,36 @@ export default function ThreeLabStage({
                 observer.observe(host);
                 let idle = 0;
                 loop = startLoop((dt) => {
-                    if (
-                        world.customers.length === 0 &&
-                        world.pending.length === 0
-                    ) {
-                        idle += dt;
+                    const {
+                        fills: f,
+                        driveWorld: drive,
+                        frozen: still,
+                    } = live.current;
 
-                        if (idle > RESPAWN_DELAY) {
-                            world.stagePretend('pembeli');
+                    if (drive && !still) {
+                        if (
+                            world.customers.length === 0 &&
+                            world.pending.length === 0
+                        ) {
+                            idle += dt;
+
+                            if (idle > RESPAWN_DELAY) {
+                                world.stagePretend('pembeli');
+                                idle = 0;
+                            }
+                        } else {
                             idle = 0;
                         }
-                    } else {
-                        idle = 0;
+
+                        world.update(dt);
                     }
 
-                    world.update(dt);
-                    v.render(world, { fills: fillsRef.current }, dt);
-                    frames += 1;
+                    v.render(world, { fills: f }, still ? 0 : dt);
                 });
                 timer = window.setInterval(() => {
-                    onStatsRef.current?.({ ...v.stats(), fps: frames * 2 });
-                    frames = 0;
+                    const s = v.stats();
+                    setStats(s);
+                    onStatsRef.current?.(s);
                 }, 500);
                 setStatus('siap');
             })
@@ -181,9 +205,20 @@ export default function ThreeLabStage({
         viewRef.current?.setUpscale(upscale);
     }, [upscale]);
 
+    useEffect(() => {
+        settings.current.effects = effects;
+        viewRef.current?.setEffects(effects);
+    }, [effects]);
+
+    useEffect(() => {
+        settings.current.tier = tier;
+        viewRef.current?.setTier(tier);
+    }, [tier]);
+
     return (
         <div className={cn('relative overflow-hidden', className)}>
             <div ref={hostRef} className="absolute inset-0" />
+            {hud && stats && status === 'siap' && <DioramaHud stats={stats} />}
             {status !== 'siap' && (
                 <p
                     role="status"

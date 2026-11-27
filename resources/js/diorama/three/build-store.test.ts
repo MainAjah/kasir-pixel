@@ -22,11 +22,12 @@ function build() {
 }
 
 describe('geometri balok toko (Tahap 5H a1)', () => {
-    it('lantai satu quad per ubin + 8 muka dinding dan alas', () => {
+    it('lantai empat quad per ubin (oklusi halus, a3) + 8 muka dinding dan alas', () => {
         const { arrays } = build();
         const quads = arrays.positions.length / 12;
 
-        expect(quads).toBe(12 * 9 + 8);
+        expect(quads).toBe(12 * 9 * 4 + 8);
+        expect(arrays.vertexNormals).toHaveLength(quads * 12);
         expect(arrays.indices).toHaveLength(quads * 6);
         expect(arrays.uvs).toHaveLength(quads * 8);
         expect(arrays.colors).toHaveLength(quads * 12);

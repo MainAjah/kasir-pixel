@@ -1,5 +1,12 @@
 # Tahap 5H: Diorama 3D bergaya HD-2D dengan three.js (rencana)
 
+> **Digantikan (27 Nov 2026).** Atas keputusan pemilik, arah ini diganti konsep "toko item fantasi malam" dengan aset Higgsfield (cabang `feature/hd2d-ui`).
+> - Langkah a1 dan a2 selesai.
+> - Langkah a3 di-commit sebagai WIP.
+> - Langkah b–d dibatalkan.
+>
+> Bagian kode 5H (pipa cahaya, bayangan sprite, debu, HUD, penjaga performa, dispose) boleh dipakai ulang. Rincian di PROGRESS.md.
+
 ## Persetujuan pemilik (26 Nov 2026)
 
 - **Rencana disetujui.** Simpan rencana ini ke `docs/rencana-tahap-5h.md`.

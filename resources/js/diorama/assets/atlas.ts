@@ -31,6 +31,11 @@ export type AtlasPack = {
     source: string;
     image: TexImageSource;
     layout: AtlasLayout;
+    /**
+     * Atlas cahaya (Tahap 5H a3), tata letak sama: hanya piksel yang menyala
+     * (kaca jendela, bola lampu); sisanya hitam. Dipakai sebagai emissive.
+     */
+    glowImage?: TexImageSource;
 };
 
 export interface AssetSource {
@@ -42,7 +47,16 @@ export type AtlasEntry = {
     key: string;
     matrix: PixelMatrix;
     pivot?: { x: number; y: number };
+    /** Piksel yang menyala (ukuran sama dengan `matrix`), untuk atlas cahaya. */
+    glow?: PixelMatrix;
 };
+
+/** Bingkai cahaya saja: matriks `glow` di tempat bingkainya. Murni. */
+export function glowEntries(entries: readonly AtlasEntry[]): AtlasEntry[] {
+    return entries
+        .filter((e) => e.glow)
+        .map((e) => ({ key: e.key, matrix: e.glow as PixelMatrix }));
+}
 
 export type PackOptions = {
     /** Lebar atlas (texel); bawaan 1024. */

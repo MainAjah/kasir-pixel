@@ -21,7 +21,20 @@ export type MeshArrays = {
     indices: number[];
     /** Normal tiap quad (untuk tes arah muka). */
     normals: Vec3[];
+    /** Normal per vertex (3 angka per vertex), untuk pencahayaan (a3). */
+    vertexNormals: number[];
 };
+
+export function emptyMesh(): MeshArrays {
+    return {
+        positions: [],
+        uvs: [],
+        colors: [],
+        indices: [],
+        normals: [],
+        vertexNormals: [],
+    };
+}
 
 /** Kecerahan tetap per arah muka (bukan cahaya; hanya agar bentuk terbaca). */
 export const FACE_SHADE = { atas: 1, depanKiri: 1, depanKanan: 0.84 } as const;
@@ -76,21 +89,24 @@ export function quad(
         [uv.u0, uv.v1],
     ];
 
+    const raw = normalize(cross(sub(bl, tl), sub(br, tl)));
+    const aligned =
+        raw[0] * facing[0] + raw[1] * facing[1] + raw[2] * facing[2] > 0;
+    const n: Vec3 = aligned ? raw : [-raw[0], -raw[1], -raw[2]];
+
     for (const [i, c] of [tl, tr, br, bl].entries()) {
         out.positions.push(c[0], c[1], c[2]);
         out.uvs.push(texture[i][0], texture[i][1]);
         out.colors.push(shade, shade, shade);
+        out.vertexNormals.push(n[0], n[1], n[2]);
     }
 
-    const n = normalize(cross(sub(bl, tl), sub(br, tl)));
-    const aligned = n[0] * facing[0] + n[1] * facing[1] + n[2] * facing[2] > 0;
+    out.normals.push(n);
 
     if (aligned) {
         out.indices.push(base, base + 3, base + 2, base, base + 2, base + 1);
-        out.normals.push(n);
     } else {
         out.indices.push(base, base + 2, base + 3, base, base + 1, base + 2);
-        out.normals.push([-n[0], -n[1], -n[2]]);
     }
 }
 
@@ -105,13 +121,7 @@ export function buildStore(
     layout: Pick<AtlasLayout, 'width' | 'height'>,
     frameOf: FrameLookup,
 ): MeshArrays {
-    const out: MeshArrays = {
-        positions: [],
-        uvs: [],
-        colors: [],
-        indices: [],
-        normals: [],
-    };
+    const out = emptyMesh();
     const X = scene.width;
     const Z = scene.height;
     const H = WALL_H;
@@ -122,25 +132,29 @@ export function buildStore(
     const plusX: Vec3 = [1, 0, 0];
     const plusZ: Vec3 = [0, 0, 1];
 
-    // Lantai: satu quad per ubin (variasi kecerahan per ubin), satu tekstur utuh
-    // sehingga papan menyambung lintas ubin.
+    // Lantai: empat quad per ubin (setengah ubin), supaya oklusi ambien di warna
+    // vertex (a3) bergradasi halus; variasi kecerahan tetap per ubin. Satu
+    // tekstur utuh sehingga papan menyambung lintas ubin.
     const floor = frameOf(STORE_KEYS.lantai);
+    const half = T / 2;
 
-    for (let gx = 0; gx < X; gx++) {
-        for (let gz = 0; gz < Z; gz++) {
+    for (let hx = 0; hx < X * 2; hx++) {
+        for (let hz = 0; hz < Z * 2; hz++) {
+            const x = hx / 2;
+            const z = hz / 2;
             quad(
                 out,
                 [
-                    [gx, 0, gz],
-                    [gx + 1, 0, gz],
-                    [gx + 1, 0, gz + 1],
-                    [gx, 0, gz + 1],
+                    [x, 0, z],
+                    [x + 0.5, 0, z],
+                    [x + 0.5, 0, z + 0.5],
+                    [x, 0, z + 0.5],
                 ],
                 floor,
                 layout,
                 up,
-                tileShade(gx, gz),
-                { x: gx * T, y: gz * T, w: T, h: T },
+                tileShade(Math.floor(x), Math.floor(z)),
+                { x: hx * half, y: hz * half, w: half, h: half },
             );
         }
     }
