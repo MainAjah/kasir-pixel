@@ -29,6 +29,9 @@ Route::middleware(['auth', 'role:admin'])->group(function () {
     // Tahap 5H: prototipe diorama 3D (three.js), terpisah dari Beranda dan diorama lab.
     Route::inertia('diorama-3d-lab', 'diorama-3d-lab')->name('diorama.lab3d');
 
+    // Tahap HD-2D B1: pratinjau token dan komponen dasar, data contoh saja.
+    Route::inertia('hd2d-lab', 'hd2d-lab')->name('hd2d.lab');
+
     // Tahap 6: satu penjualan acak sungguhan (lewat CompleteSale) untuk demo.
     Route::post('diorama-lab/simulasi', [SimulateSaleController::class, 'store'])
         ->middleware('throttle:60,1')

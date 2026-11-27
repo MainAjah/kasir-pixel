@@ -1,5 +1,80 @@
 # PROGRESS
 
+## Tahap HD-2D B1: Token desain dan komponen dasar (27 Nov 2026)
+
+Status: **selesai, menunggu persetujuan pemilik, belum di-commit.** Cabang `feature/hd2d-ui`; sebelum B1, cabang ini sudah di-push ke `origin` sebagai cadangan (atas permintaan pemilik).
+
+### Aturan baru dari pemilik (berlaku mulai B1)
+
+- **Higgsfield:**
+  - batas tambahan 8 kredit;
+  - satu gambar per prompt, quality high (tanpa xhigh/max);
+  - tidak ada generate ulang tanpa diminta;
+  - satu-satunya generate yang diizinkan nanti: concept art senja 4k (±3,25 kredit) untuk latar layar judul. Dibuat dengan prompt v2 + kalimat "true low-resolution pixel art …" dari pemilik, lalu diperkecil nearest ke 960×540. Itu pun setelah estimate_image_cost dan persetujuan.
+- **Urutan kerja:**
+  1. push cadangan;
+  2. B1;
+  3. B2 `HD2DScene`;
+  4. Tahap 11B–11E;
+  5. baru B3–B6.
+
+  Tiap tahap berhenti untuk persetujuan. Pesan pemilik terpotong setelah "5. Baru B3-B6:", jadi rincian B3–B6 masih perlu ditanyakan.
+
+### Yang sudah selesai
+
+- **Token desain:** `resources/css/hd2d.css` (variabel `--hd-*`, dipakai sebagai kelas `hd-*`) dan `resources/js/components/hd2d/tokens.ts`.
+  - Warna sesuai spesifikasi: emas #e3c27a/#b8954f, krem #f1e8d6, sekunder #b9ad95, panel #0c0d1c 0,86, merah #e57a6a, hijau #9fd39a.
+  - Font: Cinzel untuk judul, Spectral untuk isi. Angka memakai `tabular-nums`.
+  - Fokus keyboard: garis emas 2 px.
+  - `prefers-reduced-motion` mematikan kedip, animasi masuk, dan transisi.
+- **Komponen** di `resources/js/components/hd2d/`, semuanya berkas baru:
+  - **`panel.tsx`:** panel gelap setengah tembus, garis emas ganda, berlian di empat sudut, judul Cinzel.
+  - **`button.tsx`:** tombol primer (emas) dan sekunder (garis emas); ukuran kecil, sedang, besar; keadaan nonaktif.
+  - **`input.tsx`:** label, petunjuk, galat merah lembut yang terhubung lewat `aria-describedby`, awalan "Rp", mode angka.
+  - **`tabs.tsx`:** tab bergaya menu game dengan berlian. Panah, Home, dan End berfungsi (pola tablist WAI-ARIA). Bila tidak muat, tab turun ke baris kedua.
+  - **`list-row.tsx`:** `HdList` (listbox) dan `HdListRow`.
+    - Isi baris: ikon piksel, nama asli, nama RPG miring emas sebagai hiasan, harga tabular, stok.
+    - Baris terpilih punya kursor berlian berkedip; hover memberi gradasi emas.
+    - Stok habis membuat baris redup. Kliknya tetap diteruskan agar penjaga bisa menjelaskan alasannya.
+  - **`modal.tsx`:** di atas Radix Dialog yang sudah ada. Fokus terkunci di dalam, Esc menutup, dan fokus kembali ke pemicunya.
+  - **`shopkeeper-dialog.tsx`:** potret zombie dada ke atas, memakai `BigPortrait` yang ada tanpa digambar ulang.
+    - Kalimat muncul seperti diketik (45 huruf per detik). Pembaca layar menerima kalimat utuh lewat wilayah status.
+    - Nada galat dan sukses punya warna sendiri.
+  - **`banner.tsx`:** "Transaksi Selesai" beserta rincian, lalu memudar sendiri. Tidak menangkap klik, dan diumumkan lewat wilayah status.
+  - **Pendukung:** `logic.ts` (fungsi murni) dan `use-reduced-motion.ts`.
+- **Lab `/hd2d-lab`** (`pages/hd2d-lab.tsx`, hanya admin, data contoh):
+  - semua komponen di atas latar `konsep-senja.png`, dengan susunan seperti kasir;
+  - bisa dicoba: panah/Enter menambah barang, bayar kurang, bayar lebih, stok habis, modal, dan banner.
+- **Perubahan kecil pada berkas lama** (bukan halaman):
+  - `routes/web.php`: satu rute lab di grup admin;
+  - `vite.config.ts`: Cinzel dan Spectral lewat `google()` dari laravel-vite-plugin, mekanisme yang sama dengan font yang sudah ada. Tanpa preload, jadi halaman lain tidak ikut mengunduh. Font diunduh saat build dan disajikan dari `public/build`.
+
+### Pemeriksaan
+
+- **Vitest:** 336 tes lulus, termasuk 13 tes baru `components/hd2d/hd2d.test.ts`:
+  - token TS sama dengan CSS;
+  - semua warna teks ≥ 4,5:1 bahkan bila panel berada di atas latar putih;
+  - teks tombol emas, kolom isian, efek mengetik, tab, dan baris aktif.
+- **Pest:** 433 tes lulus, termasuk `Hd2dLabTest` (admin bisa membuka; kasir dan bendahara ditolak; tamu diarahkan ke login).
+- **Lain-lain:** `tsc` bersih, Pint lulus, `npm run build` berhasil.
+- **Lint:** dua peringatan, keduanya di berkas lama `docs/referensi-karakter/alat/` yang tidak disentuh.
+- **Browser (Playwright, 1366×768, 1920×1080, 390×844):**
+  - konsol bersih;
+  - tidak ada gulir mendatar di HP;
+  - Cinzel dan Spectral termuat.
+
+### Batasan
+
+- Lab memakai gambar concept art sebagai latar sementara; adegan three.js baru dibuat di B2.
+- Efek interaksi kasir (ikon di meja, percikan, total berputar, getar panel, bunyi, XP) belum ada. Itu bagian B4, bukan komponen dasar.
+- Peringatan build "fontaine" berasal dari font lama (Instrument Sans, Pixelify Sans). Font baru sudah memakai `optimizedFallbacks: false`.
+
+### Saran untuk tahap berikutnya
+
+- **B2, `HD2DScene` eksterior** (three.js; memakai ulang pipa a3 dan pass dari `three/addons`; ada cadangan bila WebGL gagal): Opus, upaya tinggi.
+
+---
+
 ## Tahap HD-2D A: Aset pixel art dari Higgsfield (27 Nov 2026)
 
 Status: **aset selesai dan sudah dipasca-proses, belum di-commit.** Cabang: `feature/hd2d-ui`. Tahap B (mengganti frontend) belum dimulai.

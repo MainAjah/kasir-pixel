@@ -4,7 +4,7 @@ import babel from '@rolldown/plugin-babel';
 import tailwindcss from '@tailwindcss/vite';
 import react, { reactCompilerPreset } from '@vitejs/plugin-react';
 import laravel from 'laravel-vite-plugin';
-import { bunny } from 'laravel-vite-plugin/fonts';
+import { bunny, google } from 'laravel-vite-plugin/fonts';
 import { defineConfig, lazyPlugins } from 'vite-plus';
 
 export default defineConfig({
@@ -19,6 +19,19 @@ export default defineConfig({
                 // Tahap 5E-1 (izin pemilik): font pixel untuk judul, angka besar, dan tombol.
                 bunny('Pixelify Sans', {
                     weights: [400, 500, 600, 700],
+                }),
+                // Tema HD-2D (izin pemilik, Google Fonts): judul Cinzel, isi Spectral.
+                // Tidak dipreload karena baru dipakai halaman HD-2D.
+                google('Cinzel', {
+                    weights: [400, 600, 700],
+                    preload: false,
+                    optimizedFallbacks: false,
+                }),
+                google('Spectral', {
+                    weights: [400, 600],
+                    styles: ['normal', 'italic'],
+                    preload: false,
+                    optimizedFallbacks: false,
                 }),
             ],
         }),
