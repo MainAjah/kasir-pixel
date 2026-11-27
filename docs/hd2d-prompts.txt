@@ -1,0 +1,106 @@
+Prompt aset HD-2D (Higgsfield), dibuat 27 Nov 2026
+Semua memakai model gpt_image_2_6, kualitas high, use_unlim false (dibayar kredit).
+Aset sesudah concept v2 memakai concept v2 (job 68dd4edb-...) sebagai image_references.
+Hasil olahan ada di public/assets/hd2d/. Berkas mentah tidak disimpan di repo.
+
+========================================================================
+1. Concept art v1 (TIDAK DIPAKAI, diganti v2 atas revisi pemilik)
+========================================================================
+job        : d0abc177-28de-48f8-87c4-83b4582efd6e
+resolusi   : 2k, 16:9, latar opaque
+referensi  : tidak ada
+kredit     : 2
+keluaran   : -
+
+Original HD-2D-inspired pixel art scene: a quiet cobblestone street in front of a small fantasy item shop at dusk. Detailed crisp pixel art sprites and textures placed in a 3D diorama, viewed from a slightly elevated three-quarter camera. In the background stands a two-storey shop building with cream plaster walls and dark timber frame beams, a red clay tile roof, warmly glowing windows, and a hanging wooden sign painted with a potion bottle icon (no text). In front of the shop is a wooden market stall with a striped fabric canopy; the space behind the stall is empty, reserved for the shopkeeper. Cobblestone street, an iron street lamp glowing warm orange, wooden barrels, crates, a stack of burlap sacks, potted plants, a small tree, bushes and a wooden bench. Dusk sky gradient from deep blue to warm orange near the horizon, a few stars and a thin crescent moon. Faint fireflies and glowing dust motes in the air, thin evening mist. Strong tilt-shift depth of field (blurred foreground and background, sharp market stall), soft bloom on lights, vignette, cinematic warm and cool color grading. Sharp square pixels. No characters, no people, no text, no UI, no watermark. Avoid: blurry, anti-aliased, smooth gradients, realistic, 3D render, photo, text, watermark, extra limbs, jpeg artifacts.
+
+========================================================================
+2. Concept art v2 (DISETUJUI, referensi semua aset berikutnya; prompt dari pemilik)
+========================================================================
+job        : 68dd4edb-921c-4e1b-bb5c-c441df8afb4f
+resolusi   : 2k, 16:9, latar opaque
+referensi  : tidak ada
+kredit     : 2
+keluaran   : latar/konsep-senja.png
+
+Original HD-2D-inspired pixel art diorama of a cozy fantasy item shop seen from outside at dusk. Detailed crisp pixel art sprites and textures placed in a 3D scene, viewed from a slightly elevated three-quarter camera. In the background, a charming two-story timber-and-plaster shop building with a tiled roof, glowing warm yellow windows, a wooden door, a hanging wooden sign with a potion bottle icon (no text), flower boxes and shelves of potion bottles visible through the windows. In front of the shop, an empty wooden market counter on a cobblestone street, with open space behind the counter for a character (leave it empty). Street lanterns on iron posts glowing warm orange, barrels, crates, potted plants and a few trees on the sides, a purple-and-orange dusk sky with the first stars and a crescent moon, distant rooftops and hills in soft haze. Strong tilt-shift depth of field (blurred foreground and far background, sharp counter and shop front), soft bloom on lights, light fog, floating fireflies, vignette, cinematic warm and cool color grading. Sharp square pixels, no text, no UI, no watermark.
+
+========================================================================
+3. Tekstur jalan berbatu
+========================================================================
+job        : 90a28ba0-341d-42d9-8d51-10a1e99a6e3b
+resolusi   : 1k, 1:1, latar opaque
+referensi  : concept v2 (68dd4edb-921c-4e1b-bb5c-c441df8afb4f)
+kredit     : 1.25
+keluaran   : tekstur/jalan-batu.png
+
+Seamless tileable pixel art texture, original HD-2D-inspired style, top-down orthographic, even lighting, no shadows, no perspective, crisp square pixels, rich limited palette: worn cobblestone street paving with irregular rounded stones and thin mossy gaps. The edges must tile seamlessly. No text. Match the art style, palette, lighting and pixel density of the reference image. Avoid: blurry, anti-aliased, smooth gradients, realistic, 3D render, photo, text, watermark, jpeg artifacts.
+
+========================================================================
+4. Tekstur dinding plester + balok kayu
+========================================================================
+job        : d607aa5b-dd8e-440b-9e15-e0454836cffb
+resolusi   : 1k, 1:1, latar opaque
+referensi  : concept v2 (68dd4edb-921c-4e1b-bb5c-c441df8afb4f)
+kredit     : 1.25
+keluaran   : tekstur/dinding-plester.png (dipotong ke baris 12-962 agar menyambung)
+
+Seamless tileable pixel art texture, original HD-2D-inspired style, flat front orthographic view, even lighting, no shadows, no perspective, crisp square pixels, rich limited palette: cream plaster wall with dark brown timber frame beams (half-timbered), straight horizontal and vertical beams with a few diagonal braces. The edges must tile seamlessly. No text. Match the art style, palette, lighting and pixel density of the reference image. Avoid: blurry, anti-aliased, smooth gradients, realistic, 3D render, photo, text, watermark, jpeg artifacts.
+
+========================================================================
+5. Tekstur atap genteng
+========================================================================
+job        : 15c6bf09-4073-41cc-a198-8ef267aea76a
+resolusi   : 1k, 1:1, latar opaque
+referensi  : concept v2 (68dd4edb-921c-4e1b-bb5c-c441df8afb4f)
+kredit     : 1.25
+keluaran   : tekstur/atap-genteng.png
+
+Seamless tileable pixel art texture, original HD-2D-inspired style, flat front orthographic view, even lighting, no shadows, no perspective, crisp square pixels, rich limited palette: red-brown clay roof tiles in overlapping staggered rows. The edges must tile seamlessly. No text. Match the art style, palette, lighting and pixel density of the reference image. Avoid: blurry, anti-aliased, smooth gradients, realistic, 3D render, photo, text, watermark, jpeg artifacts.
+
+========================================================================
+6. Tekstur papan kayu
+========================================================================
+job        : c2616cfd-e715-42fe-b375-4f50cec685fc
+resolusi   : 1k, 1:1, latar opaque
+referensi  : concept v2 (68dd4edb-921c-4e1b-bb5c-c441df8afb4f)
+kredit     : 1.25
+keluaran   : tekstur/papan-kayu.png
+
+Seamless tileable pixel art texture, original HD-2D-inspired style, top-down orthographic, even lighting, no shadows, no perspective, crisp square pixels, rich limited palette: weathered warm brown wooden planks laid horizontally with wood grain and small nail heads. The edges must tile seamlessly. No text. Match the art style, palette, lighting and pixel density of the reference image. Avoid: blurry, anti-aliased, smooth gradients, realistic, 3D render, photo, text, watermark, jpeg artifacts.
+
+========================================================================
+7. Lembar properti A
+========================================================================
+job        : 2d00815b-2ef2-4f82-848b-5f562ac7890e
+resolusi   : 1k, 1:1, latar transparent
+referensi  : concept v2 (68dd4edb-921c-4e1b-bb5c-c441df8afb4f)
+kredit     : 1.25
+keluaran   : properti/lampu-jalan, tong, peti, tanaman-pot, pohon-kecil
+
+Pixel art prop sprite sheet, original HD-2D-inspired style, fully transparent background: an iron street lamp on a tall post glowing warm orange, a wooden barrel with metal bands, a wooden crate, a potted flowering plant in a clay pot, a small leafy tree. Five separate props arranged in a loose grid with generous empty spacing between them, front three-quarter view, consistent top-left lighting, dark outlines, crisp square pixels, no ground, no shadows, no text. Match the art style, palette, lighting and pixel density of the reference image. Avoid: blurry, anti-aliased, smooth gradients, realistic, 3D render, photo, text, watermark, jpeg artifacts.
+
+========================================================================
+8. Lembar properti B
+========================================================================
+job        : e621cd39-3c8f-438f-90c3-65d28ee1f13b
+resolusi   : 1k, 1:1, latar transparent
+referensi  : concept v2 (68dd4edb-921c-4e1b-bb5c-c441df8afb4f)
+kredit     : 1.25
+keluaran   : properti/semak, bangku, papan-nama-ramuan, meja-lapak, karung
+
+Pixel art prop sprite sheet, original HD-2D-inspired style, fully transparent background: a round green bush, a wooden park bench, a hanging wooden shop sign with a painted potion bottle icon (no text), a wooden market stall counter with a striped fabric canopy, a stack of burlap sacks. Five separate props arranged in a loose grid with generous empty spacing between them, front three-quarter view, consistent top-left lighting, dark outlines, crisp square pixels, no ground, no shadows, no text. Match the art style, palette, lighting and pixel density of the reference image. Avoid: blurry, anti-aliased, smooth gradients, realistic, 3D render, photo, text, watermark, jpeg artifacts.
+
+========================================================================
+9. Lembar 9 ikon barang
+========================================================================
+job        : 21140b76-e23c-46e1-9b4f-c11b5bb15c29
+resolusi   : 1k, 1:1, latar transparent
+referensi  : concept v2 (68dd4edb-921c-4e1b-bb5c-c441df8afb4f)
+kredit     : 1.25
+keluaran   : ikon/air-mineral, teh-botol, kopi, biskuit, keripik, cokelat, beras, mi-instan, sabun
+
+Pixel art item icon sheet, original HD-2D-inspired style, fully transparent background: nine small shop item icons arranged in a neat 3 by 3 grid with generous empty spacing, each centered in its own cell. Row 1: a clear plastic bottle of mineral water with a blue cap, a glass bottle of amber iced tea, a steaming mug of black coffee. Row 2: a pack of coconut biscuits, a bag of cassava chips, a bar of chocolate with partly peeled foil. Row 3: a small burlap sack of rice, a pack of instant noodles, a bar of soap with a few bubbles. Plain unbranded packaging with no logos and no letters. Front three-quarter view, consistent top-left lighting, dark outlines, crisp square pixels, no ground, no shadows, no text. Match the art style, palette, lighting and pixel density of the reference image. Avoid: blurry, anti-aliased, smooth gradients, realistic, 3D render, photo, text, watermark, jpeg artifacts.
+
+========================================================================
+Total kredit: 12.75 (batas yang disetujui pemilik: 15)

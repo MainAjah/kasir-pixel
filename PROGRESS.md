@@ -1,5 +1,74 @@
 # PROGRESS
 
+## Tahap HD-2D A: Aset pixel art dari Higgsfield (27 Nov 2026)
+
+Status: **aset selesai dan sudah dipasca-proses, belum di-commit.** Cabang: `feature/hd2d-ui`. Tahap B (mengganti frontend) belum dimulai.
+
+### Keputusan pemilik
+
+- **Lingkungan:** luar ruangan, yaitu jalan depan toko saat senja. Toko item fantasi berdinding plester dan balok kayu, atap genteng, jendela hangat, papan nama botol ramuan, meja lapak, jalan berbatu, lampu jalan, dan langit senja dengan bulan sabit.
+- **Concept art:**
+  - v1 memakai prompt saya; diganti setelah pemilik merevisi.
+  - **v2 memakai prompt dari pemilik dan disetujui ("Pakai versi 2").** v2 menjadi referensi gaya untuk semua aset berikutnya dan sekaligus latar layar judul (tidak dibuat latar terpisah).
+- **Penjaga toko:** hanya zombie (gambar pemilik), tidak dibuat dengan AI.
+- **Ikon barang:** 9 ikon disesuaikan dengan kategori di database.
+  - Minuman: air mineral, teh botol, kopi.
+  - Makanan ringan: biskuit, keripik, cokelat.
+  - Sembako: beras, mi instan.
+  - Kebutuhan rumah: sabun.
+  - Empat produk yang sudah ada (Air mineral 600 ml, Biskuit kelapa, Keripik singkong, Cokelat batang) semuanya punya ikon.
+- **Batas kredit:** 15. Tiap generate didahului perkiraan biaya dan persetujuan.
+
+### Yang sudah selesai
+
+- **Aset di `public/assets/hd2d/` (24 berkas PNG, ±408 KB):**
+  - `latar/konsep-senja.png` (672×380);
+  - `tekstur/` jalan-batu, dinding-plester, atap-genteng, papan-kayu (256 px);
+  - `properti/` lampu-jalan, tong, peti, tanaman-pot, pohon-kecil, semak, bangku, papan-nama-ramuan, meja-lapak, karung;
+  - `ikon/` 9 barang di atas.
+- **Pasca-proses** (skrip Node tanpa paket tambahan, memakai pembaca PNG `docs/referensi-karakter/alat/png.js`):
+  - diperkecil 4× dengan nearest;
+  - palet 32 warna per gambar atau lembar;
+  - properti dengan alpha biner;
+  - ikon dengan 4 tingkat alpha, agar botol, plastik, uap, dan gelembung tetap bening;
+  - dipotong per komponen atau per sel;
+  - serpih kecil dibuang.
+- **`public/assets/hd2d/CREDITS.md`:** Higgsfield GPT Image 2.6, tanggal, dan job tiap aset.
+- **`docs/hd2d-prompts.txt`:** prompt lengkap, job, resolusi, referensi, dan kredit tiap gambar.
+
+### Biaya Higgsfield
+
+| Aset | Resolusi | Kredit |
+| --- | --- | --- |
+| Concept v1 (tidak dipakai) | 2k | 2 |
+| Concept v2 (disetujui) | 2k | 2 |
+| 4 tekstur + 2 lembar properti | 1k, referensi v2 | 7,5 |
+| Lembar 9 ikon | 1k, referensi v2 | 1,25 |
+| **Jumlah** | | **12,75 dari batas 15** |
+
+Saldo akun setelahnya 987,25 kredit. Tidak ada generate ulang, dan fitur Unlim atau gratis tidak dipakai.
+
+### Temuan saat diperiksa
+
+- **Uji ubin 3×3:**
+  - jalan batu, genteng, dan papan kayu langsung tersambung mulus;
+  - plester punya balok ganda di sambungan atas–bawah. Pola baloknya berulang tiap ±320 px, jadi tekstur dipotong ke baris 12–962 (tiga ulangan pola penuh) dan sekarang mulus tanpa kredit tambahan. Ukurannya menjadi 256×238 (tidak persegi; WebGL2 tetap bisa mengulang).
+- **Ukuran "piksel seni" hasil AI tidak tepat di grid** (sekitar 4–6 px sumber). Karena itu sebagian piksel hasil kecil tampak sedikit tidak rata. Ini bawaan sumbernya.
+
+### Batasan
+
+- Berkas mentah (1024 px dan 2688×1520) hanya ada di scratchpad sesi dan tidak masuk repo. Bila hilang, bisa diunduh ulang dari Higgsfield lewat job di `docs/hd2d-prompts.txt`.
+- Belum ada kode yang memakai aset ini. Itu bagian Tahap B.
+- Tidak ikut di-commit tanpa keputusan pemilik: `.playwright-mcp/`, `docs/referensi-antarmuka/hd2d-acuan.png`, `docs/referensi-diorama/5h-a3/coba-*.png`.
+
+### Saran untuk tahap berikutnya
+
+- **B1, token desain dan komponen dasar** (Cinzel + Spectral dari Google Fonts, warna dari palet aset): Sonnet, upaya tinggi.
+- **B2, `HD2DScene` eksterior three.js** (memakai ulang pipa a3: bloom, tilt-shift, kabut, olah warna, PointLight, penjaga performa): Opus, upaya tinggi.
+- Sebelum B, pertimbangkan dulu menyelesaikan Tahap 11B–11E, karena menyentuh halaman yang sama.
+
+---
+
 ## Tahap 5H langkah a3: Rantai cahaya sore (WIP, 26–27 Nov 2026)
 
 Status: **belum selesai, di-commit sebagai WIP atas pilihan pemilik (27 Nov 2026), tanpa baris Co-Authored-By.** Tahap 5H kemudian **digantikan konsep baru** "toko item fantasi malam, aset Higgsfield" (lihat bagian keputusan di bawah). Kode a3 disimpan supaya bagiannya bisa dipakai ulang.
