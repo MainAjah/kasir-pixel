@@ -2,23 +2,43 @@
 
 ## Tahap HD-2D B1: Token desain dan komponen dasar (27 Nov 2026)
 
-Status: **selesai, menunggu persetujuan pemilik, belum di-commit.** Cabang `feature/hd2d-ui`; sebelum B1, cabang ini sudah di-push ke `origin` sebagai cadangan (atas permintaan pemilik).
+Status: **disetujui pemilik dan di-commit (`5c7f494`), lalu di-push bersama catatan ini ke `origin/feature/hd2d-ui`.** Cabang ini juga sudah di-push sebelum B1 sebagai cadangan, atas permintaan pemilik.
 
-### Aturan baru dari pemilik (berlaku mulai B1)
+### Keputusan pemilik untuk sisa Tahap B (27 Nov 2026)
 
-- **Higgsfield:**
-  - batas tambahan 8 kredit;
-  - satu gambar per prompt, quality high (tanpa xhigh/max);
-  - tidak ada generate ulang tanpa diminta;
-  - satu-satunya generate yang diizinkan nanti: concept art senja 4k (±3,25 kredit) untuk latar layar judul. Dibuat dengan prompt v2 + kalimat "true low-resolution pixel art …" dari pemilik, lalu diperkecil nearest ke 960×540. Itu pun setelah estimate_image_cost dan persetujuan.
 - **Urutan kerja:**
-  1. push cadangan;
-  2. B1;
-  3. B2 `HD2DScene`;
-  4. Tahap 11B–11E;
-  5. baru B3–B6.
+  1. B2 `HD2DScene`;
+  2. Tahap 11B–11E (REST API);
+  3. B3–B6;
+  4. B7.
 
-  Tiap tahap berhenti untuk persetujuan. Pesan pemilik terpotong setelah "5. Baru B3-B6:", jadi rincian B3–B6 masih perlu ditanyakan.
+  Tiap tahap berhenti untuk persetujuan, satu tahap per sesi. B2 dikerjakan pemilik di sesi baru.
+- **B3–B6, halaman yang diganti (hanya tampilan; alur, data, dan API tetap):**
+  - **Login:** judul besar Cinzel berpendar emas, teks "klik untuk memulai" berkedip pelan. Form login memakai alur otentikasi yang sudah ada.
+  - **Kasir utama:**
+    - adegan `HD2DScene` sebagai latar penuh;
+    - kanan: panel Daftar Barang dan Keranjang;
+    - kiri atas: papan nama, jam, kasir, level, XP, jumlah transaksi, omzet;
+    - kiri bawah: dialog zombie.
+  - **Struk:** modal gulungan perkamen dengan animasi buka.
+  - **Halaman lain** (laporan, produk dan stok, pengguna, pengaturan):
+    - latar gelap buram, tanpa adegan 3D penuh;
+    - panel dan tabel bergaya sama;
+    - tabel tetap padat dan bisa diurutkan.
+- **B7:** tes, lint, dan ringkasan biaya.
+- **Tombol Suara On/Off dan tombol Efek Tinggi/Ringan: BELUM DIPUTUSKAN.**
+  - Pesan pemilik berisi isian templat yang belum dipilih: "[ADA / TIDAK ADA]".
+  - Spesifikasi HD-2D awal meminta kedua tombol itu. Sebaliknya, keputusan lama pemilik (Tahap 5D/5E) membuang tombol senyap dan mode hemat daya.
+  - Harus ditanyakan sebelum B2 atau B4 membuatnya.
+- **Aturan kredit Higgsfield:**
+  - batas tambahan 8 kredit;
+  - satu gambar per prompt (tanpa `batch_size`/`count` > 1), quality high, tanpa xhigh atau max;
+  - selalu `estimate_image_cost` dulu, lalu tunggu persetujuan pemilik;
+  - tidak ada generate ulang aset yang sudah ada, kecuali diminta.
+  - Satu-satunya generate yang direncanakan: concept art senja 4k (±3,25 kredit) untuk latar layar judul, dan itu pun setelah disetujui.
+    - Prompt: prompt v2 yang sama ditambah kalimat dari pemilik, "True low-resolution pixel art, as if drawn on a small pixel grid and scaled up with nearest neighbor: … Limited palette of at most 32 colors. Flat neutral lighting from the upper left with no baked-in shadows."
+    - Hasilnya diperkecil nearest ke 960×540 agar pas digandakan 2× ke 1080p.
+  - Catatan: jatah Unlimited Higgsfield ditolak dari Claude Code (lihat Tahap A). Generate lewat Claude chat hanya bila pemilik memintanya.
 
 ### Yang sudah selesai
 
